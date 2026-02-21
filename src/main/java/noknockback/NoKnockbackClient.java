@@ -12,7 +12,6 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
-import net.minecraft.client.render.VertexRendering;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
@@ -22,12 +21,14 @@ import net.minecraft.util.math.Vec3d;
 import noknockback.mixin.client.GameRendererAccessor;
 
 import org.lwjgl.glfw.GLFW;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class NoKnockbackClient implements ClientModInitializer {
@@ -42,6 +43,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int PLAYER_LIST_BORDER_COLOR = 0x43FFFFFF;
     private static final float PLAYER_LIST_TEXT_SCALE = 0.8F;
     private static final float PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
+    private static final float MAX_BOTTOM_RAY_START_HEIGHT = 300.0F;
 
     private static boolean speedEnabled = true;
     private static boolean playerEspEnabled = false;
@@ -49,6 +51,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean playerListEnabled = false;
     private static float rayThickness = 2.0F;
     private static float outlineThickness = 1.0F;
+    private static float rayBottomStartHeight = 2.0F;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
     private static KeyBinding toggleKey;
     private static KeyBinding togglePlayerEspKey;
@@ -67,11 +70,15 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void setSpeedEnabled(boolean enabled) {
+        if (speedEnabled == enabled) return;
         speedEnabled = enabled;
+        saveConfigNow();
     }
 
     public static void setPlayerEspEnabled(boolean enabled) {
+        if (playerEspEnabled == enabled) return;
         playerEspEnabled = enabled;
+        saveConfigNow();
     }
 
     public static boolean isPlayerRaysEnabled() {
@@ -79,7 +86,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void setPlayerRaysEnabled(boolean enabled) {
+        if (playerRaysEnabled == enabled) return;
         playerRaysEnabled = enabled;
+        saveConfigNow();
     }
 
     public static boolean isPlayerListEnabled() {
@@ -87,7 +96,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void setPlayerListEnabled(boolean enabled) {
+        if (playerListEnabled == enabled) return;
         playerListEnabled = enabled;
+        saveConfigNow();
     }
 
     public static float getRayThickness() {
@@ -95,7 +106,10 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void setRayThickness(float thickness) {
-        rayThickness = MathHelper.clamp(thickness, 0.5F, 8.0F);
+        float clamped = MathHelper.clamp(thickness, 0.5F, 8.0F);
+        if (Math.abs(rayThickness - clamped) < 0.0001F) return;
+        rayThickness = clamped;
+        saveConfigNow();
     }
 
     public static float getOutlineThickness() {
@@ -103,7 +117,21 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void setOutlineThickness(float thickness) {
-        outlineThickness = MathHelper.clamp(thickness, 0.5F, 6.0F);
+        float clamped = MathHelper.clamp(thickness, 0.5F, 6.0F);
+        if (Math.abs(outlineThickness - clamped) < 0.0001F) return;
+        outlineThickness = clamped;
+        saveConfigNow();
+    }
+
+    public static float getRayBottomStartHeight() {
+        return rayBottomStartHeight;
+    }
+
+    public static void setRayBottomStartHeight(float height) {
+        float clamped = MathHelper.clamp(height, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
+        if (Math.abs(rayBottomStartHeight - clamped) < 0.0001F) return;
+        rayBottomStartHeight = clamped;
+        saveConfigNow();
     }
 
     public static RayOrigin getRayOrigin() {
@@ -111,7 +139,10 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void setRayOrigin(RayOrigin origin) {
-        rayOrigin = origin == null ? RayOrigin.BOTTOM : origin;
+        RayOrigin updated = origin == null ? RayOrigin.BOTTOM : origin;
+        if (rayOrigin == updated) return;
+        rayOrigin = updated;
+        saveConfigNow();
     }
 
     public static KeyBinding getSpeedToggleKeyBinding() {
@@ -134,6 +165,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         return openMenuKey;
     }
 
+    public static void saveConfigNow() {
+        NoKnockbackConfig.save(captureConfig());
+    }
+
     public static int getPlayerHighlightColor(PlayerEntity player) {
         TextColor textColor = player.getDisplayName().getStyle().getColor();
         return textColor != null ? textColor.getRgb() : player.getTeamColorValue();
@@ -141,6 +176,9 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        NoKnockbackConfig.Data loadedConfig = NoKnockbackConfig.load();
+        applyLoadedConfig(loadedConfig);
+
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.noknockback.toggle",
                 InputUtil.Type.KEYSYM,
@@ -176,6 +214,14 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.noknockback"
         ));
 
+        applyConfiguredKey(toggleKey, loadedConfig.speedToggleKey);
+        applyConfiguredKey(togglePlayerEspKey, loadedConfig.playerEspKey);
+        applyConfiguredKey(togglePlayerRaysKey, loadedConfig.playerRaysKey);
+        applyConfiguredKey(togglePlayerListKey, loadedConfig.playerListKey);
+        applyConfiguredKey(openMenuKey, loadedConfig.menuKey);
+        KeyBinding.updateKeysByCode();
+        saveConfigNow();
+
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
         HudRenderCallback.EVENT.register(this::onHudRender);
     }
@@ -192,7 +238,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
         // Toggle
         while (toggleKey.wasPressed()) {
-            speedEnabled = !speedEnabled;
+            setSpeedEnabled(!speedEnabled);
             player.sendMessage(
                     Text.literal("Speed: " + (speedEnabled ? "ON" : "OFF")),
                     true
@@ -200,7 +246,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
 
         while (togglePlayerEspKey.wasPressed()) {
-            playerEspEnabled = !playerEspEnabled;
+            setPlayerEspEnabled(!playerEspEnabled);
             player.sendMessage(
                     Text.literal("Player ESP: " + (playerEspEnabled ? "ON" : "OFF")),
                     true
@@ -208,7 +254,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
 
         while (togglePlayerRaysKey.wasPressed()) {
-            playerRaysEnabled = !playerRaysEnabled;
+            setPlayerRaysEnabled(!playerRaysEnabled);
             player.sendMessage(
                     Text.literal("Player Rays: " + (playerRaysEnabled ? "ON" : "OFF")),
                     true
@@ -216,7 +262,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
 
         while (togglePlayerListKey.wasPressed()) {
-            playerListEnabled = !playerListEnabled;
+            setPlayerListEnabled(!playerListEnabled);
             player.sendMessage(
                     Text.literal("Player List: " + (playerListEnabled ? "ON" : "OFF")),
                     true
@@ -288,7 +334,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         int screenHeight = drawContext.getScaledWindowHeight();
         if (screenWidth <= 0 || screenHeight <= 0) return;
 
-        float tickDelta = camera.getLastTickDelta();
+        float tickDelta = tickCounter.getTickDelta(false);
         float fov = client.options.getFov().getValue().floatValue();
         if (client.gameRenderer instanceof GameRendererAccessor accessor) {
             fov = accessor.noknockback$getFov(camera, tickDelta, true);
@@ -296,11 +342,14 @@ public class NoKnockbackClient implements ClientModInitializer {
         final float renderFov = fov;
 
         float startX = screenWidth * 0.5F;
-        float startY = rayOrigin == RayOrigin.CENTER ? screenHeight * 0.5F : screenHeight - 2.0F;
+        float startY = rayOrigin == RayOrigin.CENTER
+                ? screenHeight * 0.5F
+                : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
         Vector3f projected = new Vector3f();
 
         drawContext.draw(vertexConsumers -> {
-            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugLineStrip(rayThickness));
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
+            Matrix4f matrix = drawContext.getMatrices().peek().getPositionMatrix();
 
             for (PlayerEntity target : client.world.getPlayers()) {
                 if (target == localPlayer || target.isRemoved()) continue;
@@ -309,10 +358,34 @@ public class NoKnockbackClient implements ClientModInitializer {
                 if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
 
                 int color = 0xFF000000 | getPlayerHighlightColor(target);
-                Vec3d ray = new Vec3d(projected.x - startX, projected.y - startY, 0.0);
-                VertexRendering.drawVector(drawContext.getMatrices(), lineConsumer, new Vector3f(startX, startY, 0.0F), ray, color);
+                drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, color);
             }
         });
+    }
+
+    private static void drawThickRay(
+            Matrix4f matrix,
+            VertexConsumer consumer,
+            float x1,
+            float y1,
+            float x2,
+            float y2,
+            float thickness,
+            int color
+    ) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float len = MathHelper.sqrt(dx * dx + dy * dy);
+        if (len < 0.0001F) return;
+
+        float half = Math.max(0.5F, thickness) * 0.5F;
+        float nx = -dy / len * half;
+        float ny = dx / len * half;
+
+        consumer.vertex(matrix, x1 - nx, y1 - ny, 0.0F).color(color);
+        consumer.vertex(matrix, x1 + nx, y1 + ny, 0.0F).color(color);
+        consumer.vertex(matrix, x2 + nx, y2 + ny, 0.0F).color(color);
+        consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(color);
     }
 
     private void renderPlayerList(DrawContext drawContext, MinecraftClient client, PlayerEntity localPlayer) {
@@ -400,48 +473,45 @@ public class NoKnockbackClient implements ClientModInitializer {
         );
         camera.getRotation().transformInverse(cameraSpace);
 
-        float tanHalfFov = (float) Math.tan(Math.toRadians(fovDegrees) * 0.5);
-        if (tanHalfFov <= 0.0F) return false;
-
+        float tanHalfFovY = (float) Math.tan(Math.toRadians(fovDegrees) * 0.5);
+        if (tanHalfFovY <= 0.0F) return false;
         float aspect = (float) screenWidth / (float) screenHeight;
-        float forwardZ = -cameraSpace.z;
+        float tanHalfFovX = tanHalfFovY * aspect;
+        if (tanHalfFovX <= 0.0F) return false;
 
-        if (forwardZ > 0.05F) {
-            float ndcX = (cameraSpace.x / forwardZ) / (tanHalfFov * aspect);
-            float ndcY = (cameraSpace.y / forwardZ) / tanHalfFov;
+        float zAbs = Math.max(0.0001F, Math.abs(cameraSpace.z));
+        float ndcX = (cameraSpace.x / zAbs) / tanHalfFovX;
+        float ndcY = (cameraSpace.y / zAbs) / tanHalfFovY;
+        boolean inFront = cameraSpace.z < -0.0001F;
 
-            if (ndcX >= -1.0F && ndcX <= 1.0F && ndcY >= -1.0F && ndcY <= 1.0F) {
-                out.set(
-                        (ndcX * 0.5F + 0.5F) * screenWidth,
-                        (0.5F - ndcY * 0.5F) * screenHeight,
-                        0.0F
-                );
-                return true;
+        if (inFront && Math.abs(ndcX) <= 1.0F && Math.abs(ndcY) <= 1.0F) {
+            out.set(
+                    (ndcX * 0.5F + 0.5F) * screenWidth,
+                    (0.5F - ndcY * 0.5F) * screenHeight,
+                    0.0F
+            );
+            return true;
+        }
+
+        float maxComponent = Math.max(Math.abs(ndcX), Math.abs(ndcY));
+        if (inFront) {
+            if (maxComponent > 1.0F) {
+                ndcX /= maxComponent;
+                ndcY /= maxComponent;
+            }
+        } else {
+            if (maxComponent < 0.0001F) {
+                ndcX = 0.0F;
+                ndcY = cameraSpace.y >= 0.0F ? -1.0F : 1.0F;
+            } else {
+                ndcX /= maxComponent;
+                ndcY /= maxComponent;
             }
         }
 
-        float horizontalAngle = (float) Math.atan2(cameraSpace.x, -cameraSpace.z);
-        float verticalAngle = (float) Math.atan2(
-                cameraSpace.y,
-                Math.max(0.0001F, (float) Math.sqrt(cameraSpace.x * cameraSpace.x + cameraSpace.z * cameraSpace.z))
-        );
-
-        float fovY = (float) Math.toRadians(fovDegrees);
-        float fovX = (float) (2.0 * Math.atan(Math.tan(fovY * 0.5) * aspect));
-        if (fovX <= 0.0F || fovY <= 0.0F) return false;
-
-        float ndcX = horizontalAngle / (fovX * 0.5F);
-        float ndcY = -verticalAngle / (fovY * 0.5F);
-        if (!Float.isFinite(ndcX) || !Float.isFinite(ndcY)) return false;
-
-        float scale = Math.max(Math.abs(ndcX), Math.abs(ndcY));
-        if (scale < 1.0F) scale = 1.0F;
-        ndcX /= scale;
-        ndcY /= scale;
-
         float margin = 6.0F;
         float x = (ndcX * 0.5F + 0.5F) * (screenWidth - margin * 2.0F) + margin;
-        float y = (ndcY * 0.5F + 0.5F) * (screenHeight - margin * 2.0F) + margin;
+        float y = (0.5F - ndcY * 0.5F) * (screenHeight - margin * 2.0F) + margin;
         out.set(
                 MathHelper.clamp(x, margin, screenWidth - margin),
                 MathHelper.clamp(y, margin, screenHeight - margin),
@@ -454,6 +524,70 @@ public class NoKnockbackClient implements ClientModInitializer {
         int alpha = (color >>> 24) & 0xFF;
         int adjustedAlpha = MathHelper.clamp(Math.round(alpha * multiplier), 0, 255);
         return (adjustedAlpha << 24) | (color & 0x00FFFFFF);
+    }
+
+    private static void applyLoadedConfig(NoKnockbackConfig.Data config) {
+        if (config == null) return;
+
+        speedEnabled = config.speedEnabled;
+        playerEspEnabled = config.playerEspEnabled;
+        playerRaysEnabled = config.playerRaysEnabled;
+        playerListEnabled = config.playerListEnabled;
+        rayThickness = MathHelper.clamp(config.rayThickness, 0.5F, 8.0F);
+        outlineThickness = MathHelper.clamp(config.outlineThickness, 0.5F, 6.0F);
+        rayBottomStartHeight = MathHelper.clamp(config.rayBottomStartHeight, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
+        rayOrigin = parseRayOrigin(config.rayOrigin);
+    }
+
+    private static void applyConfiguredKey(KeyBinding keyBinding, String translationKey) {
+        if (keyBinding == null || translationKey == null || translationKey.isBlank()) return;
+
+        try {
+            keyBinding.setBoundKey(InputUtil.fromTranslationKey(translationKey));
+        } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    private static RayOrigin parseRayOrigin(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return RayOrigin.BOTTOM;
+        }
+
+        try {
+            return RayOrigin.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return RayOrigin.BOTTOM;
+        }
+    }
+
+    private static NoKnockbackConfig.Data captureConfig() {
+        NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
+        data.speedEnabled = speedEnabled;
+        data.playerEspEnabled = playerEspEnabled;
+        data.playerRaysEnabled = playerRaysEnabled;
+        data.playerListEnabled = playerListEnabled;
+        data.rayThickness = rayThickness;
+        data.outlineThickness = outlineThickness;
+        data.rayBottomStartHeight = rayBottomStartHeight;
+        data.rayOrigin = rayOrigin.name();
+
+        if (toggleKey != null) {
+            data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
+        }
+        if (togglePlayerEspKey != null) {
+            data.playerEspKey = togglePlayerEspKey.getBoundKeyTranslationKey();
+        }
+        if (togglePlayerRaysKey != null) {
+            data.playerRaysKey = togglePlayerRaysKey.getBoundKeyTranslationKey();
+        }
+        if (togglePlayerListKey != null) {
+            data.playerListKey = togglePlayerListKey.getBoundKeyTranslationKey();
+        }
+        if (openMenuKey != null) {
+            data.menuKey = openMenuKey.getBoundKeyTranslationKey();
+        }
+
+        return data;
     }
 
     private record PlayerDistanceEntry(String name, double distance) {

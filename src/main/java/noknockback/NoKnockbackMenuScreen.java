@@ -3,6 +3,7 @@ package noknockback;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.option.KeyBinding;
@@ -25,6 +26,8 @@ public class NoKnockbackMenuScreen extends Screen {
     private static final int ROW_GAP = 4;
     private static final int LEFT_COLUMN_WIDTH = 220;
     private static final int RIGHT_COLUMN_WIDTH = PANEL_WIDTH - LEFT_COLUMN_WIDTH - 8;
+    private static final int SCROLL_STEP = 20;
+    private static final int FOOTER_HEIGHT = 32;
     private static final int TITLE_COLOR = 0xFFD7E6FF;
     private static final int SUBTITLE_COLOR = 0xFF9FB3CF;
 
@@ -34,7 +37,13 @@ public class NoKnockbackMenuScreen extends Screen {
     private KeyBinding waitingForKey;
 
     private final Map<KeyBinding, ButtonWidget> keyButtons = new LinkedHashMap<>();
+    private final List<WidgetAnchor> scrollAnchors = new ArrayList<>();
     private final List<SectionTitle> sectionTitles = new ArrayList<>();
+    private int scrollTop;
+    private int scrollBottom;
+    private int contentBottom;
+    private int scrollOffset;
+    private int maxScroll;
 
     @Nullable
     private ButtonWidget speedToggleButton;
@@ -50,6 +59,8 @@ public class NoKnockbackMenuScreen extends Screen {
     private SettingSlider rayThicknessSlider;
     @Nullable
     private SettingSlider outlineThicknessSlider;
+    @Nullable
+    private SettingSlider rayBottomStartHeightSlider;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("NoKnockback Settings"));
@@ -60,15 +71,19 @@ public class NoKnockbackMenuScreen extends Screen {
     protected void init() {
         this.sectionTitles.clear();
         this.keyButtons.clear();
+        this.scrollAnchors.clear();
         this.waitingForKey = null;
+        this.scrollOffset = 0;
 
         int left = (this.width - PANEL_WIDTH) / 2;
         int rightColumnX = left + LEFT_COLUMN_WIDTH + 8;
-        int y = 26;
+        this.scrollTop = 26;
+        this.scrollBottom = Math.max(this.scrollTop + 40, this.height - FOOTER_HEIGHT);
+        int y = this.scrollTop;
 
         this.sectionTitles.add(new SectionTitle("Movement", y));
         y += 12;
-        this.speedToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+        this.speedToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
             NoKnockbackClient.setSpeedEnabled(!NoKnockbackClient.isSpeedEnabled());
             this.refreshLabels();
         }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build());
@@ -77,14 +92,14 @@ public class NoKnockbackMenuScreen extends Screen {
 
         this.sectionTitles.add(new SectionTitle("ESP", y));
         y += 12;
-        this.playerEspToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+        this.playerEspToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
             NoKnockbackClient.setPlayerEspEnabled(!NoKnockbackClient.isPlayerEspEnabled());
             this.refreshLabels();
         }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build());
         this.createKeyBindButton(NoKnockbackClient.getPlayerEspKeyBinding(), rightColumnX, y, RIGHT_COLUMN_WIDTH);
         y += ROW_HEIGHT + ROW_GAP;
 
-        this.outlineThicknessSlider = this.addDrawableChild(new SettingSlider(
+        this.outlineThicknessSlider = this.addScrollableWidget(new SettingSlider(
                 left,
                 y,
                 PANEL_WIDTH,
@@ -103,20 +118,37 @@ public class NoKnockbackMenuScreen extends Screen {
 
         this.sectionTitles.add(new SectionTitle("Rays", y));
         y += 12;
-        this.playerRaysToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+        this.playerRaysToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
             NoKnockbackClient.setPlayerRaysEnabled(!NoKnockbackClient.isPlayerRaysEnabled());
             this.refreshLabels();
         }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build());
         this.createKeyBindButton(NoKnockbackClient.getPlayerRaysKeyBinding(), rightColumnX, y, RIGHT_COLUMN_WIDTH);
         y += ROW_HEIGHT + ROW_GAP;
 
-        this.rayOriginButton = this.addDrawableChild(CyclingButtonWidget.builder(this::rayOriginText)
+        this.rayOriginButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::rayOriginText)
                 .values(NoKnockbackClient.RayOrigin.BOTTOM, NoKnockbackClient.RayOrigin.CENTER)
                 .initially(NoKnockbackClient.getRayOrigin())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Origin"), (button, value) -> NoKnockbackClient.setRayOrigin(value)));
         y += ROW_HEIGHT + ROW_GAP;
 
-        this.rayThicknessSlider = this.addDrawableChild(new SettingSlider(
+        this.rayBottomStartHeightSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Bottom Start Height",
+                0.0,
+                300.0,
+                1.0,
+                NoKnockbackClient.getRayBottomStartHeight()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setRayBottomStartHeight((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.rayThicknessSlider = this.addScrollableWidget(new SettingSlider(
                 left,
                 y,
                 PANEL_WIDTH,
@@ -135,7 +167,7 @@ public class NoKnockbackMenuScreen extends Screen {
 
         this.sectionTitles.add(new SectionTitle("Player List", y));
         y += 12;
-        this.playerListToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+        this.playerListToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
             NoKnockbackClient.setPlayerListEnabled(!NoKnockbackClient.isPlayerListEnabled());
             this.refreshLabels();
         }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build());
@@ -144,14 +176,19 @@ public class NoKnockbackMenuScreen extends Screen {
 
         this.sectionTitles.add(new SectionTitle("Menu", y));
         y += 12;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Open Settings Menu"), button -> {
-        }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build()).active = false;
+        ButtonWidget menuInfoButton = ButtonWidget.builder(Text.literal("Open Settings Menu"), button -> {
+        }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build();
+        menuInfoButton.active = false;
+        this.addScrollableWidget(menuInfoButton);
         this.createKeyBindButton(NoKnockbackClient.getOpenMenuKeyBinding(), rightColumnX, y, RIGHT_COLUMN_WIDTH);
         y += ROW_HEIGHT + SECTION_GAP;
 
+        this.contentBottom = y;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> this.close())
-                .dimensions(left + PANEL_WIDTH - 100, y, 100, ROW_HEIGHT).build());
+                .dimensions(left + PANEL_WIDTH - 100, this.height - ROW_HEIGHT - 6, 100, ROW_HEIGHT).build());
 
+        this.recalculateScrollBounds();
+        this.applyScroll();
         this.refreshLabels();
     }
 
@@ -165,8 +202,13 @@ public class NoKnockbackMenuScreen extends Screen {
 
         int left = (this.width - PANEL_WIDTH) / 2;
         for (SectionTitle sectionTitle : this.sectionTitles) {
-            context.drawTextWithShadow(this.textRenderer, sectionTitle.text(), left, sectionTitle.y(), 0xFFE5EEF9);
+            int y = sectionTitle.baseY() - this.scrollOffset;
+            if (y + 8 < this.scrollTop || y > this.scrollBottom) {
+                continue;
+            }
+            context.drawTextWithShadow(this.textRenderer, sectionTitle.text(), left, y, 0xFFE5EEF9);
         }
+        this.renderScrollBar(context, left);
 
         if (this.waitingForKey != null) {
             context.drawCenteredTextWithShadow(
@@ -209,6 +251,20 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (this.maxScroll <= 0 || mouseY < this.scrollTop || mouseY > this.scrollBottom) {
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
+
+        if (verticalAmount == 0.0D) {
+            return false;
+        }
+
+        this.setScrollOffset(this.scrollOffset - (int) Math.round(verticalAmount * SCROLL_STEP));
+        return true;
+    }
+
+    @Override
     public void close() {
         if (this.client != null) {
             this.client.setScreen(this.parent);
@@ -223,6 +279,7 @@ public class NoKnockbackMenuScreen extends Screen {
     private void applyKeyBinding(KeyBinding binding, InputUtil.Key key) {
         binding.setBoundKey(key);
         KeyBinding.updateKeysByCode();
+        NoKnockbackClient.saveConfigNow();
         if (this.client != null) {
             this.client.options.write();
         }
@@ -232,12 +289,18 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     private ButtonWidget createKeyBindButton(KeyBinding binding, int x, int y, int width) {
-        ButtonWidget button = this.addDrawableChild(ButtonWidget.builder(Text.empty(), widget -> {
+        ButtonWidget button = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), widget -> {
             this.waitingForKey = binding;
             this.refreshLabels();
         }).dimensions(x, y, width, ROW_HEIGHT).build());
         this.keyButtons.put(binding, button);
         return button;
+    }
+
+    private <T extends ClickableWidget> T addScrollableWidget(T widget) {
+        T added = this.addDrawableChild(widget);
+        this.scrollAnchors.add(new WidgetAnchor(added, added.getY(), added.active));
+        return added;
     }
 
     private void refreshLabels() {
@@ -269,6 +332,11 @@ public class NoKnockbackMenuScreen extends Screen {
             this.outlineThicknessSlider.sync(NoKnockbackClient.getOutlineThickness());
         }
 
+        if (this.rayBottomStartHeightSlider != null) {
+            this.rayBottomStartHeightSlider.sync(NoKnockbackClient.getRayBottomStartHeight());
+            this.rayBottomStartHeightSlider.active = NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM;
+        }
+
         for (Map.Entry<KeyBinding, ButtonWidget> entry : this.keyButtons.entrySet()) {
             KeyBinding binding = entry.getKey();
             ButtonWidget button = entry.getValue();
@@ -280,6 +348,48 @@ public class NoKnockbackMenuScreen extends Screen {
         }
     }
 
+    private void recalculateScrollBounds() {
+        int viewportHeight = Math.max(1, this.scrollBottom - this.scrollTop);
+        int contentHeight = Math.max(0, this.contentBottom - this.scrollTop);
+        this.maxScroll = Math.max(0, contentHeight - viewportHeight);
+        this.scrollOffset = MathHelper.clamp(this.scrollOffset, 0, this.maxScroll);
+    }
+
+    private void setScrollOffset(int offset) {
+        this.scrollOffset = MathHelper.clamp(offset, 0, this.maxScroll);
+        this.applyScroll();
+        this.refreshLabels();
+    }
+
+    private void applyScroll() {
+        for (WidgetAnchor anchor : this.scrollAnchors) {
+            ClickableWidget widget = anchor.widget();
+            int y = anchor.baseY() - this.scrollOffset;
+            widget.setY(y);
+
+            boolean visible = y + widget.getHeight() >= this.scrollTop && y <= this.scrollBottom;
+            widget.visible = visible;
+            widget.active = anchor.baseActive() && visible;
+        }
+    }
+
+    private void renderScrollBar(DrawContext context, int left) {
+        if (this.maxScroll <= 0) return;
+
+        int trackX1 = left + PANEL_WIDTH - 3;
+        int trackX2 = trackX1 + 3;
+        int trackY1 = this.scrollTop;
+        int trackY2 = this.scrollBottom;
+        int trackHeight = Math.max(1, trackY2 - trackY1);
+        int contentHeight = Math.max(trackHeight, this.contentBottom - this.scrollTop);
+        int thumbHeight = MathHelper.clamp((int) (trackHeight * (trackHeight / (float) contentHeight)), 16, trackHeight);
+        int thumbTravel = trackHeight - thumbHeight;
+        int thumbY = trackY1 + (int) (thumbTravel * (this.scrollOffset / (float) this.maxScroll));
+
+        context.fill(trackX1, trackY1, trackX2, trackY2, 0x4A2A3342);
+        context.fill(trackX1, thumbY, trackX2, thumbY + thumbHeight, 0xB5DBE7FB);
+    }
+
     private Text toggleText(String name, boolean enabled) {
         return Text.literal(name + ": " + (enabled ? "ON" : "OFF"));
     }
@@ -288,7 +398,10 @@ public class NoKnockbackMenuScreen extends Screen {
         return origin == NoKnockbackClient.RayOrigin.CENTER ? Text.literal("Center") : Text.literal("Bottom");
     }
 
-    private record SectionTitle(String text, int y) {
+    private record SectionTitle(String text, int baseY) {
+    }
+
+    private record WidgetAnchor(ClickableWidget widget, int baseY, boolean baseActive) {
     }
 
     private abstract static class SettingSlider extends SliderWidget {
