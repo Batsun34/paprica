@@ -28,7 +28,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 
 public class NoKnockbackClient implements ClientModInitializer {
@@ -36,24 +35,103 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final double WALK_SPEED = 0.1D;
     private static final double SPRINT_MULTIPLIER = 1.3D;
     private static final double SPEED_MULTIPLIER = 0.75D;
-    private static final int PLAYER_LIST_X = 8;
-    private static final int PLAYER_LIST_Y = 8;
-    private static final int PLAYER_LIST_PADDING = 4;
-    private static final int PLAYER_LIST_LINE_HEIGHT = 10;
-    private static final int PLAYER_LIST_BG_COLOR = 0x90000000;
-    private static final int PLAYER_LIST_BORDER_COLOR = 0x60FFFFFF;
+    private static final int PLAYER_LIST_X = 6;
+    private static final int PLAYER_LIST_Y = 6;
+    private static final int PLAYER_LIST_PADDING = 3;
+    private static final int PLAYER_LIST_BG_COLOR = 0x65000000;
+    private static final int PLAYER_LIST_BORDER_COLOR = 0x43FFFFFF;
+    private static final float PLAYER_LIST_TEXT_SCALE = 0.8F;
+    private static final float PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
 
     private static boolean speedEnabled = true;
     private static boolean playerEspEnabled = false;
     private static boolean playerRaysEnabled = false;
+    private static boolean playerListEnabled = false;
+    private static float rayThickness = 2.0F;
+    private static float outlineThickness = 1.0F;
+    private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
     private static KeyBinding toggleKey;
     private static KeyBinding togglePlayerEspKey;
     private static KeyBinding togglePlayerRaysKey;
+    private static KeyBinding togglePlayerListKey;
+    private static KeyBinding openMenuKey;
 
     private Vec3d lastVelocity = Vec3d.ZERO;
 
     public static boolean isPlayerEspEnabled() {
         return playerEspEnabled;
+    }
+
+    public static boolean isSpeedEnabled() {
+        return speedEnabled;
+    }
+
+    public static void setSpeedEnabled(boolean enabled) {
+        speedEnabled = enabled;
+    }
+
+    public static void setPlayerEspEnabled(boolean enabled) {
+        playerEspEnabled = enabled;
+    }
+
+    public static boolean isPlayerRaysEnabled() {
+        return playerRaysEnabled;
+    }
+
+    public static void setPlayerRaysEnabled(boolean enabled) {
+        playerRaysEnabled = enabled;
+    }
+
+    public static boolean isPlayerListEnabled() {
+        return playerListEnabled;
+    }
+
+    public static void setPlayerListEnabled(boolean enabled) {
+        playerListEnabled = enabled;
+    }
+
+    public static float getRayThickness() {
+        return rayThickness;
+    }
+
+    public static void setRayThickness(float thickness) {
+        rayThickness = MathHelper.clamp(thickness, 0.5F, 8.0F);
+    }
+
+    public static float getOutlineThickness() {
+        return outlineThickness;
+    }
+
+    public static void setOutlineThickness(float thickness) {
+        outlineThickness = MathHelper.clamp(thickness, 0.5F, 6.0F);
+    }
+
+    public static RayOrigin getRayOrigin() {
+        return rayOrigin;
+    }
+
+    public static void setRayOrigin(RayOrigin origin) {
+        rayOrigin = origin == null ? RayOrigin.BOTTOM : origin;
+    }
+
+    public static KeyBinding getSpeedToggleKeyBinding() {
+        return toggleKey;
+    }
+
+    public static KeyBinding getPlayerEspKeyBinding() {
+        return togglePlayerEspKey;
+    }
+
+    public static KeyBinding getPlayerRaysKeyBinding() {
+        return togglePlayerRaysKey;
+    }
+
+    public static KeyBinding getPlayerListKeyBinding() {
+        return togglePlayerListKey;
+    }
+
+    public static KeyBinding getOpenMenuKeyBinding() {
+        return openMenuKey;
     }
 
     public static int getPlayerHighlightColor(PlayerEntity player) {
@@ -84,11 +162,31 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.noknockback"
         ));
 
+        togglePlayerListKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.noknockback.player_list",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_K,
+                "category.noknockback"
+        ));
+
+        openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.noknockback.menu",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_RIGHT_SHIFT,
+                "category.noknockback"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
         HudRenderCallback.EVENT.register(this::onHudRender);
     }
 
     private void onTick(MinecraftClient client) {
+        while (openMenuKey.wasPressed()) {
+            if (!(client.currentScreen instanceof NoKnockbackMenuScreen)) {
+                client.setScreen(new NoKnockbackMenuScreen(client.currentScreen));
+            }
+        }
+
         PlayerEntity player = client.player;
         if (player == null || player.getWorld() == null) return;
 
@@ -113,6 +211,14 @@ public class NoKnockbackClient implements ClientModInitializer {
             playerRaysEnabled = !playerRaysEnabled;
             player.sendMessage(
                     Text.literal("Player Rays: " + (playerRaysEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        while (togglePlayerListKey.wasPressed()) {
+            playerListEnabled = !playerListEnabled;
+            player.sendMessage(
+                    Text.literal("Player List: " + (playerListEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -170,7 +276,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         PlayerEntity localPlayer = client.player;
         if (localPlayer == null || client.world == null) return;
 
-        renderPlayerList(drawContext, client, localPlayer);
+        if (playerListEnabled) {
+            renderPlayerList(drawContext, client, localPlayer);
+        }
         if (!playerRaysEnabled || client.gameRenderer == null) return;
 
         Camera camera = client.gameRenderer.getCamera();
@@ -188,11 +296,11 @@ public class NoKnockbackClient implements ClientModInitializer {
         final float renderFov = fov;
 
         float startX = screenWidth * 0.5F;
-        float startY = screenHeight - 2.0F;
+        float startY = rayOrigin == RayOrigin.CENTER ? screenHeight * 0.5F : screenHeight - 2.0F;
         Vector3f projected = new Vector3f();
 
         drawContext.draw(vertexConsumers -> {
-            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getLines());
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugLineStrip(rayThickness));
 
             for (PlayerEntity target : client.world.getPlayers()) {
                 if (target == localPlayer || target.isRemoved()) continue;
@@ -216,7 +324,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
             int color = getPlayerHighlightColor(target) & 0xFFFFFF;
             double distance = localPlayer.getPos().distanceTo(target.getPos());
-            String name = target.getDisplayName().getString();
+            String name = target.getName().getString();
             groups.computeIfAbsent(color, ignored -> new ArrayList<>()).add(new PlayerDistanceEntry(name, distance));
         }
 
@@ -226,20 +334,21 @@ public class NoKnockbackClient implements ClientModInitializer {
         sortedColors.sort(Integer::compareUnsigned);
 
         List<PlayerListLine> lines = new ArrayList<>();
-        for (Integer color : sortedColors) {
+        for (int i = 0; i < sortedColors.size(); i++) {
+            Integer color = sortedColors.get(i);
             List<PlayerDistanceEntry> entries = groups.get(color);
             entries.sort(Comparator.comparingDouble(PlayerDistanceEntry::distance));
 
-            lines.add(new PlayerListLine(String.format(Locale.ROOT, "Color #%06X (%d)", color, entries.size()), 0xFF000000 | color));
             for (PlayerDistanceEntry entry : entries) {
                 lines.add(new PlayerListLine(
-                        String.format(Locale.ROOT, "  %s - %.1f m", entry.name(), entry.distance()),
+                        entry.name() + " - " + (int) Math.round(entry.distance()) + " m",
                         0xFF000000 | color
                 ));
             }
         }
 
-        int maxVisibleLines = Math.max(2, (drawContext.getScaledWindowHeight() - PLAYER_LIST_Y - 16) / PLAYER_LIST_LINE_HEIGHT);
+        int textLineHeight = Math.max(6, Math.round(client.textRenderer.fontHeight * PLAYER_LIST_TEXT_SCALE) + 1);
+        int maxVisibleLines = Math.max(2, (drawContext.getScaledWindowHeight() - PLAYER_LIST_Y - 16) / textLineHeight);
         if (lines.size() > maxVisibleLines) {
             int hiddenLines = lines.size() - maxVisibleLines + 1;
             lines = new ArrayList<>(lines.subList(0, maxVisibleLines - 1));
@@ -248,11 +357,12 @@ public class NoKnockbackClient implements ClientModInitializer {
 
         int maxWidth = 0;
         for (PlayerListLine line : lines) {
-            maxWidth = Math.max(maxWidth, client.textRenderer.getWidth(line.text()));
+            int scaledWidth = Math.round(client.textRenderer.getWidth(line.text()) * PLAYER_LIST_TEXT_SCALE);
+            maxWidth = Math.max(maxWidth, scaledWidth);
         }
 
         int panelWidth = maxWidth + PLAYER_LIST_PADDING * 2;
-        int panelHeight = lines.size() * PLAYER_LIST_LINE_HEIGHT + PLAYER_LIST_PADDING * 2;
+        int panelHeight = lines.size() * textLineHeight + PLAYER_LIST_PADDING * 2;
         int x1 = PLAYER_LIST_X;
         int y1 = PLAYER_LIST_Y;
         int x2 = x1 + panelWidth;
@@ -264,8 +374,13 @@ public class NoKnockbackClient implements ClientModInitializer {
         int textX = x1 + PLAYER_LIST_PADDING;
         int textY = y1 + PLAYER_LIST_PADDING;
         for (PlayerListLine line : lines) {
-            drawContext.drawTextWithShadow(client.textRenderer, line.text(), textX, textY, line.color());
-            textY += PLAYER_LIST_LINE_HEIGHT;
+            int textColor = withAlpha(line.color(), PLAYER_LIST_ALPHA_MULTIPLIER);
+            drawContext.getMatrices().push();
+            drawContext.getMatrices().translate(textX, textY, 0.0F);
+            drawContext.getMatrices().scale(PLAYER_LIST_TEXT_SCALE, PLAYER_LIST_TEXT_SCALE, 1.0F);
+            drawContext.drawTextWithShadow(client.textRenderer, line.text(), 0, 0, textColor);
+            drawContext.getMatrices().pop();
+            textY += textLineHeight;
         }
     }
 
@@ -335,9 +450,20 @@ public class NoKnockbackClient implements ClientModInitializer {
         return true;
     }
 
+    private static int withAlpha(int color, float multiplier) {
+        int alpha = (color >>> 24) & 0xFF;
+        int adjustedAlpha = MathHelper.clamp(Math.round(alpha * multiplier), 0, 255);
+        return (adjustedAlpha << 24) | (color & 0x00FFFFFF);
+    }
+
     private record PlayerDistanceEntry(String name, double distance) {
     }
 
     private record PlayerListLine(String text, int color) {
+    }
+
+    public enum RayOrigin {
+        BOTTOM,
+        CENTER
     }
 }

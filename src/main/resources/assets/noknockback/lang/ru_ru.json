@@ -2,5 +2,7 @@
   "category.noknockback": "NoKnockback",
   "key.noknockback.toggle": "Переключить скорость",
   "key.noknockback.player_esp": "Переключить подсветку игроков",
-  "key.noknockback.player_rays": "Переключить лучи игроков"
+  "key.noknockback.player_rays": "Переключить лучи игроков",
+  "key.noknockback.player_list": "Переключить список игроков",
+  "key.noknockback.menu": "Открыть меню настроек"
 }
