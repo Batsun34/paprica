@@ -3,26 +3,63 @@ package noknockback;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexRendering;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.text.Text;
+import net.minecraft.text.TextColor;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import noknockback.mixin.client.GameRendererAccessor;
 
 import org.lwjgl.glfw.GLFW;
+import org.joml.Vector3f;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class NoKnockbackClient implements ClientModInitializer {
 
     private static final double WALK_SPEED = 0.1D;
     private static final double SPRINT_MULTIPLIER = 1.3D;
     private static final double SPEED_MULTIPLIER = 0.75D;
+    private static final int PLAYER_LIST_X = 8;
+    private static final int PLAYER_LIST_Y = 8;
+    private static final int PLAYER_LIST_PADDING = 4;
+    private static final int PLAYER_LIST_LINE_HEIGHT = 10;
+    private static final int PLAYER_LIST_BG_COLOR = 0x90000000;
+    private static final int PLAYER_LIST_BORDER_COLOR = 0x60FFFFFF;
 
     private static boolean speedEnabled = true;
+    private static boolean playerEspEnabled = false;
+    private static boolean playerRaysEnabled = false;
     private static KeyBinding toggleKey;
+    private static KeyBinding togglePlayerEspKey;
+    private static KeyBinding togglePlayerRaysKey;
 
     private Vec3d lastVelocity = Vec3d.ZERO;
+
+    public static boolean isPlayerEspEnabled() {
+        return playerEspEnabled;
+    }
+
+    public static int getPlayerHighlightColor(PlayerEntity player) {
+        TextColor textColor = player.getDisplayName().getStyle().getColor();
+        return textColor != null ? textColor.getRgb() : player.getTeamColorValue();
+    }
 
     @Override
     public void onInitializeClient() {
@@ -33,7 +70,22 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.noknockback"
         ));
 
+        togglePlayerEspKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.noknockback.player_esp",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_H,
+                "category.noknockback"
+        ));
+
+        togglePlayerRaysKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.noknockback.player_rays",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_J,
+                "category.noknockback"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
+        HudRenderCallback.EVENT.register(this::onHudRender);
     }
 
     private void onTick(MinecraftClient client) {
@@ -45,6 +97,22 @@ public class NoKnockbackClient implements ClientModInitializer {
             speedEnabled = !speedEnabled;
             player.sendMessage(
                     Text.literal("Speed: " + (speedEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        while (togglePlayerEspKey.wasPressed()) {
+            playerEspEnabled = !playerEspEnabled;
+            player.sendMessage(
+                    Text.literal("Player ESP: " + (playerEspEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        while (togglePlayerRaysKey.wasPressed()) {
+            playerRaysEnabled = !playerRaysEnabled;
+            player.sendMessage(
+                    Text.literal("Player Rays: " + (playerRaysEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -95,5 +163,181 @@ public class NoKnockbackClient implements ClientModInitializer {
             player.setVelocity(motionX, velocity.y, motionZ);
         }
 
+    }
+
+    private void onHudRender(DrawContext drawContext, RenderTickCounter tickCounter) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        PlayerEntity localPlayer = client.player;
+        if (localPlayer == null || client.world == null) return;
+
+        renderPlayerList(drawContext, client, localPlayer);
+        if (!playerRaysEnabled || client.gameRenderer == null) return;
+
+        Camera camera = client.gameRenderer.getCamera();
+        if (camera == null || !camera.isReady()) return;
+
+        int screenWidth = drawContext.getScaledWindowWidth();
+        int screenHeight = drawContext.getScaledWindowHeight();
+        if (screenWidth <= 0 || screenHeight <= 0) return;
+
+        float tickDelta = camera.getLastTickDelta();
+        float fov = client.options.getFov().getValue().floatValue();
+        if (client.gameRenderer instanceof GameRendererAccessor accessor) {
+            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+        }
+        final float renderFov = fov;
+
+        float startX = screenWidth * 0.5F;
+        float startY = screenHeight - 2.0F;
+        Vector3f projected = new Vector3f();
+
+        drawContext.draw(vertexConsumers -> {
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getLines());
+
+            for (PlayerEntity target : client.world.getPlayers()) {
+                if (target == localPlayer || target.isRemoved()) continue;
+
+                Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+                if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
+
+                int color = 0xFF000000 | getPlayerHighlightColor(target);
+                Vec3d ray = new Vec3d(projected.x - startX, projected.y - startY, 0.0);
+                VertexRendering.drawVector(drawContext.getMatrices(), lineConsumer, new Vector3f(startX, startY, 0.0F), ray, color);
+            }
+        });
+    }
+
+    private void renderPlayerList(DrawContext drawContext, MinecraftClient client, PlayerEntity localPlayer) {
+        if (client.textRenderer == null || client.world == null) return;
+
+        Map<Integer, List<PlayerDistanceEntry>> groups = new LinkedHashMap<>();
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == localPlayer || target.isRemoved()) continue;
+
+            int color = getPlayerHighlightColor(target) & 0xFFFFFF;
+            double distance = localPlayer.getPos().distanceTo(target.getPos());
+            String name = target.getDisplayName().getString();
+            groups.computeIfAbsent(color, ignored -> new ArrayList<>()).add(new PlayerDistanceEntry(name, distance));
+        }
+
+        if (groups.isEmpty()) return;
+
+        List<Integer> sortedColors = new ArrayList<>(groups.keySet());
+        sortedColors.sort(Integer::compareUnsigned);
+
+        List<PlayerListLine> lines = new ArrayList<>();
+        for (Integer color : sortedColors) {
+            List<PlayerDistanceEntry> entries = groups.get(color);
+            entries.sort(Comparator.comparingDouble(PlayerDistanceEntry::distance));
+
+            lines.add(new PlayerListLine(String.format(Locale.ROOT, "Color #%06X (%d)", color, entries.size()), 0xFF000000 | color));
+            for (PlayerDistanceEntry entry : entries) {
+                lines.add(new PlayerListLine(
+                        String.format(Locale.ROOT, "  %s - %.1f m", entry.name(), entry.distance()),
+                        0xFF000000 | color
+                ));
+            }
+        }
+
+        int maxVisibleLines = Math.max(2, (drawContext.getScaledWindowHeight() - PLAYER_LIST_Y - 16) / PLAYER_LIST_LINE_HEIGHT);
+        if (lines.size() > maxVisibleLines) {
+            int hiddenLines = lines.size() - maxVisibleLines + 1;
+            lines = new ArrayList<>(lines.subList(0, maxVisibleLines - 1));
+            lines.add(new PlayerListLine("... +" + hiddenLines, 0xFFFFFFFF));
+        }
+
+        int maxWidth = 0;
+        for (PlayerListLine line : lines) {
+            maxWidth = Math.max(maxWidth, client.textRenderer.getWidth(line.text()));
+        }
+
+        int panelWidth = maxWidth + PLAYER_LIST_PADDING * 2;
+        int panelHeight = lines.size() * PLAYER_LIST_LINE_HEIGHT + PLAYER_LIST_PADDING * 2;
+        int x1 = PLAYER_LIST_X;
+        int y1 = PLAYER_LIST_Y;
+        int x2 = x1 + panelWidth;
+        int y2 = y1 + panelHeight;
+
+        drawContext.fill(x1 - 1, y1 - 1, x2 + 1, y2 + 1, PLAYER_LIST_BORDER_COLOR);
+        drawContext.fill(x1, y1, x2, y2, PLAYER_LIST_BG_COLOR);
+
+        int textX = x1 + PLAYER_LIST_PADDING;
+        int textY = y1 + PLAYER_LIST_PADDING;
+        for (PlayerListLine line : lines) {
+            drawContext.drawTextWithShadow(client.textRenderer, line.text(), textX, textY, line.color());
+            textY += PLAYER_LIST_LINE_HEIGHT;
+        }
+    }
+
+    private static boolean projectToIndicator(
+            Vec3d worldPos,
+            Camera camera,
+            int screenWidth,
+            int screenHeight,
+            float fovDegrees,
+            Vector3f out
+    ) {
+        Vec3d cameraPos = camera.getPos();
+        Vector3f cameraSpace = new Vector3f(
+                (float) (worldPos.x - cameraPos.x),
+                (float) (worldPos.y - cameraPos.y),
+                (float) (worldPos.z - cameraPos.z)
+        );
+        camera.getRotation().transformInverse(cameraSpace);
+
+        float tanHalfFov = (float) Math.tan(Math.toRadians(fovDegrees) * 0.5);
+        if (tanHalfFov <= 0.0F) return false;
+
+        float aspect = (float) screenWidth / (float) screenHeight;
+        float forwardZ = -cameraSpace.z;
+
+        if (forwardZ > 0.05F) {
+            float ndcX = (cameraSpace.x / forwardZ) / (tanHalfFov * aspect);
+            float ndcY = (cameraSpace.y / forwardZ) / tanHalfFov;
+
+            if (ndcX >= -1.0F && ndcX <= 1.0F && ndcY >= -1.0F && ndcY <= 1.0F) {
+                out.set(
+                        (ndcX * 0.5F + 0.5F) * screenWidth,
+                        (0.5F - ndcY * 0.5F) * screenHeight,
+                        0.0F
+                );
+                return true;
+            }
+        }
+
+        float horizontalAngle = (float) Math.atan2(cameraSpace.x, -cameraSpace.z);
+        float verticalAngle = (float) Math.atan2(
+                cameraSpace.y,
+                Math.max(0.0001F, (float) Math.sqrt(cameraSpace.x * cameraSpace.x + cameraSpace.z * cameraSpace.z))
+        );
+
+        float fovY = (float) Math.toRadians(fovDegrees);
+        float fovX = (float) (2.0 * Math.atan(Math.tan(fovY * 0.5) * aspect));
+        if (fovX <= 0.0F || fovY <= 0.0F) return false;
+
+        float ndcX = horizontalAngle / (fovX * 0.5F);
+        float ndcY = -verticalAngle / (fovY * 0.5F);
+        if (!Float.isFinite(ndcX) || !Float.isFinite(ndcY)) return false;
+
+        float scale = Math.max(Math.abs(ndcX), Math.abs(ndcY));
+        if (scale < 1.0F) scale = 1.0F;
+        ndcX /= scale;
+        ndcY /= scale;
+
+        float margin = 6.0F;
+        float x = (ndcX * 0.5F + 0.5F) * (screenWidth - margin * 2.0F) + margin;
+        float y = (ndcY * 0.5F + 0.5F) * (screenHeight - margin * 2.0F) + margin;
+        out.set(
+                MathHelper.clamp(x, margin, screenWidth - margin),
+                MathHelper.clamp(y, margin, screenHeight - margin),
+                0.0F
+        );
+        return true;
+    }
+
+    private record PlayerDistanceEntry(String name, double distance) {
+    }
+
+    private record PlayerListLine(String text, int color) {
     }
 }
