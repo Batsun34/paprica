@@ -5,7 +5,6 @@
 	"client": [
 		"ExampleClientMixin",
 		"GameRendererAccessor",
-		"GameRendererHudMixin",
 		"PostEffectPassMixin",
 		"WorldRendererMixin"
 	],

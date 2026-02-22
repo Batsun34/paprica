@@ -3,6 +3,8 @@ package noknockback;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.HudLayerRegistrationCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.IdentifiedLayer;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
@@ -17,6 +19,7 @@ import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import noknockback.mixin.client.GameRendererAccessor;
@@ -62,6 +65,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float HUD_OVERLAY_Z = 300.0F;
+    private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("noknockback", "hud_overlay");
 
     private static boolean speedEnabled = true;
     private static boolean playerEspEnabled = false;
@@ -356,6 +360,12 @@ public class NoKnockbackClient implements ClientModInitializer {
         applyConfiguredKey(openMenuKey, loadedConfig.menuKey);
         KeyBinding.updateKeysByCode();
         saveConfigNow();
+
+        HudLayerRegistrationCallback.EVENT.register(layeredDrawer -> layeredDrawer.attachLayerAfter(
+                IdentifiedLayer.SUBTITLES,
+                HUD_OVERLAY_LAYER_ID,
+                NoKnockbackClient::renderHudOverlay
+        ));
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     }
@@ -678,7 +688,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         for (PlayerEntity target : client.world.getPlayers()) {
             if (target == localPlayer || target.isRemoved()) continue;
 
-            Vec3d textWorldPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.6, 0.0);
+            Vec3d textWorldPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.2, 0.0);
             if (!projectToScreen(textWorldPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
 
             int currentHp = Math.max(0, Math.round(target.getHealth()));
@@ -692,7 +702,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             int scaledHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * targetHealthTextScale));
 
             int textX = Math.round(projected.x) - scaledWidth / 2;
-            int textY = Math.round(projected.y) - scaledHeight - 8;
+            int textY = Math.round(projected.y) - scaledHeight - 2;
             textX = MathHelper.clamp(textX, 2, Math.max(2, screenWidth - scaledWidth - 2));
             textY = MathHelper.clamp(textY, 2, Math.max(2, screenHeight - scaledHeight - 2));
 
