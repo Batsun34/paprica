@@ -476,7 +476,6 @@ public class NoKnockbackMenuScreen extends Screen {
 
         if (this.playerArmorOverlayToggleButton != null) {
             this.playerArmorOverlayToggleButton.setMessage(this.toggleText("Armor Through Walls", NoKnockbackClient.isPlayerArmorOverlayEnabled()));
-            this.playerArmorOverlayToggleButton.active = NoKnockbackClient.isPlayerEspEnabled();
         }
 
         if (this.playerRaysToggleButton != null) {

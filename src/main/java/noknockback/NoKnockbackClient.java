@@ -23,7 +23,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import noknockback.mixin.client.GameRendererAccessor;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import org.lwjgl.glfw.GLFW;
 import org.joml.Matrix4f;
@@ -64,7 +63,6 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_YELLOW = 0xFFFFE44A;
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
-    private static final float HUD_OVERLAY_Z = 300.0F;
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("noknockback", "hud_overlay");
 
     private static boolean speedEnabled = true;
@@ -465,74 +463,65 @@ public class NoKnockbackClient implements ClientModInitializer {
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerEntity localPlayer = client.player;
         if (localPlayer == null || client.world == null) return;
-
-        RenderSystem.disableDepthTest();
-        drawContext.getMatrices().push();
-        drawContext.getMatrices().translate(0.0F, 0.0F, HUD_OVERLAY_Z);
-        try {
-            if (playerListEnabled) {
-                renderPlayerList(drawContext, client, localPlayer);
-            }
-            if (client.gameRenderer == null) return;
-
-            Camera camera = client.gameRenderer.getCamera();
-            if (camera == null || !camera.isReady()) return;
-
-            int screenWidth = drawContext.getScaledWindowWidth();
-            int screenHeight = drawContext.getScaledWindowHeight();
-            if (screenWidth <= 0 || screenHeight <= 0) return;
-
-            float tickDelta = tickCounter.getTickDelta(false);
-            float fov = client.options.getFov().getValue().floatValue();
-            if (client.gameRenderer instanceof GameRendererAccessor accessor) {
-                fov = accessor.noknockback$getFov(camera, tickDelta, true);
-            }
-            float renderFov = fov;
-
-            if (playerEspEnabled && playerArmorOverlayEnabled) {
-                renderPlayerArmorOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
-            }
-            if (targetHealthOverlayEnabled) {
-                renderTargetHealthOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
-            }
-            if (!playerRaysEnabled) return;
-
-            float startX = screenWidth * 0.5F;
-            float startY = rayOrigin == RayOrigin.CENTER
-                    ? screenHeight * 0.5F
-                    : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
-            Vector3f projected = new Vector3f();
-            List<RayDistanceLabel> labels = new ArrayList<>();
-
-            drawContext.draw(vertexConsumers -> {
-                VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
-                Matrix4f matrix = drawContext.getMatrices().peek().getPositionMatrix();
-
-                for (PlayerEntity target : client.world.getPlayers()) {
-                    if (target == localPlayer || target.isRemoved()) continue;
-
-                    Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
-                    if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
-
-                    int color = 0xFF000000 | getPlayerHighlightColor(target);
-                    drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, color);
-
-                    int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
-                    labels.add(createRayDistanceLabel(
-                            Integer.toString(Math.max(0, meters)) + "m",
-                            startX,
-                            startY,
-                            projected.x,
-                            projected.y
-                    ));
-                }
-            });
-
-            renderRayDistanceLabels(drawContext, client, labels, screenWidth, screenHeight);
-        } finally {
-            drawContext.getMatrices().pop();
-            RenderSystem.enableDepthTest();
+        if (playerListEnabled) {
+            renderPlayerList(drawContext, client, localPlayer);
         }
+        if (client.gameRenderer == null) return;
+
+        Camera camera = client.gameRenderer.getCamera();
+        if (camera == null || !camera.isReady()) return;
+
+        int screenWidth = drawContext.getScaledWindowWidth();
+        int screenHeight = drawContext.getScaledWindowHeight();
+        if (screenWidth <= 0 || screenHeight <= 0) return;
+
+        float tickDelta = tickCounter.getTickDelta(false);
+        float fov = client.options.getFov().getValue().floatValue();
+        if (client.gameRenderer instanceof GameRendererAccessor accessor) {
+            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+        }
+        float renderFov = fov;
+
+        if (playerArmorOverlayEnabled) {
+            renderPlayerArmorOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
+        }
+        if (targetHealthOverlayEnabled) {
+            renderTargetHealthOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
+        }
+        if (!playerRaysEnabled) return;
+
+        float startX = screenWidth * 0.5F;
+        float startY = rayOrigin == RayOrigin.CENTER
+                ? screenHeight * 0.5F
+                : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
+        Vector3f projected = new Vector3f();
+        List<RayDistanceLabel> labels = new ArrayList<>();
+
+        drawContext.draw(vertexConsumers -> {
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
+            Matrix4f matrix = drawContext.getMatrices().peek().getPositionMatrix();
+
+            for (PlayerEntity target : client.world.getPlayers()) {
+                if (target == localPlayer || target.isRemoved()) continue;
+
+                Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+                if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
+
+                int color = 0xFF000000 | getPlayerHighlightColor(target);
+                drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, color);
+
+                int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
+                labels.add(createRayDistanceLabel(
+                        Integer.toString(Math.max(0, meters)) + "m",
+                        startX,
+                        startY,
+                        projected.x,
+                        projected.y
+                ));
+            }
+        });
+
+        renderRayDistanceLabels(drawContext, client, labels, screenWidth, screenHeight);
     }
 
     private static void drawThickRay(
@@ -638,7 +627,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             if (target == localPlayer || target.isRemoved()) continue;
 
             Vec3d overlayPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.35, 0.0);
-            if (!projectToScreen(overlayPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
+            if (!projectToIndicator(overlayPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
 
             List<ItemStack> armorStacks = new ArrayList<>(4);
             ItemStack head = target.getEquippedStack(EquipmentSlot.HEAD);
