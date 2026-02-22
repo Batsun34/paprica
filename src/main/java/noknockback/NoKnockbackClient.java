@@ -3,7 +3,6 @@ package noknockback;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
@@ -13,7 +12,9 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.math.MathHelper;
@@ -36,22 +37,47 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final double WALK_SPEED = 0.1D;
     private static final double SPRINT_MULTIPLIER = 1.3D;
     private static final double SPEED_MULTIPLIER = 0.75D;
-    private static final int PLAYER_LIST_X = 6;
-    private static final int PLAYER_LIST_Y = 6;
+    private static final int DEFAULT_PLAYER_LIST_X = 6;
+    private static final int DEFAULT_PLAYER_LIST_Y = 6;
+    private static final float DEFAULT_PLAYER_LIST_TEXT_SCALE = 0.8F;
+    private static final int DEFAULT_PLAYER_LIST_MAX_HEIGHT = 280;
+    private static final float DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
+    private static final float DEFAULT_RAY_LABEL_TEXT_SCALE = 0.75F;
+    private static final float DEFAULT_TARGET_HEALTH_TEXT_SCALE = 1.0F;
+    private static final int MAX_PLAYER_LIST_OFFSET = 4096;
     private static final int PLAYER_LIST_PADDING = 3;
     private static final int PLAYER_LIST_BG_COLOR = 0x65000000;
     private static final int PLAYER_LIST_BORDER_COLOR = 0x43FFFFFF;
-    private static final float PLAYER_LIST_TEXT_SCALE = 0.8F;
-    private static final float PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
     private static final float MAX_BOTTOM_RAY_START_HEIGHT = 300.0F;
+    private static final float RAY_LABEL_POSITION_FACTOR = 0.62F;
+    private static final float RAY_LABEL_PERP_OFFSET = 9.0F;
+    private static final int RAY_LABEL_BG_COLOR = 0x6A000000;
+    private static final int RAY_LABEL_TEXT_COLOR = 0xF0FFFFFF;
+    private static final float ARMOR_OVERLAY_ICON_SCALE = 0.75F;
+    private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
+    private static final int TARGET_HEALTH_BG_COLOR = 0x7A000000;
+    private static final int TARGET_HEALTH_COLOR_LIME = 0xFF8DFF39;
+    private static final int TARGET_HEALTH_COLOR_YELLOW = 0xFFFFE44A;
+    private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
+    private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
 
     private static boolean speedEnabled = true;
     private static boolean playerEspEnabled = false;
+    private static boolean playerArmorOverlayEnabled = false;
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
+    private static boolean targetHealthOverlayEnabled = false;
+    private static boolean targetHealthDynamicColorEnabled = true;
     private static float rayThickness = 2.0F;
     private static float outlineThickness = 1.0F;
     private static float rayBottomStartHeight = 2.0F;
+    private static float rayLabelTextScale = DEFAULT_RAY_LABEL_TEXT_SCALE;
+    private static float targetHealthTextScale = DEFAULT_TARGET_HEALTH_TEXT_SCALE;
+    private static float playerListTextScale = DEFAULT_PLAYER_LIST_TEXT_SCALE;
+    private static int playerListMaxHeight = DEFAULT_PLAYER_LIST_MAX_HEIGHT;
+    private static float playerListAlphaMultiplier = DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER;
+    private static int playerListOffsetX = DEFAULT_PLAYER_LIST_X;
+    private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
     private static KeyBinding toggleKey;
     private static KeyBinding togglePlayerEspKey;
@@ -81,6 +107,16 @@ public class NoKnockbackClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static boolean isPlayerArmorOverlayEnabled() {
+        return playerArmorOverlayEnabled;
+    }
+
+    public static void setPlayerArmorOverlayEnabled(boolean enabled) {
+        if (playerArmorOverlayEnabled == enabled) return;
+        playerArmorOverlayEnabled = enabled;
+        saveConfigNow();
+    }
+
     public static boolean isPlayerRaysEnabled() {
         return playerRaysEnabled;
     }
@@ -98,6 +134,26 @@ public class NoKnockbackClient implements ClientModInitializer {
     public static void setPlayerListEnabled(boolean enabled) {
         if (playerListEnabled == enabled) return;
         playerListEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isTargetHealthOverlayEnabled() {
+        return targetHealthOverlayEnabled;
+    }
+
+    public static void setTargetHealthOverlayEnabled(boolean enabled) {
+        if (targetHealthOverlayEnabled == enabled) return;
+        targetHealthOverlayEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isTargetHealthDynamicColorEnabled() {
+        return targetHealthDynamicColorEnabled;
+    }
+
+    public static void setTargetHealthDynamicColorEnabled(boolean enabled) {
+        if (targetHealthDynamicColorEnabled == enabled) return;
+        targetHealthDynamicColorEnabled = enabled;
         saveConfigNow();
     }
 
@@ -131,6 +187,83 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(height, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
         if (Math.abs(rayBottomStartHeight - clamped) < 0.0001F) return;
         rayBottomStartHeight = clamped;
+        saveConfigNow();
+    }
+
+    public static float getRayLabelTextScale() {
+        return rayLabelTextScale;
+    }
+
+    public static void setRayLabelTextScale(float scale) {
+        float clamped = MathHelper.clamp(scale, 0.5F, 2.0F);
+        if (Math.abs(rayLabelTextScale - clamped) < 0.0001F) return;
+        rayLabelTextScale = clamped;
+        saveConfigNow();
+    }
+
+    public static float getTargetHealthTextScale() {
+        return targetHealthTextScale;
+    }
+
+    public static void setTargetHealthTextScale(float scale) {
+        float clamped = MathHelper.clamp(scale, 0.5F, 2.0F);
+        if (Math.abs(targetHealthTextScale - clamped) < 0.0001F) return;
+        targetHealthTextScale = clamped;
+        saveConfigNow();
+    }
+
+    public static float getPlayerListTextScale() {
+        return playerListTextScale;
+    }
+
+    public static void setPlayerListTextScale(float scale) {
+        float clamped = MathHelper.clamp(scale, 0.1F, 2.0F);
+        if (Math.abs(playerListTextScale - clamped) < 0.0001F) return;
+        playerListTextScale = clamped;
+        saveConfigNow();
+    }
+
+    public static int getPlayerListMaxHeight() {
+        return playerListMaxHeight;
+    }
+
+    public static void setPlayerListMaxHeight(int maxHeight) {
+        int clamped = MathHelper.clamp(maxHeight, 40, MAX_PLAYER_LIST_OFFSET);
+        if (playerListMaxHeight == clamped) return;
+        playerListMaxHeight = clamped;
+        saveConfigNow();
+    }
+
+    public static float getPlayerListAlphaMultiplier() {
+        return playerListAlphaMultiplier;
+    }
+
+    public static void setPlayerListAlphaMultiplier(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(playerListAlphaMultiplier - clamped) < 0.0001F) return;
+        playerListAlphaMultiplier = clamped;
+        saveConfigNow();
+    }
+
+    public static int getPlayerListOffsetX() {
+        return playerListOffsetX;
+    }
+
+    public static void setPlayerListOffsetX(int offsetX) {
+        int clamped = MathHelper.clamp(offsetX, 0, MAX_PLAYER_LIST_OFFSET);
+        if (playerListOffsetX == clamped) return;
+        playerListOffsetX = clamped;
+        saveConfigNow();
+    }
+
+    public static int getPlayerListOffsetY() {
+        return playerListOffsetY;
+    }
+
+    public static void setPlayerListOffsetY(int offsetY) {
+        int clamped = MathHelper.clamp(offsetY, 0, MAX_PLAYER_LIST_OFFSET);
+        if (playerListOffsetY == clamped) return;
+        playerListOffsetY = clamped;
         saveConfigNow();
     }
 
@@ -223,7 +356,6 @@ public class NoKnockbackClient implements ClientModInitializer {
         saveConfigNow();
 
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
-        HudRenderCallback.EVENT.register(this::onHudRender);
     }
 
     private void onTick(MinecraftClient client) {
@@ -317,7 +449,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     }
 
-    private void onHudRender(DrawContext drawContext, RenderTickCounter tickCounter) {
+    public static void renderHudOverlay(DrawContext drawContext, RenderTickCounter tickCounter) {
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerEntity localPlayer = client.player;
         if (localPlayer == null || client.world == null) return;
@@ -325,7 +457,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (playerListEnabled) {
             renderPlayerList(drawContext, client, localPlayer);
         }
-        if (!playerRaysEnabled || client.gameRenderer == null) return;
+        if (client.gameRenderer == null) return;
 
         Camera camera = client.gameRenderer.getCamera();
         if (camera == null || !camera.isReady()) return;
@@ -339,13 +471,22 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (client.gameRenderer instanceof GameRendererAccessor accessor) {
             fov = accessor.noknockback$getFov(camera, tickDelta, true);
         }
-        final float renderFov = fov;
+        float renderFov = fov;
+
+        if (playerEspEnabled && playerArmorOverlayEnabled) {
+            renderPlayerArmorOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
+        }
+        if (targetHealthOverlayEnabled) {
+            renderTargetHealthOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
+        }
+        if (!playerRaysEnabled) return;
 
         float startX = screenWidth * 0.5F;
         float startY = rayOrigin == RayOrigin.CENTER
                 ? screenHeight * 0.5F
                 : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
         Vector3f projected = new Vector3f();
+        List<RayDistanceLabel> labels = new ArrayList<>();
 
         drawContext.draw(vertexConsumers -> {
             VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
@@ -359,8 +500,19 @@ public class NoKnockbackClient implements ClientModInitializer {
 
                 int color = 0xFF000000 | getPlayerHighlightColor(target);
                 drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, color);
+
+                int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
+                labels.add(createRayDistanceLabel(
+                        Integer.toString(Math.max(0, meters)) + "m",
+                        startX,
+                        startY,
+                        projected.x,
+                        projected.y
+                ));
             }
         });
+
+        renderRayDistanceLabels(drawContext, client, labels, screenWidth, screenHeight);
     }
 
     private static void drawThickRay(
@@ -388,7 +540,175 @@ public class NoKnockbackClient implements ClientModInitializer {
         consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(color);
     }
 
-    private void renderPlayerList(DrawContext drawContext, MinecraftClient client, PlayerEntity localPlayer) {
+    private static RayDistanceLabel createRayDistanceLabel(
+            String text,
+            float startX,
+            float startY,
+            float endX,
+            float endY
+    ) {
+        float dx = endX - startX;
+        float dy = endY - startY;
+        float len = MathHelper.sqrt(dx * dx + dy * dy);
+
+        float labelX = startX + dx * RAY_LABEL_POSITION_FACTOR;
+        float labelY = startY + dy * RAY_LABEL_POSITION_FACTOR;
+        if (len > 0.0001F) {
+            float nx = -dy / len;
+            float ny = dx / len;
+            labelX += nx * RAY_LABEL_PERP_OFFSET;
+            labelY += ny * RAY_LABEL_PERP_OFFSET;
+        }
+
+        return new RayDistanceLabel(text, labelX, labelY);
+    }
+
+    private static void renderRayDistanceLabels(
+            DrawContext drawContext,
+            MinecraftClient client,
+            List<RayDistanceLabel> labels,
+            int screenWidth,
+            int screenHeight
+    ) {
+        if (labels.isEmpty() || client.textRenderer == null) return;
+
+        int margin = 2;
+        int fontHeight = client.textRenderer.fontHeight;
+        for (RayDistanceLabel label : labels) {
+            int rawWidth = client.textRenderer.getWidth(label.text());
+            int scaledWidth = Math.max(1, Math.round(rawWidth * rayLabelTextScale));
+            int scaledHeight = Math.max(1, Math.round(fontHeight * rayLabelTextScale));
+
+            int x = Math.round(label.x()) - scaledWidth / 2;
+            int y = Math.round(label.y()) - scaledHeight / 2;
+            x = MathHelper.clamp(x, margin, Math.max(margin, screenWidth - scaledWidth - margin));
+            y = MathHelper.clamp(y, margin, Math.max(margin, screenHeight - scaledHeight - margin));
+
+            drawContext.fill(
+                    x - 2,
+                    y - 1,
+                    x + scaledWidth + 2,
+                    y + scaledHeight + 1,
+                    RAY_LABEL_BG_COLOR
+            );
+
+            drawContext.getMatrices().push();
+            drawContext.getMatrices().translate(x, y, 0.0F);
+            drawContext.getMatrices().scale(rayLabelTextScale, rayLabelTextScale, 1.0F);
+            drawContext.drawTextWithShadow(client.textRenderer, label.text(), 0, 0, RAY_LABEL_TEXT_COLOR);
+            drawContext.getMatrices().pop();
+        }
+    }
+
+    private static void renderPlayerArmorOverlay(
+            DrawContext drawContext,
+            MinecraftClient client,
+            PlayerEntity localPlayer,
+            Camera camera,
+            float tickDelta,
+            float fovDegrees,
+            int screenWidth,
+            int screenHeight
+    ) {
+        if (client.world == null) return;
+
+        Vector3f projected = new Vector3f();
+        int iconSize = Math.max(8, Math.round(16.0F * ARMOR_OVERLAY_ICON_SCALE));
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == localPlayer || target.isRemoved()) continue;
+
+            Vec3d overlayPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.35, 0.0);
+            if (!projectToScreen(overlayPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
+
+            List<ItemStack> armorStacks = new ArrayList<>(4);
+            ItemStack head = target.getEquippedStack(EquipmentSlot.HEAD);
+            ItemStack chest = target.getEquippedStack(EquipmentSlot.CHEST);
+            ItemStack legs = target.getEquippedStack(EquipmentSlot.LEGS);
+            ItemStack feet = target.getEquippedStack(EquipmentSlot.FEET);
+            if (!head.isEmpty()) armorStacks.add(head);
+            if (!chest.isEmpty()) armorStacks.add(chest);
+            if (!legs.isEmpty()) armorStacks.add(legs);
+            if (!feet.isEmpty()) armorStacks.add(feet);
+            if (armorStacks.isEmpty()) continue;
+
+            int count = armorStacks.size();
+            int totalWidth = count * iconSize + (count - 1) * ARMOR_OVERLAY_ICON_SPACING;
+            int startX = Math.round(projected.x) - totalWidth / 2;
+            int startY = Math.round(projected.y) - iconSize - 6;
+            startX = MathHelper.clamp(startX, 1, Math.max(1, screenWidth - totalWidth - 1));
+            startY = MathHelper.clamp(startY, 1, Math.max(1, screenHeight - iconSize - 1));
+
+            drawContext.fill(startX - 1, startY - 1, startX + totalWidth + 1, startY + iconSize + 1, 0x5A000000);
+
+            for (int i = 0; i < count; i++) {
+                int iconX = startX + i * (iconSize + ARMOR_OVERLAY_ICON_SPACING);
+                int iconY = startY;
+                drawContext.getMatrices().push();
+                drawContext.getMatrices().translate(iconX, iconY, 0.0F);
+                drawContext.getMatrices().scale(ARMOR_OVERLAY_ICON_SCALE, ARMOR_OVERLAY_ICON_SCALE, 1.0F);
+                drawContext.drawItem(armorStacks.get(i), 0, 0);
+                drawContext.getMatrices().pop();
+            }
+        }
+    }
+
+    private static void renderTargetHealthOverlay(
+            DrawContext drawContext,
+            MinecraftClient client,
+            PlayerEntity localPlayer,
+            Camera camera,
+            float tickDelta,
+            float fovDegrees,
+            int screenWidth,
+            int screenHeight
+    ) {
+        if (client.world == null || client.textRenderer == null) return;
+
+        Vector3f projected = new Vector3f();
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == localPlayer || target.isRemoved()) continue;
+
+            Vec3d textWorldPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.6, 0.0);
+            if (!projectToScreen(textWorldPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
+
+            int currentHp = Math.max(0, Math.round(target.getHealth()));
+            int maxHp = Math.max(1, Math.round(target.getMaxHealth()));
+            String text = currentHp + "/" + maxHp;
+            float hpPercent = (currentHp / (float) maxHp) * 100.0F;
+            int color = targetHealthDynamicColorEnabled ? resolveTargetHealthColor(hpPercent) : 0xFFFFFFFF;
+
+            int rawWidth = client.textRenderer.getWidth(text);
+            int scaledWidth = Math.max(1, Math.round(rawWidth * targetHealthTextScale));
+            int scaledHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * targetHealthTextScale));
+
+            int textX = Math.round(projected.x) - scaledWidth / 2;
+            int textY = Math.round(projected.y) - scaledHeight - 18;
+            textX = MathHelper.clamp(textX, 2, Math.max(2, screenWidth - scaledWidth - 2));
+            textY = MathHelper.clamp(textY, 2, Math.max(2, screenHeight - scaledHeight - 2));
+
+            drawContext.fill(textX - 2, textY - 1, textX + scaledWidth + 2, textY + scaledHeight + 1, TARGET_HEALTH_BG_COLOR);
+            drawContext.getMatrices().push();
+            drawContext.getMatrices().translate(textX, textY, 0.0F);
+            drawContext.getMatrices().scale(targetHealthTextScale, targetHealthTextScale, 1.0F);
+            drawContext.drawTextWithShadow(client.textRenderer, text, 0, 0, color);
+            drawContext.getMatrices().pop();
+        }
+    }
+
+    private static int resolveTargetHealthColor(float hpPercent) {
+        if (hpPercent < 10.0F) {
+            return TARGET_HEALTH_COLOR_DARK_RED;
+        }
+        if (hpPercent < 33.0F) {
+            return TARGET_HEALTH_COLOR_RED;
+        }
+        if (hpPercent <= 66.0F) {
+            return TARGET_HEALTH_COLOR_YELLOW;
+        }
+        return TARGET_HEALTH_COLOR_LIME;
+    }
+
+    private static void renderPlayerList(DrawContext drawContext, MinecraftClient client, PlayerEntity localPlayer) {
         if (client.textRenderer == null || client.world == null) return;
 
         Map<Integer, List<PlayerDistanceEntry>> groups = new LinkedHashMap<>();
@@ -420,41 +740,83 @@ public class NoKnockbackClient implements ClientModInitializer {
             }
         }
 
-        int textLineHeight = Math.max(6, Math.round(client.textRenderer.fontHeight * PLAYER_LIST_TEXT_SCALE) + 1);
-        int maxVisibleLines = Math.max(2, (drawContext.getScaledWindowHeight() - PLAYER_LIST_Y - 16) / textLineHeight);
+        int screenWidth = drawContext.getScaledWindowWidth();
+        int screenHeight = drawContext.getScaledWindowHeight();
+        int textLineHeight = Math.max(4, Math.round(client.textRenderer.fontHeight * playerListTextScale) + 1);
+        int baseY = MathHelper.clamp(playerListOffsetY, 0, Math.max(0, screenHeight - 12));
+        int viewportHeight = Math.max(24, Math.min(playerListMaxHeight, screenHeight - baseY - 8));
+        int maxVisibleLines = Math.max(2, viewportHeight / textLineHeight);
         if (lines.size() > maxVisibleLines) {
-            int hiddenLines = lines.size() - maxVisibleLines + 1;
             lines = new ArrayList<>(lines.subList(0, maxVisibleLines - 1));
-            lines.add(new PlayerListLine("... +" + hiddenLines, 0xFFFFFFFF));
+            lines.add(new PlayerListLine("and ... more", 0xFFFFFFFF));
         }
 
         int maxWidth = 0;
         for (PlayerListLine line : lines) {
-            int scaledWidth = Math.round(client.textRenderer.getWidth(line.text()) * PLAYER_LIST_TEXT_SCALE);
+            int scaledWidth = Math.round(client.textRenderer.getWidth(line.text()) * playerListTextScale);
             maxWidth = Math.max(maxWidth, scaledWidth);
         }
 
         int panelWidth = maxWidth + PLAYER_LIST_PADDING * 2;
         int panelHeight = lines.size() * textLineHeight + PLAYER_LIST_PADDING * 2;
-        int x1 = PLAYER_LIST_X;
-        int y1 = PLAYER_LIST_Y;
+        int x1 = MathHelper.clamp(playerListOffsetX, 0, Math.max(0, screenWidth - 12));
+        int y1 = baseY;
+        x1 = MathHelper.clamp(x1, 0, Math.max(0, screenWidth - panelWidth - 1));
+        y1 = MathHelper.clamp(y1, 0, Math.max(0, screenHeight - panelHeight - 1));
         int x2 = x1 + panelWidth;
         int y2 = y1 + panelHeight;
 
-        drawContext.fill(x1 - 1, y1 - 1, x2 + 1, y2 + 1, PLAYER_LIST_BORDER_COLOR);
-        drawContext.fill(x1, y1, x2, y2, PLAYER_LIST_BG_COLOR);
+        drawContext.fill(x1 - 1, y1 - 1, x2 + 1, y2 + 1, withAlpha(PLAYER_LIST_BORDER_COLOR, playerListAlphaMultiplier));
+        drawContext.fill(x1, y1, x2, y2, withAlpha(PLAYER_LIST_BG_COLOR, playerListAlphaMultiplier));
 
         int textX = x1 + PLAYER_LIST_PADDING;
         int textY = y1 + PLAYER_LIST_PADDING;
         for (PlayerListLine line : lines) {
-            int textColor = withAlpha(line.color(), PLAYER_LIST_ALPHA_MULTIPLIER);
+            int textColor = withAlpha(line.color(), playerListAlphaMultiplier);
             drawContext.getMatrices().push();
             drawContext.getMatrices().translate(textX, textY, 0.0F);
-            drawContext.getMatrices().scale(PLAYER_LIST_TEXT_SCALE, PLAYER_LIST_TEXT_SCALE, 1.0F);
+            drawContext.getMatrices().scale(playerListTextScale, playerListTextScale, 1.0F);
             drawContext.drawTextWithShadow(client.textRenderer, line.text(), 0, 0, textColor);
             drawContext.getMatrices().pop();
             textY += textLineHeight;
         }
+    }
+
+    private static boolean projectToScreen(
+            Vec3d worldPos,
+            Camera camera,
+            int screenWidth,
+            int screenHeight,
+            float fovDegrees,
+            Vector3f out
+    ) {
+        Vec3d cameraPos = camera.getPos();
+        Vector3f cameraSpace = new Vector3f(
+                (float) (worldPos.x - cameraPos.x),
+                (float) (worldPos.y - cameraPos.y),
+                (float) (worldPos.z - cameraPos.z)
+        );
+        camera.getRotation().transformInverse(cameraSpace);
+
+        float tanHalfFovY = (float) Math.tan(Math.toRadians(fovDegrees) * 0.5);
+        if (tanHalfFovY <= 0.0F) return false;
+        float aspect = (float) screenWidth / (float) screenHeight;
+        float tanHalfFovX = tanHalfFovY * aspect;
+        if (tanHalfFovX <= 0.0F) return false;
+
+        float forwardZ = -cameraSpace.z;
+        if (forwardZ <= 0.05F) return false;
+
+        float ndcX = (cameraSpace.x / forwardZ) / tanHalfFovX;
+        float ndcY = (cameraSpace.y / forwardZ) / tanHalfFovY;
+        if (Math.abs(ndcX) > 1.0F || Math.abs(ndcY) > 1.0F) return false;
+
+        out.set(
+                (ndcX * 0.5F + 0.5F) * screenWidth,
+                (0.5F - ndcY * 0.5F) * screenHeight,
+                0.0F
+        );
+        return true;
     }
 
     private static boolean projectToIndicator(
@@ -531,11 +893,21 @@ public class NoKnockbackClient implements ClientModInitializer {
 
         speedEnabled = config.speedEnabled;
         playerEspEnabled = config.playerEspEnabled;
+        playerArmorOverlayEnabled = config.playerArmorOverlayEnabled;
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
+        targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
+        targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         rayThickness = MathHelper.clamp(config.rayThickness, 0.5F, 8.0F);
         outlineThickness = MathHelper.clamp(config.outlineThickness, 0.5F, 6.0F);
         rayBottomStartHeight = MathHelper.clamp(config.rayBottomStartHeight, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
+        rayLabelTextScale = MathHelper.clamp(config.rayDistanceTextScale, 0.5F, 2.0F);
+        targetHealthTextScale = MathHelper.clamp(config.targetHealthTextScale, 0.5F, 2.0F);
+        playerListTextScale = MathHelper.clamp(config.playerListTextScale, 0.1F, 2.0F);
+        playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
+        playerListAlphaMultiplier = MathHelper.clamp(config.playerListAlpha, 0.1F, 1.0F);
+        playerListOffsetX = MathHelper.clamp(config.playerListOffsetX, 0, MAX_PLAYER_LIST_OFFSET);
+        playerListOffsetY = MathHelper.clamp(config.playerListOffsetY, 0, MAX_PLAYER_LIST_OFFSET);
         rayOrigin = parseRayOrigin(config.rayOrigin);
     }
 
@@ -564,11 +936,21 @@ public class NoKnockbackClient implements ClientModInitializer {
         NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
         data.speedEnabled = speedEnabled;
         data.playerEspEnabled = playerEspEnabled;
+        data.playerArmorOverlayEnabled = playerArmorOverlayEnabled;
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
+        data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
+        data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.rayThickness = rayThickness;
         data.outlineThickness = outlineThickness;
         data.rayBottomStartHeight = rayBottomStartHeight;
+        data.rayDistanceTextScale = rayLabelTextScale;
+        data.targetHealthTextScale = targetHealthTextScale;
+        data.playerListTextScale = playerListTextScale;
+        data.playerListMaxHeight = playerListMaxHeight;
+        data.playerListAlpha = playerListAlphaMultiplier;
+        data.playerListOffsetX = playerListOffsetX;
+        data.playerListOffsetY = playerListOffsetY;
         data.rayOrigin = rayOrigin.name();
 
         if (toggleKey != null) {
@@ -594,6 +976,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     private record PlayerListLine(String text, int color) {
+    }
+
+    private record RayDistanceLabel(String text, float x, float y) {
     }
 
     public enum RayOrigin {

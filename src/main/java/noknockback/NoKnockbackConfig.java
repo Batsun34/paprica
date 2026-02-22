@@ -55,11 +55,21 @@ public final class NoKnockbackConfig {
         Data sanitized = new Data();
         sanitized.speedEnabled = data.speedEnabled;
         sanitized.playerEspEnabled = data.playerEspEnabled;
+        sanitized.playerArmorOverlayEnabled = data.playerArmorOverlayEnabled;
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
+        sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
+        sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.rayThickness = MathHelper.clamp(data.rayThickness, 0.5F, 8.0F);
         sanitized.outlineThickness = MathHelper.clamp(data.outlineThickness, 0.5F, 6.0F);
         sanitized.rayBottomStartHeight = MathHelper.clamp(data.rayBottomStartHeight, 0.0F, 300.0F);
+        sanitized.rayDistanceTextScale = MathHelper.clamp(data.rayDistanceTextScale, 0.5F, 2.0F);
+        sanitized.targetHealthTextScale = MathHelper.clamp(data.targetHealthTextScale, 0.5F, 2.0F);
+        sanitized.playerListTextScale = MathHelper.clamp(data.playerListTextScale, 0.1F, 2.0F);
+        sanitized.playerListMaxHeight = MathHelper.clamp(data.playerListMaxHeight, 40, 4096);
+        sanitized.playerListAlpha = MathHelper.clamp(data.playerListAlpha, 0.1F, 1.0F);
+        sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
+        sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
         sanitized.rayOrigin = sanitizeRayOrigin(data.rayOrigin);
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
@@ -99,11 +109,21 @@ public final class NoKnockbackConfig {
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean playerEspEnabled = false;
+        public boolean playerArmorOverlayEnabled = false;
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
+        public boolean targetHealthOverlayEnabled = false;
+        public boolean targetHealthDynamicColorEnabled = true;
         public float rayThickness = 2.0F;
         public float outlineThickness = 1.0F;
         public float rayBottomStartHeight = 2.0F;
+        public float rayDistanceTextScale = 0.75F;
+        public float targetHealthTextScale = 1.0F;
+        public float playerListTextScale = 0.8F;
+        public int playerListMaxHeight = 280;
+        public float playerListAlpha = 0.7F;
+        public int playerListOffsetX = 6;
+        public int playerListOffsetY = 6;
         public String rayOrigin = NoKnockbackClient.RayOrigin.BOTTOM.name();
 
         public String speedToggleKey = "key.keyboard.v";

@@ -50,9 +50,15 @@ public class NoKnockbackMenuScreen extends Screen {
     @Nullable
     private ButtonWidget playerEspToggleButton;
     @Nullable
+    private ButtonWidget playerArmorOverlayToggleButton;
+    @Nullable
     private ButtonWidget playerRaysToggleButton;
     @Nullable
     private ButtonWidget playerListToggleButton;
+    @Nullable
+    private ButtonWidget targetHealthToggleButton;
+    @Nullable
+    private ButtonWidget targetHealthColorToggleButton;
     @Nullable
     private CyclingButtonWidget<NoKnockbackClient.RayOrigin> rayOriginButton;
     @Nullable
@@ -61,6 +67,20 @@ public class NoKnockbackMenuScreen extends Screen {
     private SettingSlider outlineThicknessSlider;
     @Nullable
     private SettingSlider rayBottomStartHeightSlider;
+    @Nullable
+    private SettingSlider rayDistanceTextSizeSlider;
+    @Nullable
+    private SettingSlider targetHealthTextSizeSlider;
+    @Nullable
+    private SettingSlider playerListXSlider;
+    @Nullable
+    private SettingSlider playerListYSlider;
+    @Nullable
+    private SettingSlider playerListScaleSlider;
+    @Nullable
+    private SettingSlider playerListMaxHeightSlider;
+    @Nullable
+    private SettingSlider playerListAlphaSlider;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("NoKnockback Settings"));
@@ -114,6 +134,12 @@ public class NoKnockbackMenuScreen extends Screen {
                 NoKnockbackClient.setOutlineThickness((float) value);
             }
         });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.playerArmorOverlayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setPlayerArmorOverlayEnabled(!NoKnockbackClient.isPlayerArmorOverlayEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + SECTION_GAP;
 
         this.sectionTitles.add(new SectionTitle("Rays", y));
@@ -128,7 +154,10 @@ public class NoKnockbackMenuScreen extends Screen {
         this.rayOriginButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::rayOriginText)
                 .values(NoKnockbackClient.RayOrigin.BOTTOM, NoKnockbackClient.RayOrigin.CENTER)
                 .initially(NoKnockbackClient.getRayOrigin())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Origin"), (button, value) -> NoKnockbackClient.setRayOrigin(value)));
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Origin"), (button, value) -> {
+                    NoKnockbackClient.setRayOrigin(value);
+                    this.refreshLabels();
+                }));
         y += ROW_HEIGHT + ROW_GAP;
 
         this.rayBottomStartHeightSlider = this.addScrollableWidget(new SettingSlider(
@@ -163,6 +192,54 @@ public class NoKnockbackMenuScreen extends Screen {
                 NoKnockbackClient.setRayThickness((float) value);
             }
         });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.rayDistanceTextSizeSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Ray Distance Text Size",
+                0.5,
+                2.0,
+                0.1,
+                NoKnockbackClient.getRayLabelTextScale()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setRayLabelTextScale((float) value);
+            }
+        });
+        y += ROW_HEIGHT + SECTION_GAP;
+
+        this.sectionTitles.add(new SectionTitle("Target Health", y));
+        y += 12;
+        this.targetHealthToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setTargetHealthOverlayEnabled(!NoKnockbackClient.isTargetHealthOverlayEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.targetHealthColorToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setTargetHealthDynamicColorEnabled(!NoKnockbackClient.isTargetHealthDynamicColorEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.targetHealthTextSizeSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Target HP Text Size",
+                0.5,
+                2.0,
+                0.1,
+                NoKnockbackClient.getTargetHealthTextScale()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setTargetHealthTextScale((float) value);
+            }
+        });
         y += ROW_HEIGHT + SECTION_GAP;
 
         this.sectionTitles.add(new SectionTitle("Player List", y));
@@ -172,6 +249,91 @@ public class NoKnockbackMenuScreen extends Screen {
             this.refreshLabels();
         }).dimensions(left, y, LEFT_COLUMN_WIDTH, ROW_HEIGHT).build());
         this.createKeyBindButton(NoKnockbackClient.getPlayerListKeyBinding(), rightColumnX, y, RIGHT_COLUMN_WIDTH);
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.playerListXSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Player List X",
+                0.0,
+                4096.0,
+                1.0,
+                NoKnockbackClient.getPlayerListOffsetX()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setPlayerListOffsetX((int) Math.round(value));
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.playerListYSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Player List Y",
+                0.0,
+                4096.0,
+                1.0,
+                NoKnockbackClient.getPlayerListOffsetY()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setPlayerListOffsetY((int) Math.round(value));
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.playerListScaleSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Player List Size",
+                0.1,
+                2.0,
+                0.1,
+                NoKnockbackClient.getPlayerListTextScale()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setPlayerListTextScale((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.playerListMaxHeightSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Player List Max Height",
+                40.0,
+                1200.0,
+                10.0,
+                NoKnockbackClient.getPlayerListMaxHeight()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setPlayerListMaxHeight((int) Math.round(value));
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.playerListAlphaSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Player List Alpha",
+                0.1,
+                1.0,
+                0.1,
+                NoKnockbackClient.getPlayerListAlphaMultiplier()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setPlayerListAlphaMultiplier((float) value);
+            }
+        });
         y += ROW_HEIGHT + SECTION_GAP;
 
         this.sectionTitles.add(new SectionTitle("Menu", y));
@@ -312,6 +474,11 @@ public class NoKnockbackMenuScreen extends Screen {
             this.playerEspToggleButton.setMessage(this.toggleText("Player ESP", NoKnockbackClient.isPlayerEspEnabled()));
         }
 
+        if (this.playerArmorOverlayToggleButton != null) {
+            this.playerArmorOverlayToggleButton.setMessage(this.toggleText("Armor Through Walls", NoKnockbackClient.isPlayerArmorOverlayEnabled()));
+            this.playerArmorOverlayToggleButton.active = NoKnockbackClient.isPlayerEspEnabled();
+        }
+
         if (this.playerRaysToggleButton != null) {
             this.playerRaysToggleButton.setMessage(this.toggleText("Player Rays", NoKnockbackClient.isPlayerRaysEnabled()));
         }
@@ -335,6 +502,44 @@ public class NoKnockbackMenuScreen extends Screen {
         if (this.rayBottomStartHeightSlider != null) {
             this.rayBottomStartHeightSlider.sync(NoKnockbackClient.getRayBottomStartHeight());
             this.rayBottomStartHeightSlider.active = NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM;
+        }
+
+        if (this.rayDistanceTextSizeSlider != null) {
+            this.rayDistanceTextSizeSlider.sync(NoKnockbackClient.getRayLabelTextScale());
+        }
+
+        if (this.targetHealthToggleButton != null) {
+            this.targetHealthToggleButton.setMessage(this.toggleText("All Players HP", NoKnockbackClient.isTargetHealthOverlayEnabled()));
+        }
+
+        if (this.targetHealthColorToggleButton != null) {
+            this.targetHealthColorToggleButton.setMessage(this.toggleText("HP Dynamic Color", NoKnockbackClient.isTargetHealthDynamicColorEnabled()));
+            this.targetHealthColorToggleButton.active = NoKnockbackClient.isTargetHealthOverlayEnabled();
+        }
+
+        if (this.targetHealthTextSizeSlider != null) {
+            this.targetHealthTextSizeSlider.sync(NoKnockbackClient.getTargetHealthTextScale());
+            this.targetHealthTextSizeSlider.active = NoKnockbackClient.isTargetHealthOverlayEnabled();
+        }
+
+        if (this.playerListXSlider != null) {
+            this.playerListXSlider.sync(NoKnockbackClient.getPlayerListOffsetX());
+        }
+
+        if (this.playerListYSlider != null) {
+            this.playerListYSlider.sync(NoKnockbackClient.getPlayerListOffsetY());
+        }
+
+        if (this.playerListScaleSlider != null) {
+            this.playerListScaleSlider.sync(NoKnockbackClient.getPlayerListTextScale());
+        }
+
+        if (this.playerListMaxHeightSlider != null) {
+            this.playerListMaxHeightSlider.sync(NoKnockbackClient.getPlayerListMaxHeight());
+        }
+
+        if (this.playerListAlphaSlider != null) {
+            this.playerListAlphaSlider.sync(NoKnockbackClient.getPlayerListAlphaMultiplier());
         }
 
         for (Map.Entry<KeyBinding, ButtonWidget> entry : this.keyButtons.entrySet()) {
