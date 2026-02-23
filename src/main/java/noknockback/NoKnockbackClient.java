@@ -114,6 +114,8 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float handOffsetY = 0.0F;
     private static int playerListOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
+    private static String menuLastTabId = "RAYS";
+    private static double menuScrollOffset = 0.0;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
     private static OverlayAnchorMode armorAnchorMode = OverlayAnchorMode.ABOVE_PLAYER;
     private static OverlayAnchorMode heldItemAnchorMode = OverlayAnchorMode.ABOVE_PLAYER;
@@ -371,6 +373,31 @@ public class NoKnockbackClient implements ClientModInitializer {
         int updated = (skyBottomColor & 0xFFFF00) | clamped;
         if (skyBottomColor == updated) return;
         skyBottomColor = updated;
+        saveConfigNow();
+    }
+
+    public static String getMenuLastTabId() {
+        return menuLastTabId;
+    }
+
+    public static void setMenuLastTabId(String tabId) {
+        if (tabId == null || tabId.isBlank()) {
+            return;
+        }
+        if (tabId.equals(menuLastTabId)) return;
+        menuLastTabId = tabId;
+    }
+
+    public static double getMenuScrollOffset() {
+        return menuScrollOffset;
+    }
+
+    public static void setMenuScrollOffset(double offset) {
+        if (Math.abs(menuScrollOffset - offset) < 0.0001) return;
+        menuScrollOffset = offset;
+    }
+
+    public static void persistMenuState() {
         saveConfigNow();
     }
 
@@ -1931,6 +1958,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerListOffsetY = MathHelper.clamp(config.playerListOffsetY, 0, MAX_PLAYER_LIST_OFFSET);
         skyTopColor = config.skyTopColor & 0xFFFFFF;
         skyBottomColor = config.skyBottomColor & 0xFFFFFF;
+        menuLastTabId = (config.menuLastTab == null || config.menuLastTab.isBlank()) ? "RAYS" : config.menuLastTab;
+        menuScrollOffset = config.menuScrollOffset;
         rayOrigin = parseRayOrigin(config.rayOrigin);
         armorAnchorMode = parseOverlayAnchorMode(config.armorAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
         heldItemAnchorMode = parseOverlayAnchorMode(config.heldItemAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
@@ -2037,6 +2066,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerListOffsetY = playerListOffsetY;
         data.skyTopColor = skyTopColor & 0xFFFFFF;
         data.skyBottomColor = skyBottomColor & 0xFFFFFF;
+        data.menuLastTab = menuLastTabId;
+        data.menuScrollOffset = menuScrollOffset;
         data.rayOrigin = rayOrigin.name();
         data.armorAnchorMode = armorAnchorMode.name();
         data.heldItemAnchorMode = heldItemAnchorMode.name();

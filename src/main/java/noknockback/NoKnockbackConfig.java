@@ -116,6 +116,8 @@ public final class NoKnockbackConfig {
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
         sanitized.skyTopColor = data.skyTopColor & 0xFFFFFF;
         sanitized.skyBottomColor = data.skyBottomColor & 0xFFFFFF;
+        sanitized.menuLastTab = data.menuLastTab == null ? "RAYS" : data.menuLastTab;
+        sanitized.menuScrollOffset = data.menuScrollOffset;
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
         sanitized.noKnockbackKey = sanitizeKey(data.noKnockbackKey, "key.keyboard.n");
@@ -234,6 +236,8 @@ public final class NoKnockbackConfig {
         public float handOffsetY = 0.0F;
         public int skyTopColor = 0x78A7FF;
         public int skyBottomColor = 0xA0C8FF;
+        public String menuLastTab = "RAYS";
+        public double menuScrollOffset = 0.0;
 
         public String speedToggleKey = "key.keyboard.v";
         public String noKnockbackKey = "key.keyboard.n";

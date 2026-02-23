@@ -97,6 +97,7 @@ public class NoKnockbackMenuScreen extends Screen {
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
         this.parent = parent;
+        this.applySavedState();
     }
 
     @Override
@@ -123,6 +124,7 @@ public class NoKnockbackMenuScreen extends Screen {
 
     @Override
     public void close() {
+        storeMenuState();
         if (this.client != null) {
             this.client.setScreen(this.parent);
         }
@@ -167,6 +169,7 @@ public class NoKnockbackMenuScreen extends Screen {
                     this.selectedModule = entry.module;
                     this.scrollOffset = 0.0;
                     this.openDropdownId = null;
+                    storeMenuState();
                 }
                 return true;
             }
@@ -259,6 +262,7 @@ public class NoKnockbackMenuScreen extends Screen {
             return true;
         }
         this.scrollOffset = MathHelper.clamp(this.scrollOffset + verticalAmount * SCROLL_STEP, -this.maxScroll, 0.0);
+        NoKnockbackClient.setMenuScrollOffset(this.scrollOffset);
         return true;
     }
 
@@ -369,6 +373,7 @@ public class NoKnockbackMenuScreen extends Screen {
         this.openDropdownRect = null;
         this.openDropdownControl = null;
         this.openDropdownListRect = null;
+        NoKnockbackClient.setMenuLastTabId(this.selectedModule.name());
 
         int innerX = this.contentX + PADDING;
         int innerY = this.contentY + PADDING;
@@ -425,6 +430,25 @@ public class NoKnockbackMenuScreen extends Screen {
         } else if (this.openDropdownId != null) {
             this.openDropdownId = null;
         }
+    }
+
+    private void applySavedState() {
+        String savedTab = NoKnockbackClient.getMenuLastTabId();
+        if (savedTab != null && !savedTab.isBlank()) {
+            for (ModuleTab tab : ModuleTab.values()) {
+                if (tab.name().equalsIgnoreCase(savedTab)) {
+                    this.selectedModule = tab;
+                    break;
+                }
+            }
+        }
+        this.scrollOffset = NoKnockbackClient.getMenuScrollOffset();
+    }
+
+    private void storeMenuState() {
+        NoKnockbackClient.setMenuLastTabId(this.selectedModule.name());
+        NoKnockbackClient.setMenuScrollOffset(this.scrollOffset);
+        NoKnockbackClient.persistMenuState();
     }
 
     private void drawPanel(DrawContext context, Panel panel, int x, int y, int width, int mouseX, int mouseY) {
