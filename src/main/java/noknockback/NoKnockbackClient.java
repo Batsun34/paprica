@@ -70,6 +70,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
+    private static int visualRevision = 0;
 
     private static boolean speedEnabled = true;
     private static boolean noKnockbackEnabled = true;
@@ -585,6 +586,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (espVisualColorMode == updated) return;
         espVisualColorMode = updated;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -596,6 +598,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(espVisualSaturationBoost - clamped) < 0.0001F) return;
         espVisualSaturationBoost = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -607,6 +610,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(espVisualAnimationSpeed - clamped) < 0.0001F) return;
         espVisualAnimationSpeed = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -618,6 +622,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (rayVisualColorMode == updated) return;
         rayVisualColorMode = updated;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -629,6 +634,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (armorVisualColorMode == updated) return;
         armorVisualColorMode = updated;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -640,6 +646,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (heldItemVisualColorMode == updated) return;
         heldItemVisualColorMode = updated;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -651,6 +658,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (distanceVisualColorMode == updated) return;
         distanceVisualColorMode = updated;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -662,6 +670,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(rayVisualSaturationBoost - clamped) < 0.0001F) return;
         rayVisualSaturationBoost = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -673,6 +682,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(armorVisualSaturationBoost - clamped) < 0.0001F) return;
         armorVisualSaturationBoost = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -684,6 +694,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(heldItemVisualSaturationBoost - clamped) < 0.0001F) return;
         heldItemVisualSaturationBoost = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -695,6 +706,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(distanceVisualSaturationBoost - clamped) < 0.0001F) return;
         distanceVisualSaturationBoost = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -706,6 +718,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(rayVisualAnimationSpeed - clamped) < 0.0001F) return;
         rayVisualAnimationSpeed = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -717,6 +730,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(armorVisualAnimationSpeed - clamped) < 0.0001F) return;
         armorVisualAnimationSpeed = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -728,6 +742,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(heldItemVisualAnimationSpeed - clamped) < 0.0001F) return;
         heldItemVisualAnimationSpeed = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -739,6 +754,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(distanceVisualAnimationSpeed - clamped) < 0.0001F) return;
         distanceVisualAnimationSpeed = clamped;
+        bumpVisualRevision();
         saveConfigNow();
     }
 
@@ -1148,14 +1164,14 @@ public class NoKnockbackClient implements ClientModInitializer {
 
                 int baseStart = resolveVisualColor(
                         target,
-                        0.08F,
+                        0.12F,
                         rayVisualColorMode,
                         rayVisualSaturationBoost,
                         rayVisualAnimationSpeed
                 );
                 int baseEnd = resolveVisualColor(
                         target,
-                        0.42F,
+                        0.88F,
                         rayVisualColorMode,
                         rayVisualSaturationBoost,
                         rayVisualAnimationSpeed
@@ -1919,53 +1935,57 @@ public class NoKnockbackClient implements ClientModInitializer {
             float animationSpeed
     ) {
         int rgbBase = baseColor & 0x00FFFFFF;
+        int saltedSeed = seed ^ (visualRevision * 0x9E3779B9);
         return switch (colorMode) {
             case NICK -> rgbBase;
-            case GRADIENT -> toGradientColor(rgbBase, seed, offset, saturationBoost, animationSpeed);
-            case RAINBOW -> toRainbowColor(seed, offset, saturationBoost, animationSpeed);
+            case GRADIENT -> toGradientColor(rgbBase, saltedSeed, offset, saturationBoost, animationSpeed);
+            case RAINBOW -> toRainbowColor(saltedSeed, offset, saturationBoost, animationSpeed);
         };
     }
 
     private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
-        float baseSat = Math.max(hsv[1], 0.2F);
-        float baseVal = Math.max(hsv[2], 0.35F);
+        float baseSat = hsv[1];
+        float baseVal = hsv[2];
         float time = visualTime(animationSpeed);
-        float phase = (time * 1.15F) + seed * 0.07F + offset * 1.6F;
-        float wave = 0.5F + 0.5F * MathHelper.sin(phase);
-        float wave2 = 0.5F + 0.5F * MathHelper.sin(phase + 2.094F);
+        float seedPhase = seed * 0.0007F;
+        float wave = 0.5F + 0.5F * MathHelper.sin(time * 1.1F + seedPhase);
+        float wave2 = 0.5F + 0.5F * MathHelper.sin(time * 1.1F + seedPhase + 2.094F);
 
         float baseHue = hsv[0];
-        if (hsv[1] < 0.08F) {
-            baseHue = wrapUnit((seed * 0.03F) + time * 0.12F);
+        if (baseSat < 0.12F) {
+            baseHue = wrapUnit(seed * 0.0013F + time * 0.06F);
+            baseSat = Math.max(baseSat, 0.45F);
+            baseVal = Math.max(baseVal, 0.75F);
         }
-        float hue = wrapUnit(baseHue + (wave - 0.5F) * 0.12F);
-        float saturation = MathHelper.clamp((baseSat * (0.7F + 0.6F * wave)) * saturationBoost, 0.0F, 1.0F);
-        float value = MathHelper.clamp(baseVal * (0.6F + 0.6F * wave2), 0.0F, 1.0F);
+
+        float hueShift = (offset - 0.5F) * 0.55F;
+        float hue = wrapUnit(baseHue + hueShift + (wave - 0.5F) * 0.18F);
+        float saturation = MathHelper.clamp((0.65F + 0.35F * wave) * Math.max(baseSat, 0.45F) * saturationBoost, 0.15F, 1.0F);
+        float value = MathHelper.clamp((0.7F + 0.3F * wave2) * Math.max(baseVal, 0.65F), 0.2F, 1.0F);
         return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
     private static int toRainbowColor(int seed, float offset, float saturationBoost, float animationSpeed) {
         float time = visualTime(animationSpeed);
-        float phase = time * 1.4F + seed * 0.11F + offset * 2.0F;
-        float r = 0.5F + 0.5F * MathHelper.sin(phase);
-        float g = 0.5F + 0.5F * MathHelper.sin(phase + 2.094F);
-        float b = 0.5F + 0.5F * MathHelper.sin(phase + 4.188F);
-        float gray = (r + g + b) / 3.0F;
-        float sat = MathHelper.clamp(saturationBoost, 0.5F, 2.5F);
-        r = MathHelper.clamp(gray + (r - gray) * sat, 0.0F, 1.0F);
-        g = MathHelper.clamp(gray + (g - gray) * sat, 0.0F, 1.0F);
-        b = MathHelper.clamp(gray + (b - gray) * sat, 0.0F, 1.0F);
-        return ((int) (r * 255.0F) << 16) | ((int) (g * 255.0F) << 8) | (int) (b * 255.0F);
+        float hue = wrapUnit(time * 0.08F + seed * 0.0011F + offset * 0.35F);
+        float saturation = MathHelper.clamp(0.85F * saturationBoost, 0.25F, 1.0F);
+        float value = 1.0F;
+        return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
     private static float visualTime(float animationSpeed) {
+        float time = (System.nanoTime() / 1_000_000_000.0F);
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.world != null && client.getRenderTickCounter() != null) {
             float tickDelta = client.getRenderTickCounter().getTickDelta(false);
-            return (client.world.getTime() + tickDelta) * 0.05F * animationSpeed;
+            time += (client.world.getTime() + tickDelta) * 0.02F;
         }
-        return (System.nanoTime() / 1_000_000_000.0F) * animationSpeed;
+        return time * animationSpeed;
+    }
+
+    private static void bumpVisualRevision() {
+        visualRevision = (visualRevision + 1) & 0x7FFFFFFF;
     }
 
     private static float wrapUnit(float value) {
