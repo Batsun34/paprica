@@ -1,13 +1,10 @@
+
 package noknockback;
 
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
-import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.option.SimpleOption;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.MathHelper;
@@ -15,157 +12,79 @@ import org.jetbrains.annotations.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.ArrayList;
-import java.util.EnumMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
+import java.util.function.DoubleConsumer;
+import java.util.function.DoubleSupplier;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
+import java.util.function.Supplier;
 
 public class NoKnockbackMenuScreen extends Screen {
     private static final int WINDOW_WIDTH = 940;
     private static final int WINDOW_HEIGHT = 560;
-    private static final int HEADER_HEIGHT = 28;
-    private static final int SIDEBAR_WIDTH = 210;
-    private static final int CONTENT_PADDING = 10;
-    private static final int CONTENT_GAP = 12;
-    private static final int PANEL_WIDTH = WINDOW_WIDTH - SIDEBAR_WIDTH - CONTENT_GAP - CONTENT_PADDING * 2;
-    private static final int ROW_HEIGHT = 20;
-    private static final int ROW_GAP = 4;
-    private static final int SECTION_GAP = 7;
-    private static final int SCROLL_STEP = 20;
-    private static final int TITLE_COLOR = 0xFFFFEEDB;
-    private static final int SUBTITLE_COLOR = 0xFFF0B98A;
-    private static final int WINDOW_BG_COLOR = 0xC6180D09;
-    private static final int WINDOW_BORDER_COLOR = 0xBCE08C53;
-    private static final int SIDEBAR_BG_COLOR = 0x8D241310;
-    private static final int HEADER_BG_COLOR = 0xD9341611;
-    private static final int SIDEBAR_GROUP_COLOR = 0xFFA37863;
-    private static final int SIDEBAR_ITEM_COLOR = 0xFFE7D0BF;
-    private static final int SIDEBAR_SELECTED_COLOR = 0xFFF2B17E;
-    private static final int CARD_COLOR = 0x8A291816;
-    private static final int CARD_HOVER_COLOR = 0xA240231F;
-    private static final int CARD_DISABLED_COLOR = 0x58251917;
-    private static final int CARD_BORDER_COLOR = 0xAAE08C53;
-    private static final int CARD_TEXT_COLOR = 0xFFFCE6D2;
-    private static final int CARD_TEXT_DISABLED_COLOR = 0xFFB49C8B;
+    private static final int HEADER_HEIGHT = 32;
+    private static final int SIDEBAR_WIDTH = 220;
+    private static final int PADDING = 12;
+    private static final int COLUMN_GAP = 14;
+    private static final int PANEL_GAP = 12;
+    private static final int PANEL_PADDING = 10;
+    private static final int PANEL_HEADER_HEIGHT = 18;
+    private static final int ROW_HEIGHT = 18;
+    private static final int ROW_GAP = 6;
+    private static final int CONTROL_WIDTH = 170;
+    private static final int MODULE_HEIGHT = 22;
+    private static final int MODULE_GAP = 4;
+    private static final int GROUP_GAP = 10;
+    private static final int SCROLL_STEP = 24;
+
+    private static final int COLOR_DIM = 0xAA0B0E14;
+    private static final int COLOR_WINDOW_BG = 0xF012141B;
+    private static final int COLOR_WINDOW_BORDER = 0xFF273040;
+    private static final int COLOR_HEADER_BG = 0xFF0E1118;
+    private static final int COLOR_SIDEBAR_BG = 0xFF0D1118;
+    private static final int COLOR_PANEL_BG = 0xFF141B26;
+    private static final int COLOR_PANEL_BORDER = 0xFF202A3A;
+    private static final int COLOR_ACCENT = 0xFF4CB1FF;
+    private static final int COLOR_ACCENT_DARK = 0xFF1E3E5B;
+    private static final int COLOR_TEXT = 0xFFE6EEF7;
+    private static final int COLOR_TEXT_DIM = 0xFF9FB0C7;
+    private static final int COLOR_TEXT_MUTED = 0xFF7E8EA6;
+    private static final int COLOR_TOGGLE_OFF = 0xFF2A3444;
+    private static final int COLOR_CONTROL_BG = 0xFF1A2230;
+    private static final int COLOR_CONTROL_BORDER = 0xFF2B3647;
+    private static final int COLOR_ROW_HOVER = 0x1FFFFFFF;
 
     @Nullable
     private final Screen parent;
-    @Nullable
-    private KeyBinding waitingForKey;
-
-    private final Map<KeyBinding, ButtonWidget> keyButtons = new LinkedHashMap<>();
-    private final List<WidgetAnchor> scrollAnchors = new ArrayList<>();
-    private final EnumMap<ModuleTab, ButtonWidget> moduleButtons = new EnumMap<>(ModuleTab.class);
-    private final List<GroupLabel> groupLabels = new ArrayList<>();
+    private ModuleTab selectedModule = ModuleTab.RAYS;
+    private double scrollOffset = 0.0;
+    private double maxScroll = 0.0;
 
     private int windowX;
     private int windowY;
+    private int windowWidth;
+    private int windowHeight;
     private int sidebarX;
     private int sidebarY;
-    private int settingsX;
-    private int settingsWidth;
-    private int contentBottom;
-    private int scrollTop;
-    private int scrollBottom;
-    private int scrollOffset;
-    private int maxScroll;
-    private ModuleTab selectedModule = ModuleTab.RAYS;
+    private int sidebarWidth;
+    private int contentX;
+    private int contentY;
+    private int contentWidth;
+    private int contentHeight;
+
+    private final List<ModuleEntry> moduleEntries = new ArrayList<>();
+    private final List<HitTarget> hitTargets = new ArrayList<>();
 
     @Nullable
-    private ButtonWidget closeButton;
-
+    private KeyBinding waitingForKey;
+    private boolean ignoreNextMouseBind;
     @Nullable
-    private ButtonWidget speedToggleButton;
+    private SliderDrag sliderDrag;
     @Nullable
-    private ButtonWidget playerEspToggleButton;
-    @Nullable
-    private ButtonWidget playerRaysToggleButton;
-    @Nullable
-    private ButtonWidget playerArmorOverlayToggleButton;
-    @Nullable
-    private ButtonWidget distanceDisplayToggleButton;
-    @Nullable
-    private ButtonWidget heldItemOverlayToggleButton;
-    @Nullable
-    private ButtonWidget playerListToggleButton;
-    @Nullable
-    private ButtonWidget targetHealthToggleButton;
-    @Nullable
-    private ButtonWidget targetHealthColorToggleButton;
-    @Nullable
-    private ButtonWidget targetHealthBindPlaceholderButton;
-    @Nullable
-    private ButtonWidget menuAlwaysOnPlaceholderButton;
-
-    @Nullable
-    private ButtonWidget rayGlowButton;
-    @Nullable
-    private ButtonWidget armorGlowButton;
-    @Nullable
-    private ButtonWidget heldItemGlowButton;
-    @Nullable
-    private ButtonWidget distanceGlowButton;
-
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.RayOrigin> rayOriginButton;
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.OverlayAnchorMode> armorAnchorButton;
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.OverlayAnchorMode> heldItemAnchorButton;
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.OverlayAnchorMode> distanceAnchorButton;
-
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> rayColorModeButton;
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> armorColorModeButton;
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> heldItemColorModeButton;
-    @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> distanceColorModeButton;
-
-    @Nullable
-    private SettingSlider rayThicknessSlider;
-    @Nullable
-    private SettingSlider outlineThicknessSlider;
-    @Nullable
-    private SettingSlider rayBottomStartHeightSlider;
-    @Nullable
-    private SettingSlider distanceTextSizeSlider;
-    @Nullable
-    private SettingSlider armorSizeSlider;
-    @Nullable
-    private SettingSlider heldItemSizeSlider;
-    @Nullable
-    private SettingSlider targetHealthTextSizeSlider;
-    @Nullable
-    private SettingSlider playerListXSlider;
-    @Nullable
-    private SettingSlider playerListYSlider;
-    @Nullable
-    private SettingSlider playerListScaleSlider;
-    @Nullable
-    private SettingSlider playerListMaxHeightSlider;
-    @Nullable
-    private SettingSlider playerListAlphaSlider;
-
-    @Nullable
-    private SettingSlider raySaturationSlider;
-    @Nullable
-    private SettingSlider armorSaturationSlider;
-    @Nullable
-    private SettingSlider heldItemSaturationSlider;
-    @Nullable
-    private SettingSlider distanceSaturationSlider;
-    @Nullable
-    private SettingSlider raySpeedSlider;
-    @Nullable
-    private SettingSlider armorSpeedSlider;
-    @Nullable
-    private SettingSlider heldItemSpeedSlider;
-    @Nullable
-    private SettingSlider distanceSpeedSlider;
+    private Integer previousBlurValue;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
@@ -174,688 +93,24 @@ public class NoKnockbackMenuScreen extends Screen {
 
     @Override
     protected void init() {
-        this.clearWidgetRefs();
-        this.keyButtons.clear();
-        this.scrollAnchors.clear();
-        this.moduleButtons.clear();
-        this.groupLabels.clear();
-        this.waitingForKey = null;
-        this.scrollOffset = 0;
-
-        this.windowX = (this.width - WINDOW_WIDTH) / 2;
-        this.windowY = Math.max(8, (this.height - WINDOW_HEIGHT) / 2);
-        this.sidebarX = this.windowX + CONTENT_PADDING;
-        this.sidebarY = this.windowY + HEADER_HEIGHT + CONTENT_PADDING;
-        this.settingsX = this.windowX + SIDEBAR_WIDTH + CONTENT_GAP;
-        this.settingsWidth = PANEL_WIDTH;
-        this.scrollTop = this.windowY + HEADER_HEIGHT + CONTENT_PADDING + 22;
-        this.scrollBottom = this.windowY + WINDOW_HEIGHT - CONTENT_PADDING;
-
-        this.buildSidebar();
-
-        int y = this.scrollTop;
-        switch (this.selectedModule) {
-            case SPEED -> y = this.buildSpeedSection(this.settingsX, y);
-            case ESP -> y = this.buildEspSection(this.settingsX, y);
-            case RAYS -> y = this.buildRaysSection(this.settingsX, y);
-            case TARGET_HEALTH -> y = this.buildTargetHealthSection(this.settingsX, y);
-            case PLAYER_LIST -> y = this.buildPlayerListSection(this.settingsX, y);
-            case MENU -> y = this.buildMenuSection(this.settingsX, y);
-        }
-        y += SECTION_GAP;
-
-        this.contentBottom = y;
-
-        this.closeButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> this.close())
-                .dimensions(this.windowX + WINDOW_WIDTH - 86, this.windowY + 6, 76, 16).build());
-        if (this.closeButton != null) {
-            this.closeButton.setAlpha(0.0F);
-        }
-
-        this.recalculateScrollBounds();
-        this.applyScroll();
-        this.refreshLabels();
-    }
-
-    private void buildSidebar() {
-        int y = this.sidebarY + 20;
-        y = this.addSidebarGroup(y, "Movement");
-        y = this.addSidebarModuleButton(y, ModuleTab.SPEED);
-        y += 6;
-
-        y = this.addSidebarGroup(y, "Visual");
-        y = this.addSidebarModuleButton(y, ModuleTab.ESP);
-        y = this.addSidebarModuleButton(y, ModuleTab.RAYS);
-        y += 6;
-
-        y = this.addSidebarGroup(y, "Overlay");
-        y = this.addSidebarModuleButton(y, ModuleTab.TARGET_HEALTH);
-        y = this.addSidebarModuleButton(y, ModuleTab.PLAYER_LIST);
-        y += 6;
-
-        y = this.addSidebarGroup(y, "System");
-        this.addSidebarModuleButton(y, ModuleTab.MENU);
-    }
-
-    private int addSidebarGroup(int y, String title) {
-        this.groupLabels.add(new GroupLabel(title, this.sidebarX + 6, y));
-        return y + 13;
-    }
-
-    private int addSidebarModuleButton(int y, ModuleTab tab) {
-        int width = SIDEBAR_WIDTH - CONTENT_PADDING * 2;
-        ButtonWidget button = this.addDrawableChild(ButtonWidget.builder(Text.literal(tab.title), widget -> {
-            this.selectedModule = tab;
-            this.clearAndInit();
-        }).dimensions(this.sidebarX + 2, y, width, ROW_HEIGHT).build());
-        button.setAlpha(0.0F);
-        this.moduleButtons.put(tab, button);
-        return y + ROW_HEIGHT + 2;
-    }
-
-    private void clearWidgetRefs() {
-        this.closeButton = null;
-        this.speedToggleButton = null;
-        this.playerEspToggleButton = null;
-        this.playerRaysToggleButton = null;
-        this.playerArmorOverlayToggleButton = null;
-        this.distanceDisplayToggleButton = null;
-        this.heldItemOverlayToggleButton = null;
-        this.playerListToggleButton = null;
-        this.targetHealthToggleButton = null;
-        this.targetHealthColorToggleButton = null;
-        this.targetHealthBindPlaceholderButton = null;
-        this.menuAlwaysOnPlaceholderButton = null;
-        this.rayGlowButton = null;
-        this.armorGlowButton = null;
-        this.heldItemGlowButton = null;
-        this.distanceGlowButton = null;
-        this.rayOriginButton = null;
-        this.armorAnchorButton = null;
-        this.heldItemAnchorButton = null;
-        this.distanceAnchorButton = null;
-        this.rayColorModeButton = null;
-        this.armorColorModeButton = null;
-        this.heldItemColorModeButton = null;
-        this.distanceColorModeButton = null;
-        this.rayThicknessSlider = null;
-        this.outlineThicknessSlider = null;
-        this.rayBottomStartHeightSlider = null;
-        this.distanceTextSizeSlider = null;
-        this.armorSizeSlider = null;
-        this.heldItemSizeSlider = null;
-        this.targetHealthTextSizeSlider = null;
-        this.playerListXSlider = null;
-        this.playerListYSlider = null;
-        this.playerListScaleSlider = null;
-        this.playerListMaxHeightSlider = null;
-        this.playerListAlphaSlider = null;
-        this.raySaturationSlider = null;
-        this.armorSaturationSlider = null;
-        this.heldItemSaturationSlider = null;
-        this.distanceSaturationSlider = null;
-        this.raySpeedSlider = null;
-        this.armorSpeedSlider = null;
-        this.heldItemSpeedSlider = null;
-        this.distanceSpeedSlider = null;
-    }
-
-    private int buildSpeedSection(int left, int y) {
-        this.speedToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setSpeedEnabled(!NoKnockbackClient.isSpeedEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.createKeyBindButton(NoKnockbackClient.getSpeedToggleKeyBinding(), left, y, PANEL_WIDTH);
-        y += ROW_HEIGHT + ROW_GAP;
-        return y;
-    }
-
-    private int buildEspSection(int left, int y) {
-        this.playerEspToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setPlayerEspEnabled(!NoKnockbackClient.isPlayerEspEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.createKeyBindButton(NoKnockbackClient.getPlayerEspKeyBinding(), left, y, PANEL_WIDTH);
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.outlineThicknessSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Outline Thickness",
-                0.5,
-                6.0,
-                0.1,
-                NoKnockbackClient.getOutlineThickness()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setOutlineThickness((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-        return y;
-    }
-
-    private int buildRaysSection(int left, int y) {
-        this.playerRaysToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setPlayerRaysEnabled(!NoKnockbackClient.isPlayerRaysEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.createKeyBindButton(NoKnockbackClient.getPlayerRaysKeyBinding(), left, y, PANEL_WIDTH);
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.rayOriginButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::rayOriginText)
-                .values(NoKnockbackClient.RayOrigin.BOTTOM, NoKnockbackClient.RayOrigin.CENTER)
-                .initially(NoKnockbackClient.getRayOrigin())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Origin"), (button, value) -> {
-                    NoKnockbackClient.setRayOrigin(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.rayBottomStartHeightSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Bottom Start Height",
-                0.0,
-                300.0,
-                1.0,
-                NoKnockbackClient.getRayBottomStartHeight()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayBottomStartHeight((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.rayThicknessSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Ray Thickness",
-                0.5,
-                8.0,
-                0.1,
-                NoKnockbackClient.getRayThickness()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayThickness((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.rayGlowButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setRayVisualGlowEnabled(!NoKnockbackClient.isRayVisualGlowEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.rayColorModeButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getRayVisualColorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setRayVisualColorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.raySaturationSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getRayVisualSaturationBoost()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayVisualSaturationBoost((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.raySpeedSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getRayVisualAnimationSpeed()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayVisualAnimationSpeed((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.playerArmorOverlayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setPlayerArmorOverlayEnabled(!NoKnockbackClient.isPlayerArmorOverlayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.armorAnchorButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::anchorModeText)
-                .values(NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
-                .initially(NoKnockbackClient.getArmorAnchorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Armor Position"), (button, value) -> {
-                    NoKnockbackClient.setArmorAnchorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.armorSizeSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Armor Size",
-                0.35,
-                2.5,
-                0.1,
-                NoKnockbackClient.getArmorOverlayScale()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setArmorOverlayScale((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.armorGlowButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setArmorVisualGlowEnabled(!NoKnockbackClient.isArmorVisualGlowEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.armorColorModeButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getArmorVisualColorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Armor Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setArmorVisualColorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.armorSaturationSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getArmorVisualSaturationBoost()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setArmorVisualSaturationBoost((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.armorSpeedSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getArmorVisualAnimationSpeed()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setArmorVisualAnimationSpeed((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemOverlayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setHeldItemOverlayEnabled(!NoKnockbackClient.isHeldItemOverlayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemAnchorButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::anchorModeText)
-                .values(NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
-                .initially(NoKnockbackClient.getHeldItemAnchorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Held Item Position"), (button, value) -> {
-                    NoKnockbackClient.setHeldItemAnchorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemSizeSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Held Item Size",
-                0.35,
-                2.5,
-                0.1,
-                NoKnockbackClient.getHeldItemOverlayScale()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setHeldItemOverlayScale((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemGlowButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setHeldItemVisualGlowEnabled(!NoKnockbackClient.isHeldItemVisualGlowEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemColorModeButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getHeldItemVisualColorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Held Item Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setHeldItemVisualColorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemSaturationSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getHeldItemVisualSaturationBoost()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemSpeedSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getHeldItemVisualAnimationSpeed()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceDisplayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setDistanceDisplayEnabled(!NoKnockbackClient.isDistanceDisplayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceAnchorButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::anchorModeText)
-                .values(NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
-                .initially(NoKnockbackClient.getDistanceAnchorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Distance Position"), (button, value) -> {
-                    NoKnockbackClient.setDistanceAnchorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceTextSizeSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Distance Text Size",
-                0.5,
-                2.0,
-                0.1,
-                NoKnockbackClient.getDistanceTextScale()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setDistanceTextScale((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceGlowButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setDistanceVisualGlowEnabled(!NoKnockbackClient.isDistanceVisualGlowEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceColorModeButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getDistanceVisualColorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Distance Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setDistanceVisualColorMode(value);
-                    this.refreshLabels();
-                }));
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceSaturationSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getDistanceVisualSaturationBoost()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setDistanceVisualSaturationBoost((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceSpeedSlider = this.addScrollableWidget(new SettingSlider(left, y, PANEL_WIDTH, "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getDistanceVisualAnimationSpeed()) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        return y;
-    }
-
-    private int buildTargetHealthSection(int left, int y) {
-        this.targetHealthToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setTargetHealthOverlayEnabled(!NoKnockbackClient.isTargetHealthOverlayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.targetHealthBindPlaceholderButton = this.addScrollableWidget(ButtonWidget.builder(Text.literal("Bind: not assigned"), button -> {
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        this.targetHealthBindPlaceholderButton.active = false;
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.targetHealthColorToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setTargetHealthDynamicColorEnabled(!NoKnockbackClient.isTargetHealthDynamicColorEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.targetHealthTextSizeSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Target HP Text Size",
-                0.5,
-                2.0,
-                0.1,
-                NoKnockbackClient.getTargetHealthTextScale()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setTargetHealthTextScale((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        return y;
-    }
-
-    private int buildPlayerListSection(int left, int y) {
-        this.playerListToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setPlayerListEnabled(!NoKnockbackClient.isPlayerListEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.createKeyBindButton(NoKnockbackClient.getPlayerListKeyBinding(), left, y, PANEL_WIDTH);
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.playerListXSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Player List X",
-                0.0,
-                4096.0,
-                1.0,
-                NoKnockbackClient.getPlayerListOffsetX()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setPlayerListOffsetX((int) Math.round(value));
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.playerListYSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Player List Y",
-                0.0,
-                4096.0,
-                1.0,
-                NoKnockbackClient.getPlayerListOffsetY()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setPlayerListOffsetY((int) Math.round(value));
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.playerListScaleSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Player List Size",
-                0.1,
-                2.0,
-                0.1,
-                NoKnockbackClient.getPlayerListTextScale()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setPlayerListTextScale((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.playerListMaxHeightSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Player List Max Height",
-                40.0,
-                1200.0,
-                10.0,
-                NoKnockbackClient.getPlayerListMaxHeight()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setPlayerListMaxHeight((int) Math.round(value));
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.playerListAlphaSlider = this.addScrollableWidget(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Player List Alpha",
-                0.1,
-                1.0,
-                0.1,
-                NoKnockbackClient.getPlayerListAlphaMultiplier()
-        ) {
-            @Override
-            protected void onValueChanged(double value) {
-                NoKnockbackClient.setPlayerListAlphaMultiplier((float) value);
-            }
-        });
-        y += ROW_HEIGHT + ROW_GAP;
-
-        return y;
-    }
-
-    private int buildMenuSection(int left, int y) {
-        this.menuAlwaysOnPlaceholderButton = this.addScrollableWidget(ButtonWidget.builder(Text.literal("Enabled: ON"), button -> {
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        this.menuAlwaysOnPlaceholderButton.active = false;
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.createKeyBindButton(NoKnockbackClient.getOpenMenuKeyBinding(), left, y, PANEL_WIDTH);
-        y += ROW_HEIGHT + ROW_GAP;
-
-        return y;
-    }
-
-    @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        if (this.client != null && this.client.world != null) {
-            this.applyBlur();
-        }
-
-        int windowRight = this.windowX + WINDOW_WIDTH;
-        int windowBottom = this.windowY + WINDOW_HEIGHT;
-        int sidebarRight = this.windowX + SIDEBAR_WIDTH;
-
-        context.fill(0, 0, this.width, this.height, 0x92060301);
-        context.fill(this.windowX, this.windowY, windowRight, windowBottom, WINDOW_BG_COLOR);
-        context.fill(this.windowX, this.windowY, windowRight, this.windowY + HEADER_HEIGHT, HEADER_BG_COLOR);
-        context.fill(this.windowX, this.windowY, windowRight, this.windowY + 1, WINDOW_BORDER_COLOR);
-        context.fill(this.windowX, windowBottom - 1, windowRight, windowBottom, WINDOW_BORDER_COLOR);
-        context.fill(this.windowX, this.windowY, this.windowX + 1, windowBottom, WINDOW_BORDER_COLOR);
-        context.fill(windowRight - 1, this.windowY, windowRight, windowBottom, WINDOW_BORDER_COLOR);
-
-        context.fill(this.windowX, this.windowY + HEADER_HEIGHT, sidebarRight, windowBottom, SIDEBAR_BG_COLOR);
-        context.fill(sidebarRight, this.windowY + HEADER_HEIGHT, sidebarRight + 1, windowBottom, 0x8DE08C53);
-
-        super.render(context, mouseX, mouseY, delta);
-        this.renderStyledRows(context, mouseX, mouseY);
-        this.renderSidebarButtons(context, mouseX, mouseY);
-        this.renderCloseButton(context, mouseX, mouseY);
-
-        context.drawTextWithShadow(this.textRenderer, this.title, this.windowX + 10, this.windowY + 9, TITLE_COLOR);
-        context.drawTextWithShadow(this.textRenderer, Text.literal("module: " + this.selectedModule.title), this.settingsX, this.windowY + 9, SUBTITLE_COLOR);
-
-        for (GroupLabel label : this.groupLabels) {
-            context.drawTextWithShadow(this.textRenderer, Text.literal(label.title()), label.x(), label.y(), SIDEBAR_GROUP_COLOR);
-        }
-
-        this.renderScrollBar(context, this.settingsX);
-
-        if (this.waitingForKey != null) {
-            context.drawCenteredTextWithShadow(
-                    this.textRenderer,
-                    Text.literal("Press any key (or mouse button), ESC to cancel"),
-                    this.width / 2,
-                    this.windowY + WINDOW_HEIGHT - 12,
-                    0xFFFFFF99
-            );
+        if (this.client != null) {
+            SimpleOption<Integer> blurOption = this.client.options.getMenuBackgroundBlurriness();
+            this.previousBlurValue = blurOption.getValue();
+            int desired = Math.max(6, blurOption.getValue());
+            blurOption.setValue(desired);
         }
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        if (this.waitingForKey != null) {
-            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
-                this.waitingForKey = null;
-                this.refreshLabels();
-                return true;
-            }
-
-            InputUtil.Key key = keyCode == InputUtil.UNKNOWN_KEY.getCode()
-                    ? InputUtil.Type.SCANCODE.createFromCode(scanCode)
-                    : InputUtil.Type.KEYSYM.createFromCode(keyCode);
-            this.applyKeyBinding(this.waitingForKey, key);
-            return true;
+    public void removed() {
+        if (this.client != null && this.previousBlurValue != null) {
+            this.client.options.getMenuBackgroundBlurriness().setValue(this.previousBlurValue);
         }
-
-        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.waitingForKey != null) {
-            this.applyKeyBinding(this.waitingForKey, InputUtil.Type.MOUSE.createFromCode(button));
-            return true;
-        }
-
-        return super.mouseClicked(mouseX, mouseY, button);
-    }
-
-    @Override
-    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (this.maxScroll <= 0
-                || mouseY < this.scrollTop
-                || mouseY > this.scrollBottom
-                || mouseX < this.settingsX
-                || mouseX > this.settingsX + this.settingsWidth) {
-            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
-        }
-
-        if (verticalAmount == 0.0D) {
-            return false;
-        }
-
-        this.setScrollOffset(this.scrollOffset - (int) Math.round(verticalAmount * SCROLL_STEP));
-        return true;
+    public boolean shouldPause() {
+        return false;
     }
 
     @Override
@@ -866,462 +121,649 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     @Override
-    public boolean shouldPause() {
-        return false;
+    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
+        if (this.client != null && this.client.world != null) {
+            this.applyBlur();
+        }
+        context.fill(0, 0, this.width, this.height, COLOR_DIM);
+
+        this.updateLayout();
+        this.drawWindow(context);
+        this.drawHeader(context);
+        this.drawSidebar(context, mouseX, mouseY);
+        this.drawContent(context, mouseX, mouseY);
+
+        if (this.waitingForKey != null) {
+            String label = "Press a key (ESC to cancel)";
+            int textWidth = this.textRenderer.getWidth(label);
+            int x = this.windowX + this.windowWidth - textWidth - 14;
+            int y = this.windowY + this.windowHeight - 18;
+            context.drawTextWithShadow(this.textRenderer, label, x, y, COLOR_TEXT_MUTED);
+        }
+    }
+    @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.waitingForKey != null) {
+            if (this.ignoreNextMouseBind) {
+                this.ignoreNextMouseBind = false;
+                return true;
+            }
+            bindKey(this.waitingForKey, InputUtil.Type.MOUSE.createFromCode(button));
+            this.waitingForKey = null;
+            return true;
+        }
+
+        for (ModuleEntry entry : this.moduleEntries) {
+            if (entry.rect.contains(mouseX, mouseY)) {
+                if (this.selectedModule != entry.module) {
+                    this.selectedModule = entry.module;
+                    this.scrollOffset = 0.0;
+                }
+                return true;
+            }
+        }
+
+        if (!isInsideContent(mouseX, mouseY)) {
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+
+        for (HitTarget target : this.hitTargets) {
+            if (target.rect.contains(mouseX, mouseY)) {
+                switch (target.type) {
+                    case TOGGLE -> {
+                        boolean current = target.control.toggleGetter.getAsBoolean();
+                        target.control.toggleSetter.accept(!current);
+                        return true;
+                    }
+                    case CYCLE -> {
+                        int idx = target.control.cycleGetter.getAsInt();
+                        int next = (idx + 1) % target.control.cycleLabels.length;
+                        target.control.cycleSetter.accept(next);
+                        return true;
+                    }
+                    case KEYBIND -> {
+                        if (target.control.keyBinding != null) {
+                            this.waitingForKey = target.control.keyBinding;
+                            this.ignoreNextMouseBind = true;
+                        }
+                        return true;
+                    }
+                    case SLIDER -> {
+                        this.sliderDrag = new SliderDrag(target.control, target.track);
+                        updateSlider(target.control, target.track, mouseX);
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
     }
 
-    private void applyKeyBinding(KeyBinding binding, InputUtil.Key key) {
-        binding.setBoundKey(key);
+    @Override
+    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+        if (this.sliderDrag != null) {
+            updateSlider(this.sliderDrag.control, this.sliderDrag.track, mouseX);
+            return true;
+        }
+        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(double mouseX, double mouseY, int button) {
+        this.sliderDrag = null;
+        return super.mouseReleased(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (!isInsideContent(mouseX, mouseY)) {
+            return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+        }
+        if (this.maxScroll <= 0.0) {
+            return true;
+        }
+        this.scrollOffset = MathHelper.clamp(this.scrollOffset + verticalAmount * SCROLL_STEP, -this.maxScroll, 0.0);
+        return true;
+    }
+
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+        if (this.waitingForKey != null) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE) {
+                this.waitingForKey = null;
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_BACKSPACE || keyCode == GLFW.GLFW_KEY_DELETE) {
+                bindKey(this.waitingForKey, InputUtil.UNKNOWN_KEY);
+                this.waitingForKey = null;
+                return true;
+            }
+            bindKey(this.waitingForKey, InputUtil.fromKeyCode(keyCode, scanCode));
+            this.waitingForKey = null;
+            return true;
+        }
+        return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    private void bindKey(KeyBinding keyBinding, InputUtil.Key key) {
+        if (keyBinding == null || key == null) return;
+        keyBinding.setBoundKey(key);
         KeyBinding.updateKeysByCode();
         NoKnockbackClient.saveConfigNow();
-        if (this.client != null) {
-            this.client.options.write();
-        }
-
-        this.waitingForKey = null;
-        this.refreshLabels();
     }
 
-    private ButtonWidget createKeyBindButton(KeyBinding binding, int x, int y, int width) {
-        ButtonWidget button = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), widget -> {
-            this.waitingForKey = binding;
-            this.refreshLabels();
-        }).dimensions(x, y, width, ROW_HEIGHT).build());
-        this.keyButtons.put(binding, button);
-        return button;
+    private boolean isInsideContent(double mouseX, double mouseY) {
+        return mouseX >= this.contentX && mouseX <= this.contentX + this.contentWidth
+                && mouseY >= this.contentY && mouseY <= this.contentY + this.contentHeight;
     }
 
-    private <T extends ClickableWidget> T addScrollableWidget(T widget) {
-        T added = this.addDrawableChild(widget);
-        if (added instanceof ButtonWidget || added instanceof CyclingButtonWidget<?>) {
-            added.setAlpha(0.0F);
+    private void updateLayout() {
+        this.windowWidth = Math.min(WINDOW_WIDTH, this.width - 20);
+        this.windowHeight = Math.min(WINDOW_HEIGHT, this.height - 20);
+        if (this.windowWidth < 540) {
+            this.windowWidth = Math.max(320, this.width - 20);
         }
-        this.scrollAnchors.add(new WidgetAnchor(added, added.getY(), added.active));
-        return added;
+        if (this.windowHeight < 360) {
+            this.windowHeight = Math.max(240, this.height - 20);
+        }
+
+        this.windowX = (this.width - this.windowWidth) / 2;
+        this.windowY = (this.height - this.windowHeight) / 2;
+        this.sidebarX = this.windowX;
+        this.sidebarY = this.windowY + HEADER_HEIGHT;
+        this.sidebarWidth = Math.min(SIDEBAR_WIDTH, this.windowWidth / 3);
+        this.contentX = this.windowX + this.sidebarWidth + 1;
+        this.contentY = this.windowY + HEADER_HEIGHT;
+        this.contentWidth = this.windowWidth - this.sidebarWidth - 1;
+        this.contentHeight = this.windowHeight - HEADER_HEIGHT;
     }
 
-    private void renderStyledRows(DrawContext context, int mouseX, int mouseY) {
-        if (this.textRenderer == null) return;
-
-        for (WidgetAnchor anchor : this.scrollAnchors) {
-            ClickableWidget widget = anchor.widget();
-            if (!widget.visible || widget instanceof SettingSlider) continue;
-
-            int x1 = widget.getX();
-            int y1 = widget.getY();
-            int x2 = x1 + widget.getWidth();
-            int y2 = y1 + widget.getHeight();
-            boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
-
-            int fill = widget.active
-                    ? (hovered ? CARD_HOVER_COLOR : CARD_COLOR)
-                    : CARD_DISABLED_COLOR;
-            int textColor = widget.active ? CARD_TEXT_COLOR : CARD_TEXT_DISABLED_COLOR;
-
-            context.fill(x1, y1, x2, y2, fill);
-            context.fill(x1, y1, x2, y1 + 1, CARD_BORDER_COLOR);
-            context.fill(x1, y2 - 1, x2, y2, CARD_BORDER_COLOR);
-            context.fill(x1, y1, x1 + 1, y2, CARD_BORDER_COLOR);
-            context.fill(x2 - 1, y1, x2, y2, CARD_BORDER_COLOR);
-
-            int textY = y1 + (widget.getHeight() - 8) / 2;
-            context.drawCenteredTextWithShadow(this.textRenderer, widget.getMessage(), x1 + widget.getWidth() / 2, textY, textColor);
-        }
+    private void drawWindow(DrawContext context) {
+        int x1 = this.windowX;
+        int y1 = this.windowY;
+        int x2 = x1 + this.windowWidth;
+        int y2 = y1 + this.windowHeight;
+        context.fill(x1, y1, x2, y2, COLOR_WINDOW_BG);
+        drawOutline(context, x1, y1, x2, y2, COLOR_WINDOW_BORDER);
+        context.fill(x1, y1, x2, y1 + HEADER_HEIGHT, COLOR_HEADER_BG);
+        context.fill(this.sidebarX, this.sidebarY, this.sidebarX + this.sidebarWidth, y2, COLOR_SIDEBAR_BG);
+        context.fill(this.sidebarX + this.sidebarWidth, this.sidebarY, this.sidebarX + this.sidebarWidth + 1, y2, COLOR_PANEL_BORDER);
     }
 
-    private void renderSidebarButtons(DrawContext context, int mouseX, int mouseY) {
-        if (this.textRenderer == null) return;
+    private void drawHeader(DrawContext context) {
+        int titleX = this.windowX + 14;
+        int titleY = this.windowY + 9;
+        drawScaledText(context, "Paprika", titleX, titleY, 1.2F, COLOR_TEXT);
 
-        for (Map.Entry<ModuleTab, ButtonWidget> entry : this.moduleButtons.entrySet()) {
-            ButtonWidget button = entry.getValue();
-            if (!button.visible) continue;
-
-            int x1 = button.getX();
-            int y1 = button.getY();
-            int x2 = x1 + button.getWidth();
-            int y2 = y1 + button.getHeight();
-            boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
-            boolean selected = entry.getKey() == this.selectedModule;
-
-            int fill = selected
-                    ? 0xA94D261C
-                    : (hovered ? 0x8D3A211A : 0x6A2A1814);
-            int border = selected ? 0xE0E08C53 : 0x88583A31;
-            int textColor = selected ? SIDEBAR_SELECTED_COLOR : SIDEBAR_ITEM_COLOR;
-
-            context.fill(x1, y1, x2, y2, fill);
-            context.fill(x1, y1, x2, y1 + 1, border);
-            context.fill(x1, y2 - 1, x2, y2, border);
-            context.fill(x1, y1, x1 + 1, y2, border);
-            context.fill(x2 - 1, y1, x2, y2, border);
-
-            int textY = y1 + (button.getHeight() - 8) / 2;
-            context.drawTextWithShadow(this.textRenderer, button.getMessage(), x1 + 8, textY, textColor);
-        }
+        String moduleTitle = this.selectedModule.title;
+        int moduleWidth = this.textRenderer.getWidth(moduleTitle);
+        int moduleX = this.windowX + this.windowWidth - moduleWidth - 16;
+        int moduleY = this.windowY + 11;
+        context.drawTextWithShadow(this.textRenderer, moduleTitle, moduleX, moduleY, COLOR_TEXT_DIM);
     }
 
-    private void renderCloseButton(DrawContext context, int mouseX, int mouseY) {
-        if (this.closeButton == null || this.textRenderer == null || !this.closeButton.visible) return;
+    private void drawSidebar(DrawContext context, int mouseX, int mouseY) {
+        this.moduleEntries.clear();
 
-        int x1 = this.closeButton.getX();
-        int y1 = this.closeButton.getY();
-        int x2 = x1 + this.closeButton.getWidth();
-        int y2 = y1 + this.closeButton.getHeight();
-        boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
-
-        int fill = hovered ? 0xA8502920 : 0x883C2119;
-        int border = hovered ? 0xFFE7AE79 : 0xB78C6045;
-        context.fill(x1, y1, x2, y2, fill);
-        context.fill(x1, y1, x2, y1 + 1, border);
-        context.fill(x1, y2 - 1, x2, y2, border);
-        context.fill(x1, y1, x1 + 1, y2, border);
-        context.fill(x2 - 1, y1, x2, y2, border);
-
-        int textY = y1 + (this.closeButton.getHeight() - 8) / 2;
-        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Close"), x1 + this.closeButton.getWidth() / 2, textY, CARD_TEXT_COLOR);
+        int x = this.sidebarX + PADDING;
+        int y = this.sidebarY + PADDING;
+        for (ModuleGroup group : ModuleGroup.values()) {
+            context.drawTextWithShadow(this.textRenderer, group.title, x, y, COLOR_TEXT_MUTED);
+            y += 14;
+            for (ModuleTab tab : ModuleTab.values()) {
+                if (tab.group != group) continue;
+                Rect rect = new Rect(x - 6, y - 2, this.sidebarWidth - PADDING * 2 + 12, MODULE_HEIGHT);
+                boolean hovered = rect.contains(mouseX, mouseY);
+                boolean selected = tab == this.selectedModule;
+                if (selected) {
+                    context.fill(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, COLOR_ACCENT_DARK);
+                    context.fill(rect.x, rect.y, rect.x + 3, rect.y + rect.height, COLOR_ACCENT);
+                } else if (hovered) {
+                    context.fill(rect.x, rect.y, rect.x + rect.width, rect.y + rect.height, COLOR_ROW_HOVER);
+                }
+                context.drawTextWithShadow(this.textRenderer, tab.title, rect.x + 10, rect.y + 6, selected ? COLOR_TEXT : COLOR_TEXT_DIM);
+                this.moduleEntries.add(new ModuleEntry(tab, rect));
+                y += MODULE_HEIGHT + MODULE_GAP;
+            }
+            y += GROUP_GAP;
+        }
     }
+    private void drawContent(DrawContext context, int mouseX, int mouseY) {
+        this.hitTargets.clear();
 
-    private void refreshLabels() {
-        for (Map.Entry<ModuleTab, ButtonWidget> entry : this.moduleButtons.entrySet()) {
-            ModuleTab tab = entry.getKey();
-            ButtonWidget button = entry.getValue();
-            button.setMessage(Text.literal(tab.title + "  [" + (this.moduleEnabled(tab) ? "ON" : "OFF") + "]"));
-        }
+        int innerX = this.contentX + PADDING;
+        int innerY = this.contentY + PADDING;
+        int innerWidth = this.contentWidth - PADDING * 2;
+        int innerHeight = this.contentHeight - PADDING * 2;
 
-        if (this.speedToggleButton != null) {
-            this.speedToggleButton.setMessage(this.toggleText("Enabled", NoKnockbackClient.isSpeedEnabled()));
-        }
-        if (this.playerEspToggleButton != null) {
-            this.playerEspToggleButton.setMessage(this.toggleText("Enabled", NoKnockbackClient.isPlayerEspEnabled()));
-        }
-        if (this.playerRaysToggleButton != null) {
-            this.playerRaysToggleButton.setMessage(this.toggleText("Enabled", NoKnockbackClient.isPlayerRaysEnabled()));
-        }
-        if (this.playerListToggleButton != null) {
-            this.playerListToggleButton.setMessage(this.toggleText("Enabled", NoKnockbackClient.isPlayerListEnabled()));
-        }
-        if (this.targetHealthToggleButton != null) {
-            this.targetHealthToggleButton.setMessage(this.toggleText("Enabled", NoKnockbackClient.isTargetHealthOverlayEnabled()));
-        }
-        if (this.targetHealthColorToggleButton != null) {
-            this.targetHealthColorToggleButton.setMessage(this.toggleText("HP Dynamic Color", NoKnockbackClient.isTargetHealthDynamicColorEnabled()));
-        }
+        List<Panel> panels = buildPanels(this.selectedModule);
+        int columnWidth = (innerWidth - COLUMN_GAP) / 2;
+        int colX0 = innerX;
+        int colX1 = innerX + columnWidth + COLUMN_GAP;
 
-        if (this.rayOriginButton != null) {
-            this.rayOriginButton.setValue(NoKnockbackClient.getRayOrigin());
-        }
-        if (this.rayBottomStartHeightSlider != null) {
-            this.rayBottomStartHeightSlider.sync(NoKnockbackClient.getRayBottomStartHeight());
-        }
-        if (this.rayThicknessSlider != null) {
-            this.rayThicknessSlider.sync(NoKnockbackClient.getRayThickness());
-        }
-        if (this.rayGlowButton != null) {
-            this.rayGlowButton.setMessage(this.toggleText("Ray Glow", NoKnockbackClient.isRayVisualGlowEnabled()));
-        }
-        if (this.rayColorModeButton != null) {
-            this.rayColorModeButton.setValue(NoKnockbackClient.getRayVisualColorMode());
-        }
-        if (this.raySaturationSlider != null) {
-            this.raySaturationSlider.sync(NoKnockbackClient.getRayVisualSaturationBoost());
-        }
-        if (this.raySpeedSlider != null) {
-            this.raySpeedSlider.sync(NoKnockbackClient.getRayVisualAnimationSpeed());
-        }
+        int col0Y = innerY;
+        int col1Y = innerY;
 
-        if (this.outlineThicknessSlider != null) {
-            this.outlineThicknessSlider.sync(NoKnockbackClient.getOutlineThickness());
-        }
+        context.enableScissor(innerX, innerY, innerX + innerWidth, innerY + innerHeight);
 
-        if (this.playerArmorOverlayToggleButton != null) {
-            this.playerArmorOverlayToggleButton.setMessage(this.toggleText("Armor Through Walls", NoKnockbackClient.isPlayerArmorOverlayEnabled()));
-        }
-        if (this.armorAnchorButton != null) {
-            this.armorAnchorButton.setValue(NoKnockbackClient.getArmorAnchorMode());
-        }
-        if (this.armorSizeSlider != null) {
-            this.armorSizeSlider.sync(NoKnockbackClient.getArmorOverlayScale());
-        }
-        if (this.armorGlowButton != null) {
-            this.armorGlowButton.setMessage(this.toggleText("Armor Glow", NoKnockbackClient.isArmorVisualGlowEnabled()));
-        }
-        if (this.armorColorModeButton != null) {
-            this.armorColorModeButton.setValue(NoKnockbackClient.getArmorVisualColorMode());
-        }
-        if (this.armorSaturationSlider != null) {
-            this.armorSaturationSlider.sync(NoKnockbackClient.getArmorVisualSaturationBoost());
-        }
-        if (this.armorSpeedSlider != null) {
-            this.armorSpeedSlider.sync(NoKnockbackClient.getArmorVisualAnimationSpeed());
-        }
+        for (Panel panel : panels) {
+            int panelWidth = columnWidth;
+            int panelX = panel.column == 0 ? colX0 : colX1;
+            int panelY = (int) ((panel.column == 0 ? col0Y : col1Y) + this.scrollOffset);
+            int panelHeight = computePanelHeight(panel);
 
-        if (this.heldItemOverlayToggleButton != null) {
-            this.heldItemOverlayToggleButton.setMessage(this.toggleText("Held Items Overlay", NoKnockbackClient.isHeldItemOverlayEnabled()));
-        }
-        if (this.heldItemAnchorButton != null) {
-            this.heldItemAnchorButton.setValue(NoKnockbackClient.getHeldItemAnchorMode());
-        }
-        if (this.heldItemSizeSlider != null) {
-            this.heldItemSizeSlider.sync(NoKnockbackClient.getHeldItemOverlayScale());
-        }
-        if (this.heldItemGlowButton != null) {
-            this.heldItemGlowButton.setMessage(this.toggleText("Held Item Glow", NoKnockbackClient.isHeldItemVisualGlowEnabled()));
-        }
-        if (this.heldItemColorModeButton != null) {
-            this.heldItemColorModeButton.setValue(NoKnockbackClient.getHeldItemVisualColorMode());
-        }
-        if (this.heldItemSaturationSlider != null) {
-            this.heldItemSaturationSlider.sync(NoKnockbackClient.getHeldItemVisualSaturationBoost());
-        }
-        if (this.heldItemSpeedSlider != null) {
-            this.heldItemSpeedSlider.sync(NoKnockbackClient.getHeldItemVisualAnimationSpeed());
-        }
+            drawPanel(context, panel, panelX, panelY, panelWidth, mouseX, mouseY);
 
-        if (this.distanceDisplayToggleButton != null) {
-            this.distanceDisplayToggleButton.setMessage(this.toggleText("Distance Overlay", NoKnockbackClient.isDistanceDisplayEnabled()));
-        }
-        if (this.distanceAnchorButton != null) {
-            this.distanceAnchorButton.setValue(NoKnockbackClient.getDistanceAnchorMode());
-        }
-        if (this.distanceTextSizeSlider != null) {
-            this.distanceTextSizeSlider.sync(NoKnockbackClient.getDistanceTextScale());
-        }
-        if (this.distanceGlowButton != null) {
-            this.distanceGlowButton.setMessage(this.toggleText("Distance Glow", NoKnockbackClient.isDistanceVisualGlowEnabled()));
-        }
-        if (this.distanceColorModeButton != null) {
-            this.distanceColorModeButton.setValue(NoKnockbackClient.getDistanceVisualColorMode());
-        }
-        if (this.distanceSaturationSlider != null) {
-            this.distanceSaturationSlider.sync(NoKnockbackClient.getDistanceVisualSaturationBoost());
-        }
-        if (this.distanceSpeedSlider != null) {
-            this.distanceSpeedSlider.sync(NoKnockbackClient.getDistanceVisualAnimationSpeed());
-        }
-
-        if (this.targetHealthTextSizeSlider != null) {
-            this.targetHealthTextSizeSlider.sync(NoKnockbackClient.getTargetHealthTextScale());
-        }
-        if (this.targetHealthBindPlaceholderButton != null) {
-            this.targetHealthBindPlaceholderButton.setMessage(Text.literal("Bind: not assigned"));
-            this.targetHealthBindPlaceholderButton.active = false;
-        }
-
-        if (this.playerListXSlider != null) {
-            this.playerListXSlider.sync(NoKnockbackClient.getPlayerListOffsetX());
-        }
-        if (this.playerListYSlider != null) {
-            this.playerListYSlider.sync(NoKnockbackClient.getPlayerListOffsetY());
-        }
-        if (this.playerListScaleSlider != null) {
-            this.playerListScaleSlider.sync(NoKnockbackClient.getPlayerListTextScale());
-        }
-        if (this.playerListMaxHeightSlider != null) {
-            this.playerListMaxHeightSlider.sync(NoKnockbackClient.getPlayerListMaxHeight());
-        }
-        if (this.playerListAlphaSlider != null) {
-            this.playerListAlphaSlider.sync(NoKnockbackClient.getPlayerListAlphaMultiplier());
-        }
-        if (this.menuAlwaysOnPlaceholderButton != null) {
-            this.menuAlwaysOnPlaceholderButton.setMessage(Text.literal("Enabled: ON"));
-            this.menuAlwaysOnPlaceholderButton.active = false;
-        }
-
-        for (Map.Entry<KeyBinding, ButtonWidget> entry : this.keyButtons.entrySet()) {
-            KeyBinding binding = entry.getKey();
-            ButtonWidget button = entry.getValue();
-            if (this.waitingForKey == binding) {
-                button.setMessage(Text.literal("Bind: [Press key]"));
+            if (panel.column == 0) {
+                col0Y += panelHeight + PANEL_GAP;
             } else {
-                button.setMessage(Text.literal("Bind: ").append(binding.getBoundKeyLocalizedText()));
+                col1Y += panelHeight + PANEL_GAP;
+            }
+        }
+
+        context.disableScissor();
+
+        int col0Height = col0Y - innerY;
+        int col1Height = col1Y - innerY;
+        int maxColumnHeight = Math.max(col0Height, col1Height);
+        this.maxScroll = Math.max(0, maxColumnHeight - innerHeight);
+        this.scrollOffset = MathHelper.clamp(this.scrollOffset, -this.maxScroll, 0.0);
+
+        drawScrollBar(context, innerX + innerWidth - 4, innerY, innerHeight);
+    }
+
+    private void drawPanel(DrawContext context, Panel panel, int x, int y, int width, int mouseX, int mouseY) {
+        int height = computePanelHeight(panel);
+        context.fill(x, y, x + width, y + height, COLOR_PANEL_BG);
+        drawOutline(context, x, y, x + width, y + height, COLOR_PANEL_BORDER);
+        context.fill(x, y, x + width, y + 2, COLOR_ACCENT_DARK);
+        context.drawTextWithShadow(this.textRenderer, panel.title, x + PANEL_PADDING, y + 4, COLOR_TEXT);
+
+        int rowY = y + PANEL_HEADER_HEIGHT + PANEL_PADDING;
+        for (Control control : panel.controls) {
+            drawControl(context, control, x + PANEL_PADDING, rowY, width - PANEL_PADDING * 2, mouseX, mouseY);
+            rowY += ROW_HEIGHT + ROW_GAP;
+        }
+    }
+
+    private void drawControl(DrawContext context, Control control, int x, int y, int width, int mouseX, int mouseY) {
+        context.drawTextWithShadow(this.textRenderer, control.label, x, y + 4, COLOR_TEXT_DIM);
+        int controlX = x + width - CONTROL_WIDTH;
+        Rect rect = new Rect(controlX, y, CONTROL_WIDTH, ROW_HEIGHT);
+        boolean hovered = rect.contains(mouseX, mouseY);
+
+        switch (control.type) {
+            case TOGGLE -> {
+                boolean enabled = control.toggleGetter.getAsBoolean();
+                int bg = enabled ? COLOR_ACCENT : COLOR_TOGGLE_OFF;
+                int fg = enabled ? COLOR_TEXT : COLOR_TEXT_MUTED;
+                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
+                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+                if (hovered) {
+                    context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_ROW_HOVER);
+                }
+                String label = enabled ? "ON" : "OFF";
+                context.drawCenteredTextWithShadow(this.textRenderer, label, rect.x + rect.width / 2, rect.y + 5, fg);
+                this.hitTargets.add(new HitTarget(HitType.TOGGLE, rect, control, rect));
+            }
+            case KEYBIND -> {
+                int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
+                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
+                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+                String keyLabel = "Unbound";
+                if (control.keyBinding != null) {
+                    keyLabel = control.keyBinding.getBoundKeyLocalizedText().getString();
+                }
+                if (this.waitingForKey == control.keyBinding) {
+                    keyLabel = "Press key";
+                }
+                context.drawCenteredTextWithShadow(this.textRenderer, keyLabel, rect.x + rect.width / 2, rect.y + 5, COLOR_TEXT);
+                this.hitTargets.add(new HitTarget(HitType.KEYBIND, rect, control, rect));
+            }
+            case CYCLE -> {
+                int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
+                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
+                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+                int idx = MathHelper.clamp(control.cycleGetter.getAsInt(), 0, control.cycleLabels.length - 1);
+                String value = control.cycleLabels[idx];
+                int valueWidth = this.textRenderer.getWidth(value);
+                int valueX = rect.x + (rect.width - valueWidth) / 2;
+                context.drawTextWithShadow(this.textRenderer, value, valueX, rect.y + 5, COLOR_TEXT);
+                context.drawTextWithShadow(this.textRenderer, "v", rect.x + rect.width - 10, rect.y + 5, COLOR_TEXT_MUTED);
+                this.hitTargets.add(new HitTarget(HitType.CYCLE, rect, control, rect));
+            }
+            case SLIDER -> {
+                double value = control.sliderGetter.getAsDouble();
+                double t = (value - control.min) / (control.max - control.min);
+                t = MathHelper.clamp(t, 0.0, 1.0);
+
+                int trackX = rect.x + 6;
+                int trackY = rect.y + rect.height - 6;
+                int trackWidth = rect.width - 12;
+                int trackHeight = 4;
+                int fillWidth = (int) Math.round(trackWidth * t);
+                Rect track = new Rect(trackX, trackY, trackWidth, trackHeight);
+
+                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BG);
+                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+                context.fill(track.x, track.y, track.x + track.width, track.y + track.height, COLOR_TOGGLE_OFF);
+                context.fill(track.x, track.y, track.x + fillWidth, track.y + track.height, COLOR_ACCENT);
+
+                String valueLabel = formatSliderValue(control, value);
+                int valueWidth = this.textRenderer.getWidth(valueLabel);
+                int valueX = rect.x + rect.width - valueWidth - 6;
+                context.drawTextWithShadow(this.textRenderer, valueLabel, valueX, rect.y + 4, COLOR_TEXT_MUTED);
+
+                if (hovered) {
+                    context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_ROW_HOVER);
+                }
+                this.hitTargets.add(new HitTarget(HitType.SLIDER, rect, control, track));
+            }
+            case LABEL -> {
+                String value = control.labelValue.get();
+                int valueWidth = this.textRenderer.getWidth(value);
+                int valueX = rect.x + rect.width - valueWidth - 4;
+                context.drawTextWithShadow(this.textRenderer, value, valueX, rect.y + 4, COLOR_TEXT_MUTED);
             }
         }
     }
 
-    private void recalculateScrollBounds() {
-        int viewportHeight = Math.max(1, this.scrollBottom - this.scrollTop);
-        int contentHeight = Math.max(0, this.contentBottom - this.scrollTop);
-        this.maxScroll = Math.max(0, contentHeight - viewportHeight);
-        this.scrollOffset = MathHelper.clamp(this.scrollOffset, 0, this.maxScroll);
-    }
-
-    private void setScrollOffset(int offset) {
-        this.scrollOffset = MathHelper.clamp(offset, 0, this.maxScroll);
-        this.applyScroll();
-        this.refreshLabels();
-    }
-
-    private void applyScroll() {
-        for (WidgetAnchor anchor : this.scrollAnchors) {
-            ClickableWidget widget = anchor.widget();
-            int y = anchor.baseY() - this.scrollOffset;
-            widget.setY(y);
-
-            boolean visible = y + widget.getHeight() >= this.scrollTop && y <= this.scrollBottom;
-            widget.visible = visible;
-            widget.active = anchor.baseActive() && visible;
+    private String formatSliderValue(Control control, double value) {
+        if (control.step >= 1.0) {
+            return Integer.toString((int) Math.round(value));
         }
+        if (control.step >= 0.1) {
+            return String.format(Locale.ROOT, "%.1f", value);
+        }
+        return String.format(Locale.ROOT, "%.2f", value);
     }
 
-    private void renderScrollBar(DrawContext context, int left) {
-        if (this.maxScroll <= 0) return;
-
-        int trackX1 = left + PANEL_WIDTH - 4;
-        int trackX2 = trackX1 + 4;
-        int trackY1 = this.scrollTop;
-        int trackY2 = this.scrollBottom;
-        int trackHeight = Math.max(1, trackY2 - trackY1);
-        int contentHeight = Math.max(trackHeight, this.contentBottom - this.scrollTop);
-        int thumbHeight = MathHelper.clamp((int) (trackHeight * (trackHeight / (float) contentHeight)), 16, trackHeight);
-        int thumbTravel = trackHeight - thumbHeight;
-        int thumbY = trackY1 + (int) (thumbTravel * (this.scrollOffset / (float) this.maxScroll));
-
-        context.fill(trackX1, trackY1, trackX2, trackY2, 0x4A2A3342);
-        context.fill(trackX1, thumbY, trackX2, thumbY + thumbHeight, 0xB5DBE7FB);
+    private void drawScrollBar(DrawContext context, int x, int y, int height) {
+        if (this.maxScroll <= 0.0) return;
+        int barHeight = Math.max(24, (int) ((height / (height + this.maxScroll)) * height));
+        int barY = y + (int) ((-this.scrollOffset / this.maxScroll) * (height - barHeight));
+        context.fill(x, y, x + 2, y + height, COLOR_CONTROL_BG);
+        context.fill(x, barY, x + 2, barY + barHeight, COLOR_ACCENT);
     }
 
-    private Text toggleText(String name, boolean enabled) {
-        return Text.literal(name + ": " + (enabled ? "ON" : "OFF"));
+    private void updateSlider(Control control, Rect track, double mouseX) {
+        double t = (mouseX - track.x) / (double) track.width;
+        t = MathHelper.clamp(t, 0.0, 1.0);
+        double value = control.min + (control.max - control.min) * t;
+        if (control.step > 0.0) {
+            value = Math.round((value - control.min) / control.step) * control.step + control.min;
+        }
+        value = MathHelper.clamp(value, control.min, control.max);
+        control.sliderSetter.accept(value);
     }
 
-    private boolean moduleEnabled(ModuleTab module) {
-        return switch (module) {
-            case SPEED -> NoKnockbackClient.isSpeedEnabled();
-            case ESP -> NoKnockbackClient.isPlayerEspEnabled();
-            case RAYS -> NoKnockbackClient.isPlayerRaysEnabled();
-            case TARGET_HEALTH -> NoKnockbackClient.isTargetHealthOverlayEnabled();
-            case PLAYER_LIST -> NoKnockbackClient.isPlayerListEnabled();
-            case MENU -> true;
-        };
+    private int computePanelHeight(Panel panel) {
+        int controls = panel.controls.size();
+        if (controls == 0) {
+            return PANEL_HEADER_HEIGHT + PANEL_PADDING * 2;
+        }
+        return PANEL_HEADER_HEIGHT + PANEL_PADDING * 2 + controls * ROW_HEIGHT + (controls - 1) * ROW_GAP;
     }
 
-    private Text rayOriginText(NoKnockbackClient.RayOrigin origin) {
-        return origin == NoKnockbackClient.RayOrigin.CENTER ? Text.literal("Center") : Text.literal("Bottom");
+    private void drawOutline(DrawContext context, int x1, int y1, int x2, int y2, int color) {
+        context.fill(x1, y1, x2, y1 + 1, color);
+        context.fill(x1, y2 - 1, x2, y2, color);
+        context.fill(x1, y1, x1 + 1, y2, color);
+        context.fill(x2 - 1, y1, x2, y2, color);
     }
 
-    private Text anchorModeText(NoKnockbackClient.OverlayAnchorMode mode) {
-        return mode == NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE ? Text.literal("Middle of Ray") : Text.literal("Above Player");
+    private void drawScaledText(DrawContext context, String text, int x, int y, float scale, int color) {
+        context.getMatrices().push();
+        context.getMatrices().translate(x, y, 0.0F);
+        context.getMatrices().scale(scale, scale, 1.0F);
+        context.drawTextWithShadow(this.textRenderer, text, 0, 0, color);
+        context.getMatrices().pop();
+    }
+    private List<Panel> buildPanels(ModuleTab module) {
+        List<Panel> panels = new ArrayList<>();
+        switch (module) {
+            case SPEED -> panels.add(new Panel("Speed", 0, List.of(
+                    Control.toggle("Enabled", NoKnockbackClient::isSpeedEnabled, NoKnockbackClient::setSpeedEnabled),
+                    Control.keybind("Bind", NoKnockbackClient.getSpeedToggleKeyBinding())
+            )));
+            case ESP -> panels.add(new Panel("ESP", 0, List.of(
+                    Control.toggle("Enabled", NoKnockbackClient::isPlayerEspEnabled, NoKnockbackClient::setPlayerEspEnabled),
+                    Control.keybind("Bind", NoKnockbackClient.getPlayerEspKeyBinding()),
+                    Control.slider("Outline Thickness", 0.5, 6.0, 0.1, NoKnockbackClient::getOutlineThickness, value -> NoKnockbackClient.setOutlineThickness((float) value))
+            )));
+            case RAYS -> {
+                panels.add(new Panel("Rays", 0, List.of(
+                        Control.toggle("Enabled", NoKnockbackClient::isPlayerRaysEnabled, NoKnockbackClient::setPlayerRaysEnabled),
+                        Control.keybind("Bind", NoKnockbackClient.getPlayerRaysKeyBinding()),
+                        Control.cycle("Ray Origin", new String[]{"Bottom", "Center"},
+                                () -> NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM ? 0 : 1,
+                                idx -> NoKnockbackClient.setRayOrigin(idx == 0 ? NoKnockbackClient.RayOrigin.BOTTOM : NoKnockbackClient.RayOrigin.CENTER)
+                        ),
+                        Control.slider("Bottom Start Height", 0.0, 300.0, 1.0, NoKnockbackClient::getRayBottomStartHeight, value -> NoKnockbackClient.setRayBottomStartHeight((float) value)),
+                        Control.slider("Ray Thickness", 0.5, 8.0, 0.1, NoKnockbackClient::getRayThickness, value -> NoKnockbackClient.setRayThickness((float) value)),
+                        Control.toggle("Ray Glow", NoKnockbackClient::isRayVisualGlowEnabled, NoKnockbackClient::setRayVisualGlowEnabled),
+                        Control.cycle("Ray Color Mode", Control.COLOR_MODES,
+                                () -> NoKnockbackClient.getRayVisualColorMode().ordinal(),
+                                idx -> NoKnockbackClient.setRayVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                        ),
+                        Control.slider("Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getRayVisualSaturationBoost, value -> NoKnockbackClient.setRayVisualSaturationBoost((float) value)),
+                        Control.slider("Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getRayVisualAnimationSpeed, value -> NoKnockbackClient.setRayVisualAnimationSpeed((float) value))
+                )));
+                panels.add(new Panel("Armor", 0, List.of(
+                        Control.toggle("Armor Enabled", NoKnockbackClient::isPlayerArmorOverlayEnabled, NoKnockbackClient::setPlayerArmorOverlayEnabled),
+                        Control.cycle("Armor Position", Control.ANCHOR_MODES,
+                                () -> NoKnockbackClient.getArmorAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
+                                idx -> NoKnockbackClient.setArmorAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                        ),
+                        Control.slider("Armor Size", 0.35, 2.5, 0.1, NoKnockbackClient::getArmorOverlayScale, value -> NoKnockbackClient.setArmorOverlayScale((float) value)),
+                        Control.toggle("Armor Glow", NoKnockbackClient::isArmorVisualGlowEnabled, NoKnockbackClient::setArmorVisualGlowEnabled),
+                        Control.cycle("Armor Color Mode", Control.COLOR_MODES,
+                                () -> NoKnockbackClient.getArmorVisualColorMode().ordinal(),
+                                idx -> NoKnockbackClient.setArmorVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                        ),
+                        Control.slider("Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getArmorVisualSaturationBoost, value -> NoKnockbackClient.setArmorVisualSaturationBoost((float) value)),
+                        Control.slider("Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getArmorVisualAnimationSpeed, value -> NoKnockbackClient.setArmorVisualAnimationSpeed((float) value))
+                )));
+                panels.add(new Panel("Held Item", 1, List.of(
+                        Control.toggle("Held Item Enabled", NoKnockbackClient::isHeldItemOverlayEnabled, NoKnockbackClient::setHeldItemOverlayEnabled),
+                        Control.cycle("Item Position", Control.ANCHOR_MODES,
+                                () -> NoKnockbackClient.getHeldItemAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
+                                idx -> NoKnockbackClient.setHeldItemAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                        ),
+                        Control.slider("Item Size", 0.35, 2.5, 0.1, NoKnockbackClient::getHeldItemOverlayScale, value -> NoKnockbackClient.setHeldItemOverlayScale((float) value)),
+                        Control.toggle("Item Glow", NoKnockbackClient::isHeldItemVisualGlowEnabled, NoKnockbackClient::setHeldItemVisualGlowEnabled),
+                        Control.cycle("Item Color Mode", Control.COLOR_MODES,
+                                () -> NoKnockbackClient.getHeldItemVisualColorMode().ordinal(),
+                                idx -> NoKnockbackClient.setHeldItemVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                        ),
+                        Control.slider("Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getHeldItemVisualSaturationBoost, value -> NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value)),
+                        Control.slider("Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getHeldItemVisualAnimationSpeed, value -> NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value))
+                )));
+                panels.add(new Panel("Distance", 1, List.of(
+                        Control.toggle("Distance Enabled", NoKnockbackClient::isDistanceDisplayEnabled, NoKnockbackClient::setDistanceDisplayEnabled),
+                        Control.cycle("Distance Position", Control.ANCHOR_MODES,
+                                () -> NoKnockbackClient.getDistanceAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
+                                idx -> NoKnockbackClient.setDistanceAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                        ),
+                        Control.slider("Distance Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getDistanceTextScale, value -> NoKnockbackClient.setDistanceTextScale((float) value)),
+                        Control.toggle("Distance Glow", NoKnockbackClient::isDistanceVisualGlowEnabled, NoKnockbackClient::setDistanceVisualGlowEnabled),
+                        Control.cycle("Distance Color Mode", Control.COLOR_MODES,
+                                () -> NoKnockbackClient.getDistanceVisualColorMode().ordinal(),
+                                idx -> NoKnockbackClient.setDistanceVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                        ),
+                        Control.slider("Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getDistanceVisualSaturationBoost, value -> NoKnockbackClient.setDistanceVisualSaturationBoost((float) value)),
+                        Control.slider("Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getDistanceVisualAnimationSpeed, value -> NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value))
+                )));
+            }
+            case TARGET_HEALTH -> panels.add(new Panel("Target Health", 0, List.of(
+                    Control.toggle("Enabled", NoKnockbackClient::isTargetHealthOverlayEnabled, NoKnockbackClient::setTargetHealthOverlayEnabled),
+                    Control.toggle("Dynamic Color", NoKnockbackClient::isTargetHealthDynamicColorEnabled, NoKnockbackClient::setTargetHealthDynamicColorEnabled),
+                    Control.slider("Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getTargetHealthTextScale, value -> NoKnockbackClient.setTargetHealthTextScale((float) value))
+            )));
+            case PLAYER_LIST -> panels.add(new Panel("Player List", 0, List.of(
+                    Control.toggle("Enabled", NoKnockbackClient::isPlayerListEnabled, NoKnockbackClient::setPlayerListEnabled),
+                    Control.keybind("Bind", NoKnockbackClient.getPlayerListKeyBinding()),
+                    Control.slider("Offset X", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetX(), value -> NoKnockbackClient.setPlayerListOffsetX((int) Math.round(value))),
+                    Control.slider("Offset Y", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetY(), value -> NoKnockbackClient.setPlayerListOffsetY((int) Math.round(value))),
+                    Control.slider("Scale", 0.1, 2.0, 0.1, NoKnockbackClient::getPlayerListTextScale, value -> NoKnockbackClient.setPlayerListTextScale((float) value)),
+                    Control.slider("Max Height", 40.0, 4096.0, 10.0, NoKnockbackClient::getPlayerListMaxHeight, value -> NoKnockbackClient.setPlayerListMaxHeight((int) Math.round(value))),
+                    Control.slider("Alpha", 0.1, 1.0, 0.1, NoKnockbackClient::getPlayerListAlphaMultiplier, value -> NoKnockbackClient.setPlayerListAlphaMultiplier((float) value))
+            )));
+            case MENU -> panels.add(new Panel("Menu", 0, List.of(
+                    Control.label("Enabled", () -> "Always ON"),
+                    Control.keybind("Menu Key", NoKnockbackClient.getOpenMenuKeyBinding())
+            )));
+        }
+
+        return panels;
     }
 
-    private Text colorModeText(NoKnockbackClient.VisualColorMode mode) {
-        return switch (mode) {
-            case NICK -> Text.literal("Nick");
-            case VIVID -> Text.literal("Vivid");
-            case GRADIENT -> Text.literal("Gradient");
-            case RAINBOW -> Text.literal("Rainbow");
-        };
-    }
-
-    private enum ModuleTab {
-        SPEED("Speed"),
-        ESP("Player ESP"),
-        RAYS("Rays"),
-        TARGET_HEALTH("Health Overlay"),
-        PLAYER_LIST("Player List"),
-        MENU("Menu");
+    private enum ModuleGroup {
+        MOVEMENT("Movement"),
+        VISUAL("Visuals"),
+        OVERLAY("Overlay"),
+        SYSTEM("System");
 
         private final String title;
 
-        ModuleTab(String title) {
+        ModuleGroup(String title) {
             this.title = title;
         }
     }
 
-    private record GroupLabel(String title, int x, int y) {
+    private enum ModuleTab {
+        SPEED("Speed", ModuleGroup.MOVEMENT),
+        ESP("Player ESP", ModuleGroup.VISUAL),
+        RAYS("Rays", ModuleGroup.VISUAL),
+        TARGET_HEALTH("Target Health", ModuleGroup.OVERLAY),
+        PLAYER_LIST("Player List", ModuleGroup.OVERLAY),
+        MENU("Menu", ModuleGroup.SYSTEM);
+
+        private final String title;
+        private final ModuleGroup group;
+
+        ModuleTab(String title, ModuleGroup group) {
+            this.title = title;
+            this.group = group;
+        }
     }
 
-    private record WidgetAnchor(ClickableWidget widget, int baseY, boolean baseActive) {
+    private enum HitType {
+        TOGGLE,
+        KEYBIND,
+        CYCLE,
+        SLIDER
     }
 
-    private abstract static class SettingSlider extends SliderWidget {
+    private static final class Rect {
+        private final int x;
+        private final int y;
+        private final int width;
+        private final int height;
+
+        private Rect(int x, int y, int width, int height) {
+            this.x = x;
+            this.y = y;
+            this.width = width;
+            this.height = height;
+        }
+
+        private boolean contains(double px, double py) {
+            return px >= this.x && px <= this.x + this.width && py >= this.y && py <= this.y + this.height;
+        }
+    }
+
+    private record ModuleEntry(ModuleTab module, Rect rect) {
+    }
+
+    private record HitTarget(HitType type, Rect rect, Control control, Rect track) {
+    }
+
+    private record SliderDrag(Control control, Rect track) {
+    }
+
+    private static final class Panel {
+        private final String title;
+        private final int column;
+        private final List<Control> controls;
+
+        private Panel(String title, int column, List<Control> controls) {
+            this.title = title;
+            this.column = column;
+            this.controls = controls;
+        }
+    }
+
+    private static final class Control {
+        private static final String[] COLOR_MODES = new String[]{"Nick", "Vivid", "Gradient", "Rainbow"};
+        private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
+
+        private final ControlType type;
         private final String label;
+        private final BooleanSupplier toggleGetter;
+        private final Consumer<Boolean> toggleSetter;
+        private final DoubleSupplier sliderGetter;
+        private final DoubleConsumer sliderSetter;
         private final double min;
         private final double max;
         private final double step;
+        private final IntSupplier cycleGetter;
+        private final IntConsumer cycleSetter;
+        private final String[] cycleLabels;
+        private final KeyBinding keyBinding;
+        private final Supplier<String> labelValue;
 
-        protected SettingSlider(int x, int y, int width, String label, double min, double max, double step, double currentValue) {
-            super(x, y, width, ROW_HEIGHT, Text.empty(), normalize(currentValue, min, max));
+        private Control(ControlType type, String label, BooleanSupplier toggleGetter, Consumer<Boolean> toggleSetter,
+                        DoubleSupplier sliderGetter, DoubleConsumer sliderSetter, double min, double max, double step,
+                        IntSupplier cycleGetter, IntConsumer cycleSetter, String[] cycleLabels,
+                        KeyBinding keyBinding, Supplier<String> labelValue) {
+            this.type = type;
             this.label = label;
+            this.toggleGetter = toggleGetter;
+            this.toggleSetter = toggleSetter;
+            this.sliderGetter = sliderGetter;
+            this.sliderSetter = sliderSetter;
             this.min = min;
             this.max = max;
             this.step = step;
-            this.sync(currentValue);
+            this.cycleGetter = cycleGetter;
+            this.cycleSetter = cycleSetter;
+            this.cycleLabels = cycleLabels;
+            this.keyBinding = keyBinding;
+            this.labelValue = labelValue;
         }
 
-        void sync(double currentValue) {
-            this.value = normalize(currentValue, this.min, this.max);
-            this.updateMessage();
+        private static Control toggle(String label, BooleanSupplier getter, Consumer<Boolean> setter) {
+            return new Control(ControlType.TOGGLE, label, getter, setter, null, null, 0.0, 0.0, 0.0, null, null, null, null, () -> "");
         }
 
-        @Override
-        protected void updateMessage() {
-            this.setMessage(Text.literal(this.label + ": " + this.format(this.current())));
+        private static Control keybind(String label, KeyBinding keyBinding) {
+            return new Control(ControlType.KEYBIND, label, () -> false, value -> {
+            }, null, null, 0.0, 0.0, 0.0, null, null, null, keyBinding, () -> "");
         }
 
-        @Override
-        protected void applyValue() {
-            double newValue = this.current();
-            this.value = normalize(newValue, this.min, this.max);
-            this.onValueChanged(newValue);
-            this.updateMessage();
+        private static Control slider(String label, double min, double max, double step, DoubleSupplier getter, DoubleConsumer setter) {
+            return new Control(ControlType.SLIDER, label, () -> false, value -> {
+            }, getter, setter, min, max, step, null, null, null, null, () -> "");
         }
 
-        @Override
-        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-            boolean hovered = this.isHovered();
-            int x1 = this.getX();
-            int y1 = this.getY();
-            int x2 = x1 + this.getWidth();
-            int y2 = y1 + this.getHeight();
-
-            int fill = this.active
-                    ? (hovered ? CARD_HOVER_COLOR : CARD_COLOR)
-                    : CARD_DISABLED_COLOR;
-            int textColor = this.active ? CARD_TEXT_COLOR : CARD_TEXT_DISABLED_COLOR;
-
-            context.fill(x1, y1, x2, y2, fill);
-            context.fill(x1, y1, x2, y1 + 1, CARD_BORDER_COLOR);
-            context.fill(x1, y2 - 1, x2, y2, CARD_BORDER_COLOR);
-            context.fill(x1, y1, x1 + 1, y2, CARD_BORDER_COLOR);
-            context.fill(x2 - 1, y1, x2, y2, CARD_BORDER_COLOR);
-
-            int trackX1 = x1 + 8;
-            int trackX2 = x2 - 8;
-            int trackY = y2 - 5;
-            context.fill(trackX1, trackY, trackX2, trackY + 2, 0xAAFFD8B5);
-
-            int knobX = trackX1 + (int) Math.round((trackX2 - trackX1 - 4) * this.value);
-            int knobColor = this.active ? 0xFFFFB26F : 0xFF7D5D46;
-            context.fill(knobX, y1 + 2, knobX + 4, y2 - 2, knobColor);
-
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client.textRenderer != null) {
-                context.drawTextWithShadow(client.textRenderer, this.getMessage(), x1 + 6, y1 + (this.getHeight() - 8) / 2, textColor);
-            }
+        private static Control cycle(String label, String[] values, IntSupplier getter, IntConsumer setter) {
+            return new Control(ControlType.CYCLE, label, () -> false, value -> {
+            }, null, null, 0.0, 0.0, 0.0, getter, setter, values, null, () -> "");
         }
 
-        protected abstract void onValueChanged(double value);
-
-        private double current() {
-            double raw = this.min + (this.max - this.min) * this.value;
-            double snapped = Math.round((raw - this.min) / this.step) * this.step + this.min;
-            return MathHelper.clamp(snapped, this.min, this.max);
+        private static Control label(String label, Supplier<String> valueSupplier) {
+            return new Control(ControlType.LABEL, label, () -> false, value -> {
+            }, null, null, 0.0, 0.0, 0.0, null, null, null, null, valueSupplier);
         }
+    }
 
-        private String format(double value) {
-            if (this.step >= 1.0) {
-                return Integer.toString((int) Math.round(value));
-            }
-
-            return String.format(Locale.ROOT, "%.1f", value);
-        }
-
-        private static double normalize(double value, double min, double max) {
-            if (max - min <= 0.0) {
-                return 0.0;
-            }
-
-            return MathHelper.clamp((value - min) / (max - min), 0.0, 1.0);
-        }
+    private enum ControlType {
+        TOGGLE,
+        KEYBIND,
+        CYCLE,
+        SLIDER,
+        LABEL
     }
 }
