@@ -86,9 +86,11 @@ public class NoKnockbackMenuScreen extends Screen {
     @Nullable
     private Integer previousBlurValue;
     @Nullable
-    private Control openDropdown;
+    private String openDropdownId;
     @Nullable
     private Rect openDropdownRect;
+    @Nullable
+    private Control openDropdownControl;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
@@ -162,7 +164,7 @@ public class NoKnockbackMenuScreen extends Screen {
                 if (this.selectedModule != entry.module) {
                     this.selectedModule = entry.module;
                     this.scrollOffset = 0.0;
-                    this.openDropdown = null;
+                    this.openDropdownId = null;
                 }
                 return true;
             }
@@ -189,37 +191,39 @@ public class NoKnockbackMenuScreen extends Screen {
                     handled = true;
                 }
                 case DROPDOWN -> {
-                    if (this.openDropdown == hitTarget.control) {
-                        this.openDropdown = null;
-                    } else {
-                        this.openDropdown = hitTarget.control;
+                    if (hitTarget.control != null) {
+                        if (hitTarget.control.id.equals(this.openDropdownId)) {
+                            this.openDropdownId = null;
+                        } else {
+                            this.openDropdownId = hitTarget.control.id;
+                        }
                     }
                     handled = true;
                 }
                 case DROPDOWN_OPTION -> {
                     hitTarget.control.cycleSetter.accept(hitTarget.optionIndex);
-                    this.openDropdown = null;
+                    this.openDropdownId = null;
                     handled = true;
                 }
                 case KEYBIND -> {
                     if (hitTarget.control.keyBinding != null) {
                         this.waitingForKey = hitTarget.control.keyBinding;
                         this.ignoreNextMouseBind = true;
-                        this.openDropdown = null;
+                        this.openDropdownId = null;
                     }
                     handled = true;
                 }
                 case SLIDER -> {
                     this.sliderDrag = new SliderDrag(hitTarget.control, hitTarget.track);
                     updateSlider(hitTarget.control, hitTarget.track, mouseX);
-                    this.openDropdown = null;
+                    this.openDropdownId = null;
                     handled = true;
                 }
             }
         }
 
-        if (!handled && this.openDropdown != null) {
-            this.openDropdown = null;
+        if (!handled && this.openDropdownId != null) {
+            this.openDropdownId = null;
         }
 
         if (handled) {
@@ -361,6 +365,7 @@ public class NoKnockbackMenuScreen extends Screen {
     private void drawContent(DrawContext context, int mouseX, int mouseY) {
         this.hitTargets.clear();
         this.openDropdownRect = null;
+        this.openDropdownControl = null;
 
         int innerX = this.contentX + PADDING;
         int innerY = this.contentY + PADDING;
@@ -392,10 +397,10 @@ public class NoKnockbackMenuScreen extends Screen {
             }
         }
 
-        if (this.openDropdown != null && this.openDropdownRect != null) {
-            drawDropdownOptions(context, this.openDropdown, this.openDropdownRect, mouseX, mouseY);
-        } else if (this.openDropdown != null) {
-            this.openDropdown = null;
+        if (this.openDropdownId != null && this.openDropdownControl != null && this.openDropdownRect != null) {
+            drawDropdownOptions(context, this.openDropdownControl, this.openDropdownRect, mouseX, mouseY);
+        } else if (this.openDropdownId != null) {
+            this.openDropdownId = null;
         }
 
         context.disableScissor();
@@ -466,11 +471,13 @@ public class NoKnockbackMenuScreen extends Screen {
                 int valueWidth = this.textRenderer.getWidth(value);
                 int valueX = rect.x + (rect.width - valueWidth) / 2;
                 context.drawTextWithShadow(this.textRenderer, value, valueX, rect.y + 5, COLOR_TEXT);
-                String arrow = this.openDropdown == control ? "^" : "v";
+                boolean isOpen = control.id.equals(this.openDropdownId);
+                String arrow = isOpen ? "^" : "v";
                 context.drawTextWithShadow(this.textRenderer, arrow, rect.x + rect.width - 10, rect.y + 5, COLOR_TEXT_MUTED);
                 this.hitTargets.add(new HitTarget(HitType.DROPDOWN, rect, control, rect, -1));
-                if (this.openDropdown == control) {
+                if (isOpen) {
                     this.openDropdownRect = rect;
+                    this.openDropdownControl = control;
                 }
             }
             case SLIDER -> {
@@ -597,103 +604,103 @@ public class NoKnockbackMenuScreen extends Screen {
         List<Panel> panels = new ArrayList<>();
         switch (module) {
             case NO_KNOCKBACK -> panels.add(new Panel("No Knockback", 0, List.of(
-                    Control.toggle("Enabled", NoKnockbackClient::isNoKnockbackEnabled, NoKnockbackClient::setNoKnockbackEnabled),
-                    Control.keybind("Bind", NoKnockbackClient.getNoKnockbackKeyBinding())
+                    Control.toggle("no_knockback.enabled", "Enabled", NoKnockbackClient::isNoKnockbackEnabled, NoKnockbackClient::setNoKnockbackEnabled),
+                    Control.keybind("no_knockback.bind", "Bind", NoKnockbackClient.getNoKnockbackKeyBinding())
             )));
             case SPEED -> panels.add(new Panel("Sneak Movement Speed", 0, List.of(
-                    Control.toggle("Enabled", NoKnockbackClient::isSpeedEnabled, NoKnockbackClient::setSpeedEnabled),
-                    Control.keybind("Bind", NoKnockbackClient.getSpeedToggleKeyBinding())
+                    Control.toggle("speed.enabled", "Enabled", NoKnockbackClient::isSpeedEnabled, NoKnockbackClient::setSpeedEnabled),
+                    Control.keybind("speed.bind", "Bind", NoKnockbackClient.getSpeedToggleKeyBinding())
             )));
             case ESP -> panels.add(new Panel("ESP", 0, List.of(
-                    Control.toggle("Enabled", NoKnockbackClient::isPlayerEspEnabled, NoKnockbackClient::setPlayerEspEnabled),
-                    Control.keybind("Bind", NoKnockbackClient.getPlayerEspKeyBinding()),
-                    Control.slider("Outline Thickness", 0.5, 6.0, 0.1, NoKnockbackClient::getOutlineThickness, value -> NoKnockbackClient.setOutlineThickness((float) value))
+                    Control.toggle("esp.enabled", "Enabled", NoKnockbackClient::isPlayerEspEnabled, NoKnockbackClient::setPlayerEspEnabled),
+                    Control.keybind("esp.bind", "Bind", NoKnockbackClient.getPlayerEspKeyBinding()),
+                    Control.slider("esp.outline_thickness", "Outline Thickness", 0.5, 6.0, 0.1, NoKnockbackClient::getOutlineThickness, value -> NoKnockbackClient.setOutlineThickness((float) value))
             )));
             case RAYS -> {
                 panels.add(new Panel("Rays", 0, List.of(
-                        Control.toggle("Enabled", NoKnockbackClient::isPlayerRaysEnabled, NoKnockbackClient::setPlayerRaysEnabled),
-                        Control.keybind("Bind", NoKnockbackClient.getPlayerRaysKeyBinding()),
-                        Control.cycle("Ray Origin", new String[]{"Bottom", "Center"},
+                        Control.toggle("rays.enabled", "Enabled", NoKnockbackClient::isPlayerRaysEnabled, NoKnockbackClient::setPlayerRaysEnabled),
+                        Control.keybind("rays.bind", "Bind", NoKnockbackClient.getPlayerRaysKeyBinding()),
+                        Control.cycle("rays.origin", "Ray Origin", new String[]{"Bottom", "Center"},
                                 () -> NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM ? 0 : 1,
                                 idx -> NoKnockbackClient.setRayOrigin(idx == 0 ? NoKnockbackClient.RayOrigin.BOTTOM : NoKnockbackClient.RayOrigin.CENTER)
                         ),
-                        Control.slider("Bottom Start Height", 0.0, 300.0, 1.0, NoKnockbackClient::getRayBottomStartHeight, value -> NoKnockbackClient.setRayBottomStartHeight((float) value)),
-                        Control.slider("Ray Thickness", 0.5, 8.0, 0.1, NoKnockbackClient::getRayThickness, value -> NoKnockbackClient.setRayThickness((float) value)),
-                        Control.slider("Ray Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getRayAlpha, value -> NoKnockbackClient.setRayAlpha((float) value)),
-                        Control.toggle("Ray Glow", NoKnockbackClient::isRayVisualGlowEnabled, NoKnockbackClient::setRayVisualGlowEnabled),
-                        Control.cycle("Ray Color Mode", Control.COLOR_MODES,
+                        Control.slider("rays.bottom_height", "Bottom Start Height", 0.0, 300.0, 1.0, NoKnockbackClient::getRayBottomStartHeight, value -> NoKnockbackClient.setRayBottomStartHeight((float) value)),
+                        Control.slider("rays.thickness", "Ray Thickness", 0.5, 8.0, 0.1, NoKnockbackClient::getRayThickness, value -> NoKnockbackClient.setRayThickness((float) value)),
+                        Control.slider("rays.alpha", "Ray Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getRayAlpha, value -> NoKnockbackClient.setRayAlpha((float) value)),
+                        Control.toggle("rays.glow", "Ray Glow", NoKnockbackClient::isRayVisualGlowEnabled, NoKnockbackClient::setRayVisualGlowEnabled),
+                        Control.cycle("rays.color_mode", "Ray Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getRayVisualColorMode().ordinal(),
                                 idx -> NoKnockbackClient.setRayVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getRayVisualSaturationBoost, value -> NoKnockbackClient.setRayVisualSaturationBoost((float) value)),
-                        Control.slider("Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getRayVisualAnimationSpeed, value -> NoKnockbackClient.setRayVisualAnimationSpeed((float) value))
+                        Control.slider("rays.saturation", "Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getRayVisualSaturationBoost, value -> NoKnockbackClient.setRayVisualSaturationBoost((float) value)),
+                        Control.slider("rays.anim_speed", "Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getRayVisualAnimationSpeed, value -> NoKnockbackClient.setRayVisualAnimationSpeed((float) value))
                 )));
                 panels.add(new Panel("Armor", 0, List.of(
-                        Control.toggle("Armor Enabled", NoKnockbackClient::isPlayerArmorOverlayEnabled, NoKnockbackClient::setPlayerArmorOverlayEnabled),
-                        Control.cycle("Armor Position", Control.ANCHOR_MODES,
+                        Control.toggle("armor.enabled", "Armor Enabled", NoKnockbackClient::isPlayerArmorOverlayEnabled, NoKnockbackClient::setPlayerArmorOverlayEnabled),
+                        Control.cycle("armor.position", "Armor Position", Control.ANCHOR_MODES,
                                 () -> NoKnockbackClient.getArmorAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
                                 idx -> NoKnockbackClient.setArmorAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
-                        Control.slider("Armor Size", 0.35, 2.5, 0.1, NoKnockbackClient::getArmorOverlayScale, value -> NoKnockbackClient.setArmorOverlayScale((float) value)),
-                        Control.slider("Armor Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getArmorAlpha, value -> NoKnockbackClient.setArmorAlpha((float) value)),
-                        Control.toggle("Armor Glow", NoKnockbackClient::isArmorVisualGlowEnabled, NoKnockbackClient::setArmorVisualGlowEnabled),
-                        Control.cycle("Armor Color Mode", Control.COLOR_MODES,
+                        Control.slider("armor.size", "Armor Size", 0.35, 2.5, 0.1, NoKnockbackClient::getArmorOverlayScale, value -> NoKnockbackClient.setArmorOverlayScale((float) value)),
+                        Control.slider("armor.alpha", "Armor Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getArmorAlpha, value -> NoKnockbackClient.setArmorAlpha((float) value)),
+                        Control.toggle("armor.glow", "Armor Glow", NoKnockbackClient::isArmorVisualGlowEnabled, NoKnockbackClient::setArmorVisualGlowEnabled),
+                        Control.cycle("armor.color_mode", "Armor Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getArmorVisualColorMode().ordinal(),
                                 idx -> NoKnockbackClient.setArmorVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getArmorVisualSaturationBoost, value -> NoKnockbackClient.setArmorVisualSaturationBoost((float) value)),
-                        Control.slider("Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getArmorVisualAnimationSpeed, value -> NoKnockbackClient.setArmorVisualAnimationSpeed((float) value))
+                        Control.slider("armor.saturation", "Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getArmorVisualSaturationBoost, value -> NoKnockbackClient.setArmorVisualSaturationBoost((float) value)),
+                        Control.slider("armor.anim_speed", "Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getArmorVisualAnimationSpeed, value -> NoKnockbackClient.setArmorVisualAnimationSpeed((float) value))
                 )));
                 panels.add(new Panel("Held Item", 1, List.of(
-                        Control.toggle("Held Item Enabled", NoKnockbackClient::isHeldItemOverlayEnabled, NoKnockbackClient::setHeldItemOverlayEnabled),
-                        Control.cycle("Item Position", Control.ANCHOR_MODES,
+                        Control.toggle("item.enabled", "Held Item Enabled", NoKnockbackClient::isHeldItemOverlayEnabled, NoKnockbackClient::setHeldItemOverlayEnabled),
+                        Control.cycle("item.position", "Item Position", Control.ANCHOR_MODES,
                                 () -> NoKnockbackClient.getHeldItemAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
                                 idx -> NoKnockbackClient.setHeldItemAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
-                        Control.slider("Item Size", 0.35, 2.5, 0.1, NoKnockbackClient::getHeldItemOverlayScale, value -> NoKnockbackClient.setHeldItemOverlayScale((float) value)),
-                        Control.slider("Item Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getHeldItemAlpha, value -> NoKnockbackClient.setHeldItemAlpha((float) value)),
-                        Control.toggle("Item Glow", NoKnockbackClient::isHeldItemVisualGlowEnabled, NoKnockbackClient::setHeldItemVisualGlowEnabled),
-                        Control.cycle("Item Color Mode", Control.COLOR_MODES,
+                        Control.slider("item.size", "Item Size", 0.35, 2.5, 0.1, NoKnockbackClient::getHeldItemOverlayScale, value -> NoKnockbackClient.setHeldItemOverlayScale((float) value)),
+                        Control.slider("item.alpha", "Item Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getHeldItemAlpha, value -> NoKnockbackClient.setHeldItemAlpha((float) value)),
+                        Control.toggle("item.glow", "Item Glow", NoKnockbackClient::isHeldItemVisualGlowEnabled, NoKnockbackClient::setHeldItemVisualGlowEnabled),
+                        Control.cycle("item.color_mode", "Item Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getHeldItemVisualColorMode().ordinal(),
                                 idx -> NoKnockbackClient.setHeldItemVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getHeldItemVisualSaturationBoost, value -> NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value)),
-                        Control.slider("Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getHeldItemVisualAnimationSpeed, value -> NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value))
+                        Control.slider("item.saturation", "Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getHeldItemVisualSaturationBoost, value -> NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value)),
+                        Control.slider("item.anim_speed", "Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getHeldItemVisualAnimationSpeed, value -> NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value))
                 )));
                 panels.add(new Panel("Distance", 1, List.of(
-                        Control.toggle("Distance Enabled", NoKnockbackClient::isDistanceDisplayEnabled, NoKnockbackClient::setDistanceDisplayEnabled),
-                        Control.cycle("Distance Position", Control.ANCHOR_MODES,
+                        Control.toggle("distance.enabled", "Distance Enabled", NoKnockbackClient::isDistanceDisplayEnabled, NoKnockbackClient::setDistanceDisplayEnabled),
+                        Control.cycle("distance.position", "Distance Position", Control.ANCHOR_MODES,
                                 () -> NoKnockbackClient.getDistanceAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
                                 idx -> NoKnockbackClient.setDistanceAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
-                        Control.slider("Distance Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getDistanceTextScale, value -> NoKnockbackClient.setDistanceTextScale((float) value)),
-                        Control.slider("Distance Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getDistanceAlpha, value -> NoKnockbackClient.setDistanceAlpha((float) value)),
-                        Control.toggle("Distance Glow", NoKnockbackClient::isDistanceVisualGlowEnabled, NoKnockbackClient::setDistanceVisualGlowEnabled),
-                        Control.cycle("Distance Color Mode", Control.COLOR_MODES,
+                        Control.slider("distance.text_size", "Distance Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getDistanceTextScale, value -> NoKnockbackClient.setDistanceTextScale((float) value)),
+                        Control.slider("distance.alpha", "Distance Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getDistanceAlpha, value -> NoKnockbackClient.setDistanceAlpha((float) value)),
+                        Control.toggle("distance.glow", "Distance Glow", NoKnockbackClient::isDistanceVisualGlowEnabled, NoKnockbackClient::setDistanceVisualGlowEnabled),
+                        Control.cycle("distance.color_mode", "Distance Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getDistanceVisualColorMode().ordinal(),
                                 idx -> NoKnockbackClient.setDistanceVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getDistanceVisualSaturationBoost, value -> NoKnockbackClient.setDistanceVisualSaturationBoost((float) value)),
-                        Control.slider("Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getDistanceVisualAnimationSpeed, value -> NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value))
+                        Control.slider("distance.saturation", "Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getDistanceVisualSaturationBoost, value -> NoKnockbackClient.setDistanceVisualSaturationBoost((float) value)),
+                        Control.slider("distance.anim_speed", "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getDistanceVisualAnimationSpeed, value -> NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value))
                 )));
             }
             case TARGET_HEALTH -> panels.add(new Panel("Target Health", 0, List.of(
-                    Control.toggle("Enabled", NoKnockbackClient::isTargetHealthOverlayEnabled, NoKnockbackClient::setTargetHealthOverlayEnabled),
-                    Control.toggle("Dynamic Color", NoKnockbackClient::isTargetHealthDynamicColorEnabled, NoKnockbackClient::setTargetHealthDynamicColorEnabled),
-                    Control.slider("Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getTargetHealthTextScale, value -> NoKnockbackClient.setTargetHealthTextScale((float) value))
+                    Control.toggle("target_health.enabled", "Enabled", NoKnockbackClient::isTargetHealthOverlayEnabled, NoKnockbackClient::setTargetHealthOverlayEnabled),
+                    Control.toggle("target_health.dynamic_color", "Dynamic Color", NoKnockbackClient::isTargetHealthDynamicColorEnabled, NoKnockbackClient::setTargetHealthDynamicColorEnabled),
+                    Control.slider("target_health.text_size", "Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getTargetHealthTextScale, value -> NoKnockbackClient.setTargetHealthTextScale((float) value))
             )));
             case PLAYER_LIST -> panels.add(new Panel("Player List", 0, List.of(
-                    Control.toggle("Enabled", NoKnockbackClient::isPlayerListEnabled, NoKnockbackClient::setPlayerListEnabled),
-                    Control.keybind("Bind", NoKnockbackClient.getPlayerListKeyBinding()),
-                    Control.slider("Offset X", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetX(), value -> NoKnockbackClient.setPlayerListOffsetX((int) Math.round(value))),
-                    Control.slider("Offset Y", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetY(), value -> NoKnockbackClient.setPlayerListOffsetY((int) Math.round(value))),
-                    Control.slider("Scale", 0.1, 2.0, 0.1, NoKnockbackClient::getPlayerListTextScale, value -> NoKnockbackClient.setPlayerListTextScale((float) value)),
-                    Control.slider("Max Height", 40.0, 4096.0, 10.0, NoKnockbackClient::getPlayerListMaxHeight, value -> NoKnockbackClient.setPlayerListMaxHeight((int) Math.round(value))),
-                    Control.slider("Alpha", 0.1, 1.0, 0.1, NoKnockbackClient::getPlayerListAlphaMultiplier, value -> NoKnockbackClient.setPlayerListAlphaMultiplier((float) value))
+                    Control.toggle("player_list.enabled", "Enabled", NoKnockbackClient::isPlayerListEnabled, NoKnockbackClient::setPlayerListEnabled),
+                    Control.keybind("player_list.bind", "Bind", NoKnockbackClient.getPlayerListKeyBinding()),
+                    Control.slider("player_list.offset_x", "Offset X", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetX(), value -> NoKnockbackClient.setPlayerListOffsetX((int) Math.round(value))),
+                    Control.slider("player_list.offset_y", "Offset Y", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetY(), value -> NoKnockbackClient.setPlayerListOffsetY((int) Math.round(value))),
+                    Control.slider("player_list.scale", "Scale", 0.1, 2.0, 0.1, NoKnockbackClient::getPlayerListTextScale, value -> NoKnockbackClient.setPlayerListTextScale((float) value)),
+                    Control.slider("player_list.max_height", "Max Height", 40.0, 4096.0, 10.0, NoKnockbackClient::getPlayerListMaxHeight, value -> NoKnockbackClient.setPlayerListMaxHeight((int) Math.round(value))),
+                    Control.slider("player_list.alpha", "Alpha", 0.1, 1.0, 0.1, NoKnockbackClient::getPlayerListAlphaMultiplier, value -> NoKnockbackClient.setPlayerListAlphaMultiplier((float) value))
             )));
             case MENU -> panels.add(new Panel("Menu", 0, List.of(
-                    Control.label("Enabled", () -> "Always ON"),
-                    Control.keybind("Menu Key", NoKnockbackClient.getOpenMenuKeyBinding())
+                    Control.label("menu.enabled", "Enabled", () -> "Always ON"),
+                    Control.keybind("menu.bind", "Menu Key", NoKnockbackClient.getOpenMenuKeyBinding())
             )));
         }
 
@@ -782,6 +789,7 @@ public class NoKnockbackMenuScreen extends Screen {
         private static final String[] COLOR_MODES = new String[]{"Nick", "Vivid", "Gradient", "Rainbow"};
         private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
 
+        private final String id;
         private final ControlType type;
         private final String label;
         private final BooleanSupplier toggleGetter;
@@ -797,10 +805,11 @@ public class NoKnockbackMenuScreen extends Screen {
         private final KeyBinding keyBinding;
         private final Supplier<String> labelValue;
 
-        private Control(ControlType type, String label, BooleanSupplier toggleGetter, Consumer<Boolean> toggleSetter,
+        private Control(String id, ControlType type, String label, BooleanSupplier toggleGetter, Consumer<Boolean> toggleSetter,
                         DoubleSupplier sliderGetter, DoubleConsumer sliderSetter, double min, double max, double step,
                         IntSupplier cycleGetter, IntConsumer cycleSetter, String[] cycleLabels,
                         KeyBinding keyBinding, Supplier<String> labelValue) {
+            this.id = id;
             this.type = type;
             this.label = label;
             this.toggleGetter = toggleGetter;
@@ -817,27 +826,27 @@ public class NoKnockbackMenuScreen extends Screen {
             this.labelValue = labelValue;
         }
 
-        private static Control toggle(String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-            return new Control(ControlType.TOGGLE, label, getter, setter, null, null, 0.0, 0.0, 0.0, null, null, null, null, () -> "");
+        private static Control toggle(String id, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
+            return new Control(id, ControlType.TOGGLE, label, getter, setter, null, null, 0.0, 0.0, 0.0, null, null, null, null, () -> "");
         }
 
-        private static Control keybind(String label, KeyBinding keyBinding) {
-            return new Control(ControlType.KEYBIND, label, () -> false, value -> {
+        private static Control keybind(String id, String label, KeyBinding keyBinding) {
+            return new Control(id, ControlType.KEYBIND, label, () -> false, value -> {
             }, null, null, 0.0, 0.0, 0.0, null, null, null, keyBinding, () -> "");
         }
 
-        private static Control slider(String label, double min, double max, double step, DoubleSupplier getter, DoubleConsumer setter) {
-            return new Control(ControlType.SLIDER, label, () -> false, value -> {
+        private static Control slider(String id, String label, double min, double max, double step, DoubleSupplier getter, DoubleConsumer setter) {
+            return new Control(id, ControlType.SLIDER, label, () -> false, value -> {
             }, getter, setter, min, max, step, null, null, null, null, () -> "");
         }
 
-        private static Control cycle(String label, String[] values, IntSupplier getter, IntConsumer setter) {
-            return new Control(ControlType.CYCLE, label, () -> false, value -> {
+        private static Control cycle(String id, String label, String[] values, IntSupplier getter, IntConsumer setter) {
+            return new Control(id, ControlType.CYCLE, label, () -> false, value -> {
             }, null, null, 0.0, 0.0, 0.0, getter, setter, values, null, () -> "");
         }
 
-        private static Control label(String label, Supplier<String> valueSupplier) {
-            return new Control(ControlType.LABEL, label, () -> false, value -> {
+        private static Control label(String id, String label, Supplier<String> valueSupplier) {
+            return new Control(id, ControlType.LABEL, label, () -> false, value -> {
             }, null, null, 0.0, 0.0, 0.0, null, null, null, null, valueSupplier);
         }
     }
