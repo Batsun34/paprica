@@ -91,6 +91,8 @@ public class NoKnockbackMenuScreen extends Screen {
     private Rect openDropdownRect;
     @Nullable
     private Control openDropdownControl;
+    @Nullable
+    private Rect openDropdownListRect;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
@@ -366,6 +368,7 @@ public class NoKnockbackMenuScreen extends Screen {
         this.hitTargets.clear();
         this.openDropdownRect = null;
         this.openDropdownControl = null;
+        this.openDropdownListRect = null;
 
         int innerX = this.contentX + PADDING;
         int innerY = this.contentY + PADDING;
@@ -397,21 +400,31 @@ public class NoKnockbackMenuScreen extends Screen {
             }
         }
 
-        if (this.openDropdownId != null && this.openDropdownControl != null && this.openDropdownRect != null) {
-            drawDropdownOptions(context, this.openDropdownControl, this.openDropdownRect, mouseX, mouseY);
-        } else if (this.openDropdownId != null) {
-            this.openDropdownId = null;
-        }
-
         context.disableScissor();
 
         int col0Height = col0Y - innerY;
         int col1Height = col1Y - innerY;
         int maxColumnHeight = Math.max(col0Height, col1Height);
         this.maxScroll = Math.max(0, maxColumnHeight - innerHeight);
+        if (this.openDropdownListRect != null) {
+            int listBottom = this.openDropdownListRect.y + this.openDropdownListRect.height;
+            int innerBottom = innerY + innerHeight;
+            int extra = listBottom - innerBottom;
+            if (extra > 0) {
+                this.maxScroll += extra;
+            }
+        }
         this.scrollOffset = MathHelper.clamp(this.scrollOffset, -this.maxScroll, 0.0);
 
         drawScrollBar(context, innerX + innerWidth - 4, innerY, innerHeight);
+
+        if (this.openDropdownId != null && this.openDropdownControl != null && this.openDropdownRect != null) {
+            context.enableScissor(innerX, innerY, innerX + innerWidth, innerY + innerHeight);
+            drawDropdownOptions(context, this.openDropdownControl, this.openDropdownRect, mouseX, mouseY);
+            context.disableScissor();
+        } else if (this.openDropdownId != null) {
+            this.openDropdownId = null;
+        }
     }
 
     private void drawPanel(DrawContext context, Panel panel, int x, int y, int width, int mouseX, int mouseY) {
@@ -462,10 +475,10 @@ public class NoKnockbackMenuScreen extends Screen {
                 context.drawCenteredTextWithShadow(this.textRenderer, keyLabel, rect.x + rect.width / 2, rect.y + 5, COLOR_TEXT);
                 this.hitTargets.add(new HitTarget(HitType.KEYBIND, rect, control, rect, -1));
             }
-            case CYCLE -> {
-                int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
-                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
-                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+                case CYCLE -> {
+                    int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
+                    context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
+                    drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
                 int idx = MathHelper.clamp(control.cycleGetter.getAsInt(), 0, control.cycleLabels.length - 1);
                 String value = control.cycleLabels[idx];
                 int valueWidth = this.textRenderer.getWidth(value);
@@ -475,12 +488,13 @@ public class NoKnockbackMenuScreen extends Screen {
                 String arrow = isOpen ? "^" : "v";
                 context.drawTextWithShadow(this.textRenderer, arrow, rect.x + rect.width - 10, rect.y + 5, COLOR_TEXT_MUTED);
                 this.hitTargets.add(new HitTarget(HitType.DROPDOWN, rect, control, rect, -1));
-                if (isOpen) {
-                    this.openDropdownRect = rect;
-                    this.openDropdownControl = control;
+                    if (isOpen) {
+                        this.openDropdownRect = rect;
+                        this.openDropdownControl = control;
+                        this.openDropdownListRect = buildDropdownListRect(control, rect);
+                    }
                 }
-            }
-            case SLIDER -> {
+                case SLIDER -> {
                 double value = control.sliderGetter.getAsDouble();
                 double t = (value - control.min) / (control.max - control.min);
                 t = MathHelper.clamp(t, 0.0, 1.0);
@@ -495,12 +509,15 @@ public class NoKnockbackMenuScreen extends Screen {
                 context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BG);
                 drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
                 context.fill(track.x, track.y, track.x + track.width, track.y + track.height, COLOR_TOGGLE_OFF);
-                context.fill(track.x, track.y, track.x + fillWidth, track.y + track.height, COLOR_ACCENT);
+                    context.fill(track.x, track.y, track.x + fillWidth, track.y + track.height, COLOR_ACCENT);
 
-                String valueLabel = formatSliderValue(control, value);
-                int valueWidth = this.textRenderer.getWidth(valueLabel);
-                int valueX = rect.x + rect.width - valueWidth - 6;
-                context.drawTextWithShadow(this.textRenderer, valueLabel, valueX, rect.y + 4, COLOR_TEXT_MUTED);
+                    String valueLabel = formatSliderValue(control, value);
+                    int valueWidth = this.textRenderer.getWidth(valueLabel);
+                    int valueX = rect.x + rect.width - valueWidth - 6;
+                    Rect valueRect = new Rect(valueX, rect.y + 4, valueWidth, this.textRenderer.fontHeight);
+                    if (!isDropdownOverlapping(valueRect)) {
+                        context.drawTextWithShadow(this.textRenderer, valueLabel, valueX, rect.y + 4, COLOR_TEXT_MUTED);
+                    }
 
                 if (hovered) {
                     context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_ROW_HOVER);
@@ -518,6 +535,9 @@ public class NoKnockbackMenuScreen extends Screen {
 
     private void drawDropdownOptions(DrawContext context, Control control, Rect baseRect, int mouseX, int mouseY) {
         if (control.cycleLabels == null || control.cycleLabels.length == 0) return;
+
+        context.getMatrices().push();
+        context.getMatrices().translate(0.0F, 0.0F, 200.0F);
 
         int optionHeight = ROW_HEIGHT;
         int optionCount = control.cycleLabels.length;
@@ -547,6 +567,22 @@ public class NoKnockbackMenuScreen extends Screen {
             context.drawTextWithShadow(this.textRenderer, control.cycleLabels[i], textX, textY, color);
             this.hitTargets.add(new HitTarget(HitType.DROPDOWN_OPTION, optionRect, control, optionRect, i));
         }
+
+        context.getMatrices().pop();
+    }
+    @Nullable
+    private Rect buildDropdownListRect(Control control, Rect baseRect) {
+        if (control.cycleLabels == null || control.cycleLabels.length == 0) return null;
+        int optionHeight = ROW_HEIGHT;
+        int listHeight = optionHeight * control.cycleLabels.length;
+        int listX = baseRect.x;
+        int listY = baseRect.y + baseRect.height + 2;
+        return new Rect(listX, listY, baseRect.width, listHeight);
+    }
+
+    private boolean isDropdownOverlapping(Rect rect) {
+        if (this.openDropdownListRect == null) return false;
+        return this.openDropdownListRect.intersects(rect);
     }
 
     private String formatSliderValue(Control control, double value) {
@@ -761,6 +797,13 @@ public class NoKnockbackMenuScreen extends Screen {
 
         private boolean contains(double px, double py) {
             return px >= this.x && px <= this.x + this.width && py >= this.y && py <= this.y + this.height;
+        }
+
+        private boolean intersects(Rect other) {
+            return this.x < other.x + other.width
+                    && this.x + this.width > other.x
+                    && this.y < other.y + other.height
+                    && this.y + this.height > other.y;
         }
     }
 
