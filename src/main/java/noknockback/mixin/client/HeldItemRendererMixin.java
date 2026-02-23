@@ -3,7 +3,9 @@ package noknockback.mixin.client;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.item.HeldItemRenderer;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
@@ -22,6 +24,9 @@ public class HeldItemRendererMixin {
 
     @Unique
     private boolean paprika$offsetPushed;
+
+    @Unique
+    private boolean paprika$itemRotationPushed;
 
     @Inject(method = "renderFirstPersonItem", at = @At("HEAD"))
     private void paprika$beginRender(
@@ -59,19 +64,6 @@ public class HeldItemRendererMixin {
             float signedOffsetX = arm == Arm.LEFT ? -offsetX : offsetX;
             matrices.translate(signedOffsetX, offsetY, 0.0F);
             matrices.scale(scale, scale, 1.0F);
-            if (hasItem) {
-                float zRot = switch (orientation) {
-                    case LEFT -> 25.0F;
-                    case RIGHT -> -25.0F;
-                    default -> 0.0F;
-                };
-                if (Math.abs(zRot) > 0.0001F) {
-                    matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(zRot));
-                }
-                if (flipItem) {
-                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
-                }
-            }
         }
     }
 
@@ -93,6 +85,59 @@ public class HeldItemRendererMixin {
             matrices.pop();
         }
         this.paprika$currentItem = ItemStack.EMPTY;
+    }
+
+    @Inject(method = "renderItem", at = @At("HEAD"))
+    private void paprika$applyItemRotation(
+            LivingEntity entity,
+            ItemStack stack,
+            ModelTransformationMode mode,
+            boolean leftHanded,
+            MatrixStack matrices,
+            VertexConsumerProvider vertexConsumers,
+            int light,
+            CallbackInfo ci
+    ) {
+        this.paprika$itemRotationPushed = false;
+        if (stack == null || stack.isEmpty()) return;
+
+        boolean flipItem = NoKnockbackClient.isHandItemFlipEnabled();
+        NoKnockbackClient.HandItemOrientation orientation = NoKnockbackClient.getHandItemOrientation();
+        if (!flipItem && orientation == NoKnockbackClient.HandItemOrientation.DEFAULT) return;
+
+        matrices.push();
+        this.paprika$itemRotationPushed = true;
+
+        float zRot = switch (orientation) {
+            case LEFT -> 25.0F;
+            case RIGHT -> -25.0F;
+            default -> 0.0F;
+        };
+        if (leftHanded) {
+            zRot = -zRot;
+        }
+        if (Math.abs(zRot) > 0.0001F) {
+            matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(zRot));
+        }
+        if (flipItem) {
+            matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
+        }
+    }
+
+    @Inject(method = "renderItem", at = @At("RETURN"))
+    private void paprika$popItemRotation(
+            LivingEntity entity,
+            ItemStack stack,
+            ModelTransformationMode mode,
+            boolean leftHanded,
+            MatrixStack matrices,
+            VertexConsumerProvider vertexConsumers,
+            int light,
+            CallbackInfo ci
+    ) {
+        if (this.paprika$itemRotationPushed) {
+            matrices.pop();
+        }
     }
 
     @Inject(method = "renderArmHoldingItem", at = @At("HEAD"), cancellable = true)

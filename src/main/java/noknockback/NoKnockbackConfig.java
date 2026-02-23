@@ -69,6 +69,7 @@ public final class NoKnockbackConfig {
         sanitized.playerArmorOverlayEnabled = data.playerArmorOverlayEnabled;
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
+        sanitized.playerTrailsEnabled = data.playerTrailsEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
@@ -117,19 +118,27 @@ public final class NoKnockbackConfig {
         sanitized.distanceVisualAnimationSpeed = MathHelper.clamp(data.distanceVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.espVisualSaturationBoost = MathHelper.clamp(data.espVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.espVisualAnimationSpeed = MathHelper.clamp(data.espVisualAnimationSpeed, 0.2F, 4.0F);
+        sanitized.trailStripeHeight = MathHelper.clamp(data.trailStripeHeight, 0.2F, 4.0F);
+        sanitized.trailLifetimeSeconds = MathHelper.clamp(data.trailLifetimeSeconds, 0.1F, 10.0F);
+        sanitized.trailGradientSpeed = MathHelper.clamp(data.trailGradientSpeed, 0.1F, 5.0F);
         sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
         sanitized.skyTopColor = data.skyTopColor & 0xFFFFFF;
         sanitized.skyBottomColor = data.skyBottomColor & 0xFFFFFF;
+        sanitized.trailFixedColor = data.trailFixedColor & 0xFFFFFF;
         sanitized.menuLastTab = data.menuLastTab == null ? "RAYS" : data.menuLastTab;
         sanitized.menuScrollOffset = data.menuScrollOffset;
+        sanitized.trailType = sanitizeTrailType(data.trailType);
+        sanitized.trailOrigin = sanitizeTrailOrigin(data.trailOrigin);
+        sanitized.trailColorMode = sanitizeTrailColorMode(data.trailColorMode);
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
         sanitized.noKnockbackKey = sanitizeKey(data.noKnockbackKey, "key.keyboard.n");
         sanitized.playerEspKey = sanitizeKey(data.playerEspKey, "key.keyboard.h");
         sanitized.playerRaysKey = sanitizeKey(data.playerRaysKey, "key.keyboard.j");
         sanitized.playerListKey = sanitizeKey(data.playerListKey, "key.keyboard.k");
+        sanitized.playerTrailsKey = sanitizeKey(data.playerTrailsKey, "key.keyboard.l");
         sanitized.menuKey = sanitizeKey(data.menuKey, "key.keyboard.right.shift");
 
         return sanitized;
@@ -200,6 +209,42 @@ public final class NoKnockbackConfig {
         }
     }
 
+    private static String sanitizeTrailType(String value) {
+        if (value == null || value.isBlank()) {
+            return NoKnockbackClient.TrailType.THIN_LINE.name();
+        }
+
+        try {
+            return NoKnockbackClient.TrailType.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.TrailType.THIN_LINE.name();
+        }
+    }
+
+    private static String sanitizeTrailOrigin(String value) {
+        if (value == null || value.isBlank()) {
+            return NoKnockbackClient.TrailOrigin.BACK.name();
+        }
+
+        try {
+            return NoKnockbackClient.TrailOrigin.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.TrailOrigin.BACK.name();
+        }
+    }
+
+    private static String sanitizeTrailColorMode(String value) {
+        if (value == null || value.isBlank()) {
+            return NoKnockbackClient.TrailColorMode.NICK.name();
+        }
+
+        try {
+            return NoKnockbackClient.TrailColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.TrailColorMode.NICK.name();
+        }
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean noKnockbackEnabled = true;
@@ -207,6 +252,7 @@ public final class NoKnockbackConfig {
         public boolean playerArmorOverlayEnabled = false;
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
+        public boolean playerTrailsEnabled = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
@@ -255,19 +301,27 @@ public final class NoKnockbackConfig {
         public float distanceVisualAnimationSpeed = 1.0F;
         public float espVisualSaturationBoost = 1.35F;
         public float espVisualAnimationSpeed = 1.0F;
+        public float trailStripeHeight = 1.4F;
+        public float trailLifetimeSeconds = 2.5F;
+        public float trailGradientSpeed = 1.0F;
         public float handFovScale = 1.0F;
         public float handOffsetX = 0.0F;
         public float handOffsetY = 0.0F;
         public int skyTopColor = 0x78A7FF;
         public int skyBottomColor = 0xA0C8FF;
+        public int trailFixedColor = 0x4CB1FF;
         public String menuLastTab = "RAYS";
         public double menuScrollOffset = 0.0;
+        public String trailType = NoKnockbackClient.TrailType.THIN_LINE.name();
+        public String trailOrigin = NoKnockbackClient.TrailOrigin.BACK.name();
+        public String trailColorMode = NoKnockbackClient.TrailColorMode.NICK.name();
 
         public String speedToggleKey = "key.keyboard.v";
         public String noKnockbackKey = "key.keyboard.n";
         public String playerEspKey = "key.keyboard.h";
         public String playerRaysKey = "key.keyboard.j";
         public String playerListKey = "key.keyboard.k";
+        public String playerTrailsKey = "key.keyboard.l";
         public String menuKey = "key.keyboard.right.shift";
     }
 }

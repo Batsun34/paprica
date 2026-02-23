@@ -753,6 +753,32 @@ public class NoKnockbackMenuScreen extends Screen {
                         Control.slider("distance.anim_speed", "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getDistanceVisualAnimationSpeed, value -> NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value))
                 )));
             }
+            case TRAILS -> {
+                panels.add(new Panel("Trails", 0, List.of(
+                        Control.toggle("trails.enabled", "Enabled", NoKnockbackClient::isPlayerTrailsEnabled, NoKnockbackClient::setPlayerTrailsEnabled),
+                        Control.keybind("trails.bind", "Bind", NoKnockbackClient.getPlayerTrailsKeyBinding()),
+                        Control.cycle("trails.type", "Trail Type", Control.TRAIL_TYPES,
+                                () -> NoKnockbackClient.getTrailType().ordinal(),
+                                idx -> NoKnockbackClient.setTrailType(NoKnockbackClient.TrailType.values()[idx])
+                        ),
+                        Control.cycle("trails.origin", "Trail Origin", Control.TRAIL_ORIGINS,
+                                () -> NoKnockbackClient.getTrailOrigin().ordinal(),
+                                idx -> NoKnockbackClient.setTrailOrigin(NoKnockbackClient.TrailOrigin.values()[idx])
+                        ),
+                        Control.slider("trails.lifetime", "Lifetime (s)", 0.1, 10.0, 0.1, NoKnockbackClient::getTrailLifetimeSeconds, value -> NoKnockbackClient.setTrailLifetimeSeconds((float) value)),
+                        Control.slider("trails.gradient_speed", "Gradient Speed", 0.1, 5.0, 0.1, NoKnockbackClient::getTrailGradientSpeed, value -> NoKnockbackClient.setTrailGradientSpeed((float) value)),
+                        Control.slider("trails.strip_height", "Strip Height", 0.2, 4.0, 0.1, NoKnockbackClient::getTrailStripeHeight, value -> NoKnockbackClient.setTrailStripeHeight((float) value))
+                )));
+                panels.add(new Panel("Trail Color", 0, List.of(
+                        Control.cycle("trails.color_mode", "Color Mode", Control.TRAIL_COLOR_MODES,
+                                () -> NoKnockbackClient.getTrailColorMode().ordinal(),
+                                idx -> NoKnockbackClient.setTrailColorMode(NoKnockbackClient.TrailColorMode.values()[idx])
+                        ),
+                        Control.slider("trails.fixed_r", "Fixed Red", 0, 255, 1, NoKnockbackClient::getTrailFixedRed, value -> NoKnockbackClient.setTrailFixedRed((int) value)),
+                        Control.slider("trails.fixed_g", "Fixed Green", 0, 255, 1, NoKnockbackClient::getTrailFixedGreen, value -> NoKnockbackClient.setTrailFixedGreen((int) value)),
+                        Control.slider("trails.fixed_b", "Fixed Blue", 0, 255, 1, NoKnockbackClient::getTrailFixedBlue, value -> NoKnockbackClient.setTrailFixedBlue((int) value))
+                )));
+            }
             case VIEW -> {
                 panels.add(new Panel("Sky", 0, List.of(
                         Control.toggle("sky.enabled", "Custom Sky", NoKnockbackClient::isCustomSkyEnabled, NoKnockbackClient::setCustomSkyEnabled),
@@ -816,6 +842,7 @@ public class NoKnockbackMenuScreen extends Screen {
         SPEED("Sneak Movement Speed", ModuleGroup.MOVEMENT),
         ESP("Player ESP", ModuleGroup.VISUAL),
         RAYS("Rays", ModuleGroup.VISUAL),
+        TRAILS("Trails", ModuleGroup.VISUAL),
         VIEW("View", ModuleGroup.VISUAL),
         TARGET_HEALTH("Target Health", ModuleGroup.OVERLAY),
         PLAYER_LIST("Player List", ModuleGroup.OVERLAY),
@@ -887,6 +914,9 @@ public class NoKnockbackMenuScreen extends Screen {
     private static final class Control {
         private static final String[] COLOR_MODES = new String[]{"Nick", "Gradient", "Rainbow"};
         private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
+        private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
+        private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};
+        private static final String[] TRAIL_COLOR_MODES = new String[]{"Nick", "Fixed", "Gradient", "Nick Gradient"};
 
         private final String id;
         private final ControlType type;

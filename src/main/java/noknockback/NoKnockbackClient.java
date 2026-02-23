@@ -5,6 +5,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudLayerRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.IdentifiedLayer;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.DrawContext;
@@ -31,10 +33,14 @@ import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 public class NoKnockbackClient implements ClientModInitializer {
 
@@ -70,7 +76,11 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
-    private static int visualRevision = 0;
+    private static int rayVisualRevision = 0;
+    private static int espVisualRevision = 0;
+    private static int armorVisualRevision = 0;
+    private static int heldItemVisualRevision = 0;
+    private static int distanceVisualRevision = 0;
 
     private static boolean speedEnabled = true;
     private static boolean noKnockbackEnabled = true;
@@ -79,6 +89,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean playerArmorOverlayEnabled = false;
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
+    private static boolean playerTrailsEnabled = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
@@ -113,6 +124,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float distanceVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static float espVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
     private static float espVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float trailStripeHeight = 1.4F;
+    private static float trailLifetimeSeconds = 2.5F;
+    private static float trailGradientSpeed = 1.0F;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
     private static float handOffsetX = 0.0F;
     private static float handOffsetY = 0.0F;
@@ -131,16 +145,24 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode distanceVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode espVisualColorMode = VisualColorMode.NICK;
+    private static TrailType trailType = TrailType.THIN_LINE;
+    private static TrailOrigin trailOrigin = TrailOrigin.BACK;
+    private static TrailColorMode trailColorMode = TrailColorMode.NICK;
     private static int skyTopColor = DEFAULT_SKY_TOP_COLOR;
     private static int skyBottomColor = DEFAULT_SKY_BOTTOM_COLOR;
+    private static int trailFixedColor = 0x4CB1FF;
     private static KeyBinding toggleKey;
     private static KeyBinding toggleNoKnockbackKey;
     private static KeyBinding togglePlayerEspKey;
     private static KeyBinding togglePlayerRaysKey;
     private static KeyBinding togglePlayerListKey;
+    private static KeyBinding togglePlayerTrailsKey;
     private static KeyBinding openMenuKey;
 
     private Vec3d lastVelocity = Vec3d.ZERO;
+
+    private static final Map<UUID, TrailState> trailStates = new HashMap<>();
+    private static final List<TrailSegment> trailSegments = new ArrayList<>();
 
     public static boolean isPlayerEspEnabled() {
         return playerEspEnabled;
@@ -199,6 +221,20 @@ public class NoKnockbackClient implements ClientModInitializer {
     public static void setPlayerListEnabled(boolean enabled) {
         if (playerListEnabled == enabled) return;
         playerListEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isPlayerTrailsEnabled() {
+        return playerTrailsEnabled;
+    }
+
+    public static void setPlayerTrailsEnabled(boolean enabled) {
+        if (playerTrailsEnabled == enabled) return;
+        playerTrailsEnabled = enabled;
+        if (!enabled) {
+            trailSegments.clear();
+            trailStates.clear();
+        }
         saveConfigNow();
     }
 
@@ -586,7 +622,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (espVisualColorMode == updated) return;
         espVisualColorMode = updated;
-        bumpVisualRevision();
+        bumpEspRevision();
         saveConfigNow();
     }
 
@@ -598,7 +634,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(espVisualSaturationBoost - clamped) < 0.0001F) return;
         espVisualSaturationBoost = clamped;
-        bumpVisualRevision();
+        bumpEspRevision();
         saveConfigNow();
     }
 
@@ -610,7 +646,113 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(espVisualAnimationSpeed - clamped) < 0.0001F) return;
         espVisualAnimationSpeed = clamped;
-        bumpVisualRevision();
+        bumpEspRevision();
+        saveConfigNow();
+    }
+
+    public static TrailType getTrailType() {
+        return trailType;
+    }
+
+    public static void setTrailType(TrailType type) {
+        TrailType updated = type == null ? TrailType.THIN_LINE : type;
+        if (trailType == updated) return;
+        trailType = updated;
+        saveConfigNow();
+    }
+
+    public static TrailOrigin getTrailOrigin() {
+        return trailOrigin;
+    }
+
+    public static void setTrailOrigin(TrailOrigin origin) {
+        TrailOrigin updated = origin == null ? TrailOrigin.BACK : origin;
+        if (trailOrigin == updated) return;
+        trailOrigin = updated;
+        saveConfigNow();
+    }
+
+    public static TrailColorMode getTrailColorMode() {
+        return trailColorMode;
+    }
+
+    public static void setTrailColorMode(TrailColorMode mode) {
+        TrailColorMode updated = mode == null ? TrailColorMode.NICK : mode;
+        if (trailColorMode == updated) return;
+        trailColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static float getTrailStripeHeight() {
+        return trailStripeHeight;
+    }
+
+    public static void setTrailStripeHeight(float height) {
+        float clamped = MathHelper.clamp(height, 0.2F, 4.0F);
+        if (Math.abs(trailStripeHeight - clamped) < 0.0001F) return;
+        trailStripeHeight = clamped;
+        saveConfigNow();
+    }
+
+    public static float getTrailLifetimeSeconds() {
+        return trailLifetimeSeconds;
+    }
+
+    public static void setTrailLifetimeSeconds(float seconds) {
+        float clamped = MathHelper.clamp(seconds, 0.1F, 10.0F);
+        if (Math.abs(trailLifetimeSeconds - clamped) < 0.0001F) return;
+        trailLifetimeSeconds = clamped;
+        saveConfigNow();
+    }
+
+    public static float getTrailGradientSpeed() {
+        return trailGradientSpeed;
+    }
+
+    public static void setTrailGradientSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.1F, 5.0F);
+        if (Math.abs(trailGradientSpeed - clamped) < 0.0001F) return;
+        trailGradientSpeed = clamped;
+        saveConfigNow();
+    }
+
+    public static int getTrailFixedColor() {
+        return trailFixedColor & 0xFFFFFF;
+    }
+
+    public static int getTrailFixedRed() {
+        return (trailFixedColor >> 16) & 0xFF;
+    }
+
+    public static int getTrailFixedGreen() {
+        return (trailFixedColor >> 8) & 0xFF;
+    }
+
+    public static int getTrailFixedBlue() {
+        return trailFixedColor & 0xFF;
+    }
+
+    public static void setTrailFixedRed(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (trailFixedColor & 0x00FFFF) | (clamped << 16);
+        if (trailFixedColor == updated) return;
+        trailFixedColor = updated;
+        saveConfigNow();
+    }
+
+    public static void setTrailFixedGreen(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (trailFixedColor & 0xFF00FF) | (clamped << 8);
+        if (trailFixedColor == updated) return;
+        trailFixedColor = updated;
+        saveConfigNow();
+    }
+
+    public static void setTrailFixedBlue(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (trailFixedColor & 0xFFFF00) | clamped;
+        if (trailFixedColor == updated) return;
+        trailFixedColor = updated;
         saveConfigNow();
     }
 
@@ -622,7 +764,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (rayVisualColorMode == updated) return;
         rayVisualColorMode = updated;
-        bumpVisualRevision();
+        bumpRayRevision();
         saveConfigNow();
     }
 
@@ -634,7 +776,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (armorVisualColorMode == updated) return;
         armorVisualColorMode = updated;
-        bumpVisualRevision();
+        bumpArmorRevision();
         saveConfigNow();
     }
 
@@ -646,7 +788,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (heldItemVisualColorMode == updated) return;
         heldItemVisualColorMode = updated;
-        bumpVisualRevision();
+        bumpHeldItemRevision();
         saveConfigNow();
     }
 
@@ -658,7 +800,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
         if (distanceVisualColorMode == updated) return;
         distanceVisualColorMode = updated;
-        bumpVisualRevision();
+        bumpDistanceRevision();
         saveConfigNow();
     }
 
@@ -670,7 +812,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(rayVisualSaturationBoost - clamped) < 0.0001F) return;
         rayVisualSaturationBoost = clamped;
-        bumpVisualRevision();
+        bumpRayRevision();
         saveConfigNow();
     }
 
@@ -682,7 +824,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(armorVisualSaturationBoost - clamped) < 0.0001F) return;
         armorVisualSaturationBoost = clamped;
-        bumpVisualRevision();
+        bumpArmorRevision();
         saveConfigNow();
     }
 
@@ -694,7 +836,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(heldItemVisualSaturationBoost - clamped) < 0.0001F) return;
         heldItemVisualSaturationBoost = clamped;
-        bumpVisualRevision();
+        bumpHeldItemRevision();
         saveConfigNow();
     }
 
@@ -706,7 +848,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
         if (Math.abs(distanceVisualSaturationBoost - clamped) < 0.0001F) return;
         distanceVisualSaturationBoost = clamped;
-        bumpVisualRevision();
+        bumpDistanceRevision();
         saveConfigNow();
     }
 
@@ -718,7 +860,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(rayVisualAnimationSpeed - clamped) < 0.0001F) return;
         rayVisualAnimationSpeed = clamped;
-        bumpVisualRevision();
+        bumpRayRevision();
         saveConfigNow();
     }
 
@@ -730,7 +872,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(armorVisualAnimationSpeed - clamped) < 0.0001F) return;
         armorVisualAnimationSpeed = clamped;
-        bumpVisualRevision();
+        bumpArmorRevision();
         saveConfigNow();
     }
 
@@ -742,7 +884,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(heldItemVisualAnimationSpeed - clamped) < 0.0001F) return;
         heldItemVisualAnimationSpeed = clamped;
-        bumpVisualRevision();
+        bumpHeldItemRevision();
         saveConfigNow();
     }
 
@@ -754,7 +896,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
         if (Math.abs(distanceVisualAnimationSpeed - clamped) < 0.0001F) return;
         distanceVisualAnimationSpeed = clamped;
-        bumpVisualRevision();
+        bumpDistanceRevision();
         saveConfigNow();
     }
 
@@ -907,6 +1049,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         return togglePlayerListKey;
     }
 
+    public static KeyBinding getPlayerTrailsKeyBinding() {
+        return togglePlayerTrailsKey;
+    }
+
     public static KeyBinding getOpenMenuKeyBinding() {
         return openMenuKey;
     }
@@ -925,7 +1071,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                 0.0F,
                 espVisualColorMode,
                 espVisualSaturationBoost,
-                espVisualAnimationSpeed
+                espVisualAnimationSpeed,
+                espVisualRevision
         );
         float emissive = espVisualGlowEnabled ? 1.0F : 0.6F;
         return applyEmissive(rgb, emissive);
@@ -980,6 +1127,13 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.paprika"
         ));
 
+        togglePlayerTrailsKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.player_trails",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_L,
+                "category.paprika"
+        ));
+
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.paprika.menu",
                 InputUtil.Type.KEYSYM,
@@ -992,6 +1146,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         applyConfiguredKey(togglePlayerEspKey, loadedConfig.playerEspKey);
         applyConfiguredKey(togglePlayerRaysKey, loadedConfig.playerRaysKey);
         applyConfiguredKey(togglePlayerListKey, loadedConfig.playerListKey);
+        applyConfiguredKey(togglePlayerTrailsKey, loadedConfig.playerTrailsKey);
         applyConfiguredKey(openMenuKey, loadedConfig.menuKey);
         KeyBinding.updateKeysByCode();
         saveConfigNow();
@@ -1002,6 +1157,7 @@ public class NoKnockbackClient implements ClientModInitializer {
                 NoKnockbackClient::renderHudOverlay
         ));
 
+        WorldRenderEvents.AFTER_ENTITIES.register(NoKnockbackClient::renderPlayerTrails);
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     }
 
@@ -1013,7 +1169,11 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
 
         PlayerEntity player = client.player;
-        if (player == null || player.getWorld() == null) return;
+        if (player == null || client.world == null) {
+            trailSegments.clear();
+            trailStates.clear();
+            return;
+        }
 
         // Toggle
         while (toggleKey.wasPressed()) {
@@ -1055,6 +1215,16 @@ public class NoKnockbackClient implements ClientModInitializer {
                     true
             );
         }
+
+        while (togglePlayerTrailsKey.wasPressed()) {
+            setPlayerTrailsEnabled(!playerTrailsEnabled);
+            player.sendMessage(
+                    Text.literal("[Paprika] Player Trails: " + (playerTrailsEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        updatePlayerTrails(client);
 
         Vec3d velocity = player.getVelocity();
 
@@ -1234,6 +1404,138 @@ public class NoKnockbackClient implements ClientModInitializer {
         consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(endColor);
     }
 
+    private static void updatePlayerTrails(MinecraftClient client) {
+        if (!playerTrailsEnabled || client.world == null) {
+            trailSegments.clear();
+            trailStates.clear();
+            return;
+        }
+
+        double now = currentTimeSeconds();
+        double lifetime = trailLifetimeSeconds;
+        if (!trailSegments.isEmpty()) {
+            trailSegments.removeIf(segment -> now - segment.spawnTime() > lifetime);
+        }
+
+        Set<UUID> seen = new HashSet<>();
+        PlayerEntity localPlayer = client.player;
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == null || target == localPlayer || target.isRemoved()) continue;
+            UUID uuid = target.getUuid();
+            seen.add(uuid);
+
+            Vec3d backDir = computeTrailBackDirection(target);
+            Vec3d currentPos = computeTrailOrigin(target, backDir);
+            TrailState state = trailStates.get(uuid);
+            if (state != null && state.lastPos() != null) {
+                if (state.lastPos().squaredDistanceTo(currentPos) > 0.0004) {
+                    int color = resolveTrailColor(target);
+                    trailSegments.add(new TrailSegment(state.lastPos(), currentPos, backDir, color, now));
+                }
+            }
+
+            trailStates.put(uuid, new TrailState(currentPos, backDir));
+        }
+
+        if (!trailStates.isEmpty()) {
+            trailStates.keySet().removeIf(uuid -> !seen.contains(uuid));
+        }
+    }
+
+    private static void renderPlayerTrails(WorldRenderContext context) {
+        if (!playerTrailsEnabled || trailSegments.isEmpty()) return;
+
+        Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
+        Vec3d cameraPos = context.camera().getPos();
+        float width = switch (trailType) {
+            case THIN_LINE -> 0.02F;
+            case FLOATING_LINE -> 0.08F;
+            case STRIP -> 0.0F;
+        };
+
+        context.matrixStack().push();
+        context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        matrix = context.matrixStack().peek().getPositionMatrix();
+
+        VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getDebugQuads());
+        for (TrailSegment segment : trailSegments) {
+            Vec3d start = segment.start();
+            Vec3d end = segment.end();
+            int color = segment.color();
+
+            if (trailType == TrailType.STRIP) {
+                Vec3d backDir = segment.backDirection();
+                if (backDir.lengthSquared() < 0.0001) {
+                    backDir = new Vec3d(0.0, 0.0, 1.0);
+                }
+                Vec3d offset = backDir.normalize().multiply(trailOrigin == TrailOrigin.BACK ? 0.18 : 0.0);
+                Vec3d up = new Vec3d(0.0, trailStripeHeight, 0.0);
+                Vec3d s = start.add(offset);
+                Vec3d e = end.add(offset);
+                addQuad(consumer, matrix, s, e, e.add(up), s.add(up), color);
+                addQuad(consumer, matrix, s.add(up), e.add(up), e, s, color);
+                continue;
+            }
+
+            Vec3d dir = end.subtract(start);
+            double lenSq = dir.lengthSquared();
+            if (lenSq < 0.000001) continue;
+
+            Vec3d mid = start.add(end).multiply(0.5);
+            Vec3d camDir = cameraPos.subtract(mid);
+            Vec3d right = dir.crossProduct(camDir);
+            if (right.lengthSquared() < 0.000001) continue;
+            right = right.normalize().multiply(width * 0.5);
+
+            Vec3d v1 = start.subtract(right);
+            Vec3d v2 = start.add(right);
+            Vec3d v3 = end.add(right);
+            Vec3d v4 = end.subtract(right);
+            addQuad(consumer, matrix, v1, v2, v3, v4, color);
+            addQuad(consumer, matrix, v4, v3, v2, v1, color);
+        }
+
+        context.matrixStack().pop();
+    }
+
+    private static void addQuad(VertexConsumer consumer, Matrix4f matrix, Vec3d v1, Vec3d v2, Vec3d v3, Vec3d v4, int color) {
+        consumer.vertex(matrix, (float) v1.x, (float) v1.y, (float) v1.z).color(color);
+        consumer.vertex(matrix, (float) v2.x, (float) v2.y, (float) v2.z).color(color);
+        consumer.vertex(matrix, (float) v3.x, (float) v3.y, (float) v3.z).color(color);
+        consumer.vertex(matrix, (float) v4.x, (float) v4.y, (float) v4.z).color(color);
+    }
+
+    private static Vec3d computeTrailOrigin(PlayerEntity player, Vec3d backDir) {
+        Vec3d basePos = player.getPos();
+        if (trailOrigin == TrailOrigin.HEAD) {
+            return basePos.add(0.0, player.getStandingEyeHeight(), 0.0);
+        }
+
+        double bodyHeight = player.getHeight() * 0.6;
+        Vec3d spine = basePos.add(0.0, bodyHeight, 0.0);
+        return spine.add(backDir.normalize().multiply(0.25));
+    }
+
+    private static Vec3d computeTrailBackDirection(PlayerEntity player) {
+        float yawRad = (float) Math.toRadians(player.getYaw());
+        return new Vec3d(-MathHelper.sin(yawRad), 0.0, MathHelper.cos(yawRad));
+    }
+
+    private static int resolveTrailColor(PlayerEntity player) {
+        int baseColor = getPlayerBaseColor(player);
+        int rgb = switch (trailColorMode) {
+            case NICK -> baseColor;
+            case FIXED -> trailFixedColor;
+            case GRADIENT -> toRainbowColor(player.getId(), 0.15F, 1.2F, trailGradientSpeed);
+            case NICK_GRADIENT -> toGradientColor(baseColor, player.getId(), 0.55F, DEFAULT_STYLE_SATURATION, trailGradientSpeed);
+        };
+        return 0xFF000000 | applyEmissive(rgb, 0.8F);
+    }
+
+    private static double currentTimeSeconds() {
+        return System.nanoTime() / 1_000_000_000.0;
+    }
+
 
     private static void renderPlayerArmorOverlay(
             DrawContext drawContext,
@@ -1316,7 +1618,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                         0.24F,
                         armorVisualColorMode,
                         armorVisualSaturationBoost,
-                        armorVisualAnimationSpeed
+                        armorVisualAnimationSpeed,
+                        armorVisualRevision
                 );
             }
             int heldColor = 0;
@@ -1326,7 +1629,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                         0.34F,
                         heldItemVisualColorMode,
                         heldItemVisualSaturationBoost,
-                        heldItemVisualAnimationSpeed
+                        heldItemVisualAnimationSpeed,
+                        heldItemVisualRevision
                 );
             }
             int distanceColor = 0;
@@ -1336,7 +1640,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                         0.18F,
                         distanceVisualColorMode,
                         distanceVisualSaturationBoost,
-                        distanceVisualAnimationSpeed
+                        distanceVisualAnimationSpeed,
+                        distanceVisualRevision
                 );
             }
 
@@ -1912,7 +2217,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                 offset,
                 rayVisualColorMode,
                 rayVisualSaturationBoost,
-                rayVisualAnimationSpeed
+                rayVisualAnimationSpeed,
+                rayVisualRevision
         );
     }
 
@@ -1923,7 +2229,18 @@ public class NoKnockbackClient implements ClientModInitializer {
             float saturationBoost,
             float animationSpeed
     ) {
-        return resolveVisualColor(getPlayerBaseColor(player), player.getId(), offset, colorMode, saturationBoost, animationSpeed);
+        return resolveVisualColor(getPlayerBaseColor(player), player.getId(), offset, colorMode, saturationBoost, animationSpeed, rayVisualRevision);
+    }
+
+    private static int resolveVisualColor(
+            PlayerEntity player,
+            float offset,
+            VisualColorMode colorMode,
+            float saturationBoost,
+            float animationSpeed,
+            int revision
+    ) {
+        return resolveVisualColor(getPlayerBaseColor(player), player.getId(), offset, colorMode, saturationBoost, animationSpeed, revision);
     }
 
     private static int resolveVisualColor(
@@ -1932,10 +2249,11 @@ public class NoKnockbackClient implements ClientModInitializer {
             float offset,
             VisualColorMode colorMode,
             float saturationBoost,
-            float animationSpeed
+            float animationSpeed,
+            int revision
     ) {
         int rgbBase = baseColor & 0x00FFFFFF;
-        int saltedSeed = seed ^ (visualRevision * 0x9E3779B9);
+        int saltedSeed = seed ^ (revision * 0x9E3779B9);
         return switch (colorMode) {
             case NICK -> rgbBase;
             case GRADIENT -> toGradientColor(rgbBase, saltedSeed, offset, saturationBoost, animationSpeed);
@@ -1994,8 +2312,28 @@ public class NoKnockbackClient implements ClientModInitializer {
         return (System.nanoTime() / 1_000_000_000.0F) * animationSpeed;
     }
 
-    private static void bumpVisualRevision() {
-        visualRevision = (visualRevision + 1) & 0x7FFFFFFF;
+    private static int nextRevision(int value) {
+        return (value + 1) & 0x7FFFFFFF;
+    }
+
+    private static void bumpRayRevision() {
+        rayVisualRevision = nextRevision(rayVisualRevision);
+    }
+
+    private static void bumpEspRevision() {
+        espVisualRevision = nextRevision(espVisualRevision);
+    }
+
+    private static void bumpArmorRevision() {
+        armorVisualRevision = nextRevision(armorVisualRevision);
+    }
+
+    private static void bumpHeldItemRevision() {
+        heldItemVisualRevision = nextRevision(heldItemVisualRevision);
+    }
+
+    private static void bumpDistanceRevision() {
+        distanceVisualRevision = nextRevision(distanceVisualRevision);
     }
 
     private static float wrapUnit(float value) {
@@ -2051,6 +2389,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerArmorOverlayEnabled = config.playerArmorOverlayEnabled;
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
+        playerTrailsEnabled = config.playerTrailsEnabled;
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
@@ -2087,6 +2426,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         distanceVisualAnimationSpeed = MathHelper.clamp(config.distanceVisualAnimationSpeed, 0.2F, 4.0F);
         espVisualSaturationBoost = MathHelper.clamp(config.espVisualSaturationBoost, 1.0F, 2.5F);
         espVisualAnimationSpeed = MathHelper.clamp(config.espVisualAnimationSpeed, 0.2F, 4.0F);
+        trailStripeHeight = MathHelper.clamp(config.trailStripeHeight, 0.2F, 4.0F);
+        trailLifetimeSeconds = MathHelper.clamp(config.trailLifetimeSeconds, 0.1F, 10.0F);
+        trailGradientSpeed = MathHelper.clamp(config.trailGradientSpeed, 0.1F, 5.0F);
         handFovScale = MathHelper.clamp(config.handFovScale, 0.5F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
@@ -2094,6 +2436,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerListOffsetY = MathHelper.clamp(config.playerListOffsetY, 0, MAX_PLAYER_LIST_OFFSET);
         skyTopColor = config.skyTopColor & 0xFFFFFF;
         skyBottomColor = config.skyBottomColor & 0xFFFFFF;
+        trailFixedColor = config.trailFixedColor & 0xFFFFFF;
         menuLastTabId = (config.menuLastTab == null || config.menuLastTab.isBlank()) ? "RAYS" : config.menuLastTab;
         menuScrollOffset = config.menuScrollOffset;
         rayOrigin = parseRayOrigin(config.rayOrigin);
@@ -2106,6 +2449,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
         distanceVisualColorMode = parseVisualColorMode(config.distanceVisualColorMode, VisualColorMode.NICK);
         espVisualColorMode = parseVisualColorMode(config.espVisualColorMode, VisualColorMode.NICK);
+        trailType = parseTrailType(config.trailType);
+        trailOrigin = parseTrailOrigin(config.trailOrigin);
+        trailColorMode = parseTrailColorMode(config.trailColorMode);
     }
 
     private static void applyConfiguredKey(KeyBinding keyBinding, String translationKey) {
@@ -2169,6 +2515,42 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
     }
 
+    private static TrailType parseTrailType(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return TrailType.THIN_LINE;
+        }
+
+        try {
+            return TrailType.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return TrailType.THIN_LINE;
+        }
+    }
+
+    private static TrailOrigin parseTrailOrigin(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return TrailOrigin.BACK;
+        }
+
+        try {
+            return TrailOrigin.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return TrailOrigin.BACK;
+        }
+    }
+
+    private static TrailColorMode parseTrailColorMode(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return TrailColorMode.NICK;
+        }
+
+        try {
+            return TrailColorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return TrailColorMode.NICK;
+        }
+    }
+
     private static NoKnockbackConfig.Data captureConfig() {
         NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
         data.speedEnabled = speedEnabled;
@@ -2177,6 +2559,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerArmorOverlayEnabled = playerArmorOverlayEnabled;
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
+        data.playerTrailsEnabled = playerTrailsEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
@@ -2213,6 +2596,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.distanceVisualAnimationSpeed = distanceVisualAnimationSpeed;
         data.espVisualSaturationBoost = espVisualSaturationBoost;
         data.espVisualAnimationSpeed = espVisualAnimationSpeed;
+        data.trailStripeHeight = trailStripeHeight;
+        data.trailLifetimeSeconds = trailLifetimeSeconds;
+        data.trailGradientSpeed = trailGradientSpeed;
         data.handFovScale = handFovScale;
         data.handOffsetX = handOffsetX;
         data.handOffsetY = handOffsetY;
@@ -2220,6 +2606,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerListOffsetY = playerListOffsetY;
         data.skyTopColor = skyTopColor & 0xFFFFFF;
         data.skyBottomColor = skyBottomColor & 0xFFFFFF;
+        data.trailFixedColor = trailFixedColor & 0xFFFFFF;
         data.menuLastTab = menuLastTabId;
         data.menuScrollOffset = menuScrollOffset;
         data.rayOrigin = rayOrigin.name();
@@ -2232,6 +2619,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.heldItemVisualColorMode = heldItemVisualColorMode.name();
         data.distanceVisualColorMode = distanceVisualColorMode.name();
         data.espVisualColorMode = espVisualColorMode.name();
+        data.trailType = trailType.name();
+        data.trailOrigin = trailOrigin.name();
+        data.trailColorMode = trailColorMode.name();
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -2247,6 +2637,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
         if (togglePlayerListKey != null) {
             data.playerListKey = togglePlayerListKey.getBoundKeyTranslationKey();
+        }
+        if (togglePlayerTrailsKey != null) {
+            data.playerTrailsKey = togglePlayerTrailsKey.getBoundKeyTranslationKey();
         }
         if (openMenuKey != null) {
             data.menuKey = openMenuKey.getBoundKeyTranslationKey();
@@ -2278,8 +2671,32 @@ public class NoKnockbackClient implements ClientModInitializer {
         RAINBOW
     }
 
+    public enum TrailType {
+        THIN_LINE,
+        FLOATING_LINE,
+        STRIP
+    }
+
+    public enum TrailOrigin {
+        BACK,
+        HEAD
+    }
+
+    public enum TrailColorMode {
+        NICK,
+        FIXED,
+        GRADIENT,
+        NICK_GRADIENT
+    }
+
     public enum OverlayAnchorMode {
         ABOVE_PLAYER,
         RAY_MIDDLE
+    }
+
+    private record TrailState(Vec3d lastPos, Vec3d backDir) {
+    }
+
+    private record TrailSegment(Vec3d start, Vec3d end, Vec3d backDirection, int color, double spawnTime) {
     }
 }
