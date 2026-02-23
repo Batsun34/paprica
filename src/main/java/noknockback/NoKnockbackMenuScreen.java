@@ -52,6 +52,12 @@ public class NoKnockbackMenuScreen extends Screen {
     @Nullable
     private ButtonWidget playerRaysToggleButton;
     @Nullable
+    private ButtonWidget playerArmorOverlayToggleButton;
+    @Nullable
+    private ButtonWidget distanceDisplayToggleButton;
+    @Nullable
+    private ButtonWidget heldItemOverlayToggleButton;
+    @Nullable
     private ButtonWidget playerListToggleButton;
     @Nullable
     private ButtonWidget targetHealthToggleButton;
@@ -60,13 +66,23 @@ public class NoKnockbackMenuScreen extends Screen {
     @Nullable
     private CyclingButtonWidget<NoKnockbackClient.RayOrigin> rayOriginButton;
     @Nullable
+    private CyclingButtonWidget<NoKnockbackClient.OverlayAnchorMode> armorAnchorButton;
+    @Nullable
+    private CyclingButtonWidget<NoKnockbackClient.OverlayAnchorMode> heldItemAnchorButton;
+    @Nullable
+    private CyclingButtonWidget<NoKnockbackClient.OverlayAnchorMode> distanceAnchorButton;
+    @Nullable
     private SettingSlider rayThicknessSlider;
     @Nullable
     private SettingSlider outlineThicknessSlider;
     @Nullable
     private SettingSlider rayBottomStartHeightSlider;
     @Nullable
-    private SettingSlider rayDistanceTextSizeSlider;
+    private SettingSlider distanceTextSizeSlider;
+    @Nullable
+    private SettingSlider armorSizeSlider;
+    @Nullable
+    private SettingSlider heldItemSizeSlider;
     @Nullable
     private SettingSlider targetHealthTextSizeSlider;
     @Nullable
@@ -188,19 +204,98 @@ public class NoKnockbackMenuScreen extends Screen {
         });
         y += ROW_HEIGHT + ROW_GAP;
 
-        this.rayDistanceTextSizeSlider = this.addScrollableWidget(new SettingSlider(
+        this.playerArmorOverlayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setPlayerArmorOverlayEnabled(!NoKnockbackClient.isPlayerArmorOverlayEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.armorAnchorButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::anchorModeText)
+                .values(NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                .initially(NoKnockbackClient.getArmorAnchorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Armor Position"), (button, value) -> {
+                    NoKnockbackClient.setArmorAnchorMode(value);
+                    this.refreshLabels();
+                }));
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.armorSizeSlider = this.addScrollableWidget(new SettingSlider(
                 left,
                 y,
                 PANEL_WIDTH,
-                "Ray Distance Text Size",
-                0.5,
-                2.0,
+                "Armor Size",
+                0.35,
+                2.5,
                 0.1,
-                NoKnockbackClient.getRayLabelTextScale()
+                NoKnockbackClient.getArmorOverlayScale()
         ) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayLabelTextScale((float) value);
+                NoKnockbackClient.setArmorOverlayScale((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.heldItemOverlayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setHeldItemOverlayEnabled(!NoKnockbackClient.isHeldItemOverlayEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.heldItemAnchorButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::anchorModeText)
+                .values(NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                .initially(NoKnockbackClient.getHeldItemAnchorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Held Item Position"), (button, value) -> {
+                    NoKnockbackClient.setHeldItemAnchorMode(value);
+                    this.refreshLabels();
+                }));
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.heldItemSizeSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Held Item Size",
+                0.35,
+                2.5,
+                0.1,
+                NoKnockbackClient.getHeldItemOverlayScale()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setHeldItemOverlayScale((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.distanceDisplayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setDistanceDisplayEnabled(!NoKnockbackClient.isDistanceDisplayEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.distanceAnchorButton = this.addScrollableWidget(CyclingButtonWidget.builder(this::anchorModeText)
+                .values(NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                .initially(NoKnockbackClient.getDistanceAnchorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Distance Position"), (button, value) -> {
+                    NoKnockbackClient.setDistanceAnchorMode(value);
+                    this.refreshLabels();
+                }));
+        y += ROW_HEIGHT + ROW_GAP;
+
+        this.distanceTextSizeSlider = this.addScrollableWidget(new SettingSlider(
+                left,
+                y,
+                PANEL_WIDTH,
+                "Distance Text Size",
+                0.5,
+                2.0,
+                0.1,
+                NoKnockbackClient.getDistanceTextScale()
+        ) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setDistanceTextScale((float) value);
             }
         });
         y += ROW_HEIGHT + SECTION_GAP;
@@ -498,9 +593,46 @@ public class NoKnockbackMenuScreen extends Screen {
             this.rayBottomStartHeightSlider.active = NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM;
         }
 
-        if (this.rayDistanceTextSizeSlider != null) {
-            this.rayDistanceTextSizeSlider.sync(NoKnockbackClient.getRayLabelTextScale());
-            this.rayDistanceTextSizeSlider.active = NoKnockbackClient.isDistanceDisplayEnabled();
+        if (this.playerArmorOverlayToggleButton != null) {
+            this.playerArmorOverlayToggleButton.setMessage(this.toggleText("Armor Through Walls", NoKnockbackClient.isPlayerArmorOverlayEnabled()));
+        }
+
+        if (this.armorAnchorButton != null) {
+            this.armorAnchorButton.setValue(NoKnockbackClient.getArmorAnchorMode());
+            this.armorAnchorButton.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
+        }
+
+        if (this.armorSizeSlider != null) {
+            this.armorSizeSlider.sync(NoKnockbackClient.getArmorOverlayScale());
+            this.armorSizeSlider.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
+        }
+
+        if (this.heldItemOverlayToggleButton != null) {
+            this.heldItemOverlayToggleButton.setMessage(this.toggleText("Held Items Overlay", NoKnockbackClient.isHeldItemOverlayEnabled()));
+        }
+
+        if (this.heldItemAnchorButton != null) {
+            this.heldItemAnchorButton.setValue(NoKnockbackClient.getHeldItemAnchorMode());
+            this.heldItemAnchorButton.active = NoKnockbackClient.isHeldItemOverlayEnabled();
+        }
+
+        if (this.heldItemSizeSlider != null) {
+            this.heldItemSizeSlider.sync(NoKnockbackClient.getHeldItemOverlayScale());
+            this.heldItemSizeSlider.active = NoKnockbackClient.isHeldItemOverlayEnabled();
+        }
+
+        if (this.distanceDisplayToggleButton != null) {
+            this.distanceDisplayToggleButton.setMessage(this.toggleText("Distance Overlay", NoKnockbackClient.isDistanceDisplayEnabled()));
+        }
+
+        if (this.distanceAnchorButton != null) {
+            this.distanceAnchorButton.setValue(NoKnockbackClient.getDistanceAnchorMode());
+            this.distanceAnchorButton.active = NoKnockbackClient.isDistanceDisplayEnabled();
+        }
+
+        if (this.distanceTextSizeSlider != null) {
+            this.distanceTextSizeSlider.sync(NoKnockbackClient.getDistanceTextScale());
+            this.distanceTextSizeSlider.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
 
         if (this.targetHealthToggleButton != null) {
@@ -596,6 +728,10 @@ public class NoKnockbackMenuScreen extends Screen {
 
     private Text rayOriginText(NoKnockbackClient.RayOrigin origin) {
         return origin == NoKnockbackClient.RayOrigin.CENTER ? Text.literal("Center") : Text.literal("Bottom");
+    }
+
+    private Text anchorModeText(NoKnockbackClient.OverlayAnchorMode mode) {
+        return mode == NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE ? Text.literal("Middle of Ray") : Text.literal("Above Player");
     }
 
     private record SectionTitle(String text, int baseY) {

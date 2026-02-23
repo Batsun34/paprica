@@ -47,6 +47,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final float DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
     private static final float DEFAULT_RAY_LABEL_TEXT_SCALE = 0.75F;
     private static final float DEFAULT_TARGET_HEALTH_TEXT_SCALE = 1.0F;
+    private static final float DEFAULT_EQUIP_ICON_SCALE = 0.75F;
+    private static final float DEFAULT_STYLE_SATURATION = 1.35F;
+    private static final float DEFAULT_STYLE_ANIMATION_SPEED = 1.0F;
     private static final int MAX_PLAYER_LIST_OFFSET = 4096;
     private static final int PLAYER_LIST_PADDING = 3;
     private static final int PLAYER_LIST_BG_COLOR = 0x65000000;
@@ -56,7 +59,6 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final float RAY_LABEL_PERP_OFFSET = 9.0F;
     private static final int RAY_LABEL_BG_COLOR = 0x6A000000;
     private static final int RAY_LABEL_TEXT_COLOR = 0xF0FFFFFF;
-    private static final float ARMOR_OVERLAY_ICON_SCALE = 0.75F;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int TARGET_HEALTH_BG_COLOR = 0x7A000000;
     private static final int TARGET_HEALTH_COLOR_LIME = 0xFF8DFF39;
@@ -75,21 +77,38 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
     private static boolean heldItemOverlayEnabled = false;
-    private static boolean visualGlowEnabled = false;
+    private static boolean rayVisualGlowEnabled = false;
+    private static boolean armorVisualGlowEnabled = false;
+    private static boolean heldItemVisualGlowEnabled = false;
+    private static boolean distanceVisualGlowEnabled = false;
     private static float rayThickness = 2.0F;
     private static float outlineThickness = 1.0F;
     private static float rayBottomStartHeight = 2.0F;
-    private static float rayLabelTextScale = DEFAULT_RAY_LABEL_TEXT_SCALE;
+    private static float distanceTextScale = DEFAULT_RAY_LABEL_TEXT_SCALE;
+    private static float armorOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
+    private static float heldItemOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
     private static float targetHealthTextScale = DEFAULT_TARGET_HEALTH_TEXT_SCALE;
     private static float playerListTextScale = DEFAULT_PLAYER_LIST_TEXT_SCALE;
     private static int playerListMaxHeight = DEFAULT_PLAYER_LIST_MAX_HEIGHT;
     private static float playerListAlphaMultiplier = DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER;
-    private static float visualSaturationBoost = 1.35F;
-    private static float visualAnimationSpeed = 1.0F;
+    private static float rayVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
+    private static float rayVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float armorVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
+    private static float armorVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float heldItemVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
+    private static float heldItemVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float distanceVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
+    private static float distanceVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static int playerListOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
-    private static VisualColorMode visualColorMode = VisualColorMode.VIVID;
+    private static OverlayAnchorMode armorAnchorMode = OverlayAnchorMode.ABOVE_PLAYER;
+    private static OverlayAnchorMode heldItemAnchorMode = OverlayAnchorMode.ABOVE_PLAYER;
+    private static OverlayAnchorMode distanceAnchorMode = OverlayAnchorMode.RAY_MIDDLE;
+    private static VisualColorMode rayVisualColorMode = VisualColorMode.VIVID;
+    private static VisualColorMode armorVisualColorMode = VisualColorMode.VIVID;
+    private static VisualColorMode heldItemVisualColorMode = VisualColorMode.VIVID;
+    private static VisualColorMode distanceVisualColorMode = VisualColorMode.VIVID;
     private static KeyBinding toggleKey;
     private static KeyBinding togglePlayerEspKey;
     private static KeyBinding togglePlayerRaysKey;
@@ -188,46 +207,230 @@ public class NoKnockbackClient implements ClientModInitializer {
         saveConfigNow();
     }
 
-    public static boolean isVisualGlowEnabled() {
-        return visualGlowEnabled;
+    public static OverlayAnchorMode getArmorAnchorMode() {
+        return armorAnchorMode;
     }
 
-    public static void setVisualGlowEnabled(boolean enabled) {
-        if (visualGlowEnabled == enabled) return;
-        visualGlowEnabled = enabled;
+    public static void setArmorAnchorMode(OverlayAnchorMode mode) {
+        OverlayAnchorMode updated = mode == null ? OverlayAnchorMode.ABOVE_PLAYER : mode;
+        if (armorAnchorMode == updated) return;
+        armorAnchorMode = updated;
         saveConfigNow();
     }
 
-    public static VisualColorMode getVisualColorMode() {
-        return visualColorMode;
+    public static OverlayAnchorMode getHeldItemAnchorMode() {
+        return heldItemAnchorMode;
     }
 
-    public static void setVisualColorMode(VisualColorMode mode) {
+    public static void setHeldItemAnchorMode(OverlayAnchorMode mode) {
+        OverlayAnchorMode updated = mode == null ? OverlayAnchorMode.ABOVE_PLAYER : mode;
+        if (heldItemAnchorMode == updated) return;
+        heldItemAnchorMode = updated;
+        saveConfigNow();
+    }
+
+    public static OverlayAnchorMode getDistanceAnchorMode() {
+        return distanceAnchorMode;
+    }
+
+    public static void setDistanceAnchorMode(OverlayAnchorMode mode) {
+        OverlayAnchorMode updated = mode == null ? OverlayAnchorMode.RAY_MIDDLE : mode;
+        if (distanceAnchorMode == updated) return;
+        distanceAnchorMode = updated;
+        saveConfigNow();
+    }
+
+    public static float getArmorOverlayScale() {
+        return armorOverlayScale;
+    }
+
+    public static void setArmorOverlayScale(float scale) {
+        float clamped = MathHelper.clamp(scale, 0.35F, 2.5F);
+        if (Math.abs(armorOverlayScale - clamped) < 0.0001F) return;
+        armorOverlayScale = clamped;
+        saveConfigNow();
+    }
+
+    public static float getHeldItemOverlayScale() {
+        return heldItemOverlayScale;
+    }
+
+    public static void setHeldItemOverlayScale(float scale) {
+        float clamped = MathHelper.clamp(scale, 0.35F, 2.5F);
+        if (Math.abs(heldItemOverlayScale - clamped) < 0.0001F) return;
+        heldItemOverlayScale = clamped;
+        saveConfigNow();
+    }
+
+    public static boolean isRayVisualGlowEnabled() {
+        return rayVisualGlowEnabled;
+    }
+
+    public static void setRayVisualGlowEnabled(boolean enabled) {
+        if (rayVisualGlowEnabled == enabled) return;
+        rayVisualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isArmorVisualGlowEnabled() {
+        return armorVisualGlowEnabled;
+    }
+
+    public static void setArmorVisualGlowEnabled(boolean enabled) {
+        if (armorVisualGlowEnabled == enabled) return;
+        armorVisualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isHeldItemVisualGlowEnabled() {
+        return heldItemVisualGlowEnabled;
+    }
+
+    public static void setHeldItemVisualGlowEnabled(boolean enabled) {
+        if (heldItemVisualGlowEnabled == enabled) return;
+        heldItemVisualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isDistanceVisualGlowEnabled() {
+        return distanceVisualGlowEnabled;
+    }
+
+    public static void setDistanceVisualGlowEnabled(boolean enabled) {
+        if (distanceVisualGlowEnabled == enabled) return;
+        distanceVisualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static VisualColorMode getRayVisualColorMode() {
+        return rayVisualColorMode;
+    }
+
+    public static void setRayVisualColorMode(VisualColorMode mode) {
         VisualColorMode updated = mode == null ? VisualColorMode.VIVID : mode;
-        if (visualColorMode == updated) return;
-        visualColorMode = updated;
+        if (rayVisualColorMode == updated) return;
+        rayVisualColorMode = updated;
         saveConfigNow();
     }
 
-    public static float getVisualSaturationBoost() {
-        return visualSaturationBoost;
+    public static VisualColorMode getArmorVisualColorMode() {
+        return armorVisualColorMode;
     }
 
-    public static void setVisualSaturationBoost(float boost) {
+    public static void setArmorVisualColorMode(VisualColorMode mode) {
+        VisualColorMode updated = mode == null ? VisualColorMode.VIVID : mode;
+        if (armorVisualColorMode == updated) return;
+        armorVisualColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static VisualColorMode getHeldItemVisualColorMode() {
+        return heldItemVisualColorMode;
+    }
+
+    public static void setHeldItemVisualColorMode(VisualColorMode mode) {
+        VisualColorMode updated = mode == null ? VisualColorMode.VIVID : mode;
+        if (heldItemVisualColorMode == updated) return;
+        heldItemVisualColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static VisualColorMode getDistanceVisualColorMode() {
+        return distanceVisualColorMode;
+    }
+
+    public static void setDistanceVisualColorMode(VisualColorMode mode) {
+        VisualColorMode updated = mode == null ? VisualColorMode.VIVID : mode;
+        if (distanceVisualColorMode == updated) return;
+        distanceVisualColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static float getRayVisualSaturationBoost() {
+        return rayVisualSaturationBoost;
+    }
+
+    public static void setRayVisualSaturationBoost(float boost) {
         float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
-        if (Math.abs(visualSaturationBoost - clamped) < 0.0001F) return;
-        visualSaturationBoost = clamped;
+        if (Math.abs(rayVisualSaturationBoost - clamped) < 0.0001F) return;
+        rayVisualSaturationBoost = clamped;
         saveConfigNow();
     }
 
-    public static float getVisualAnimationSpeed() {
-        return visualAnimationSpeed;
+    public static float getArmorVisualSaturationBoost() {
+        return armorVisualSaturationBoost;
     }
 
-    public static void setVisualAnimationSpeed(float speed) {
+    public static void setArmorVisualSaturationBoost(float boost) {
+        float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
+        if (Math.abs(armorVisualSaturationBoost - clamped) < 0.0001F) return;
+        armorVisualSaturationBoost = clamped;
+        saveConfigNow();
+    }
+
+    public static float getHeldItemVisualSaturationBoost() {
+        return heldItemVisualSaturationBoost;
+    }
+
+    public static void setHeldItemVisualSaturationBoost(float boost) {
+        float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
+        if (Math.abs(heldItemVisualSaturationBoost - clamped) < 0.0001F) return;
+        heldItemVisualSaturationBoost = clamped;
+        saveConfigNow();
+    }
+
+    public static float getDistanceVisualSaturationBoost() {
+        return distanceVisualSaturationBoost;
+    }
+
+    public static void setDistanceVisualSaturationBoost(float boost) {
+        float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
+        if (Math.abs(distanceVisualSaturationBoost - clamped) < 0.0001F) return;
+        distanceVisualSaturationBoost = clamped;
+        saveConfigNow();
+    }
+
+    public static float getRayVisualAnimationSpeed() {
+        return rayVisualAnimationSpeed;
+    }
+
+    public static void setRayVisualAnimationSpeed(float speed) {
         float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
-        if (Math.abs(visualAnimationSpeed - clamped) < 0.0001F) return;
-        visualAnimationSpeed = clamped;
+        if (Math.abs(rayVisualAnimationSpeed - clamped) < 0.0001F) return;
+        rayVisualAnimationSpeed = clamped;
+        saveConfigNow();
+    }
+
+    public static float getArmorVisualAnimationSpeed() {
+        return armorVisualAnimationSpeed;
+    }
+
+    public static void setArmorVisualAnimationSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
+        if (Math.abs(armorVisualAnimationSpeed - clamped) < 0.0001F) return;
+        armorVisualAnimationSpeed = clamped;
+        saveConfigNow();
+    }
+
+    public static float getHeldItemVisualAnimationSpeed() {
+        return heldItemVisualAnimationSpeed;
+    }
+
+    public static void setHeldItemVisualAnimationSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
+        if (Math.abs(heldItemVisualAnimationSpeed - clamped) < 0.0001F) return;
+        heldItemVisualAnimationSpeed = clamped;
+        saveConfigNow();
+    }
+
+    public static float getDistanceVisualAnimationSpeed() {
+        return distanceVisualAnimationSpeed;
+    }
+
+    public static void setDistanceVisualAnimationSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
+        if (Math.abs(distanceVisualAnimationSpeed - clamped) < 0.0001F) return;
+        distanceVisualAnimationSpeed = clamped;
         saveConfigNow();
     }
 
@@ -265,14 +468,22 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static float getRayLabelTextScale() {
-        return rayLabelTextScale;
+        return distanceTextScale;
     }
 
     public static void setRayLabelTextScale(float scale) {
         float clamped = MathHelper.clamp(scale, 0.5F, 2.0F);
-        if (Math.abs(rayLabelTextScale - clamped) < 0.0001F) return;
-        rayLabelTextScale = clamped;
+        if (Math.abs(distanceTextScale - clamped) < 0.0001F) return;
+        distanceTextScale = clamped;
         saveConfigNow();
+    }
+
+    public static float getDistanceTextScale() {
+        return getRayLabelTextScale();
+    }
+
+    public static void setDistanceTextScale(float scale) {
+        setRayLabelTextScale(scale);
     }
 
     public static float getTargetHealthTextScale() {
@@ -381,7 +592,13 @@ public class NoKnockbackClient implements ClientModInitializer {
             return 0xFFFFFF;
         }
 
-        return resolveVisualColor(player, 0.0F);
+        return resolveVisualColor(
+                player,
+                0.0F,
+                rayVisualColorMode,
+                rayVisualSaturationBoost,
+                rayVisualAnimationSpeed
+        );
     }
 
     public static int getPlayerBaseColor(PlayerEntity player) {
@@ -563,19 +780,30 @@ public class NoKnockbackClient implements ClientModInitializer {
             fov = accessor.noknockback$getFov(camera, tickDelta, true);
         }
         float renderFov = fov;
+        float rayStartX = screenWidth * 0.5F;
+        float rayStartY = rayOrigin == RayOrigin.CENTER
+                ? screenHeight * 0.5F
+                : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
 
-        if (playerArmorOverlayEnabled || heldItemOverlayEnabled) {
-            renderPlayerArmorOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
+        if (playerArmorOverlayEnabled || heldItemOverlayEnabled || (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.ABOVE_PLAYER)) {
+            renderPlayerArmorOverlay(
+                    drawContext,
+                    client,
+                    localPlayer,
+                    camera,
+                    tickDelta,
+                    renderFov,
+                    screenWidth,
+                    screenHeight,
+                    rayStartX,
+                    rayStartY
+            );
         }
         if (targetHealthOverlayEnabled) {
             renderTargetHealthOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
         }
         if (!playerRaysEnabled) return;
 
-        float startX = screenWidth * 0.5F;
-        float startY = rayOrigin == RayOrigin.CENTER
-                ? screenHeight * 0.5F
-                : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
         Vector3f projected = new Vector3f();
         List<RayDistanceLabel> labels = new ArrayList<>();
 
@@ -589,14 +817,26 @@ public class NoKnockbackClient implements ClientModInitializer {
                 Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
                 if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
 
-                int startColor = 0xFF000000 | resolveVisualColor(target, 0.08F);
-                int endColor = 0xFF000000 | resolveVisualColor(target, 0.42F);
-                if (visualGlowEnabled) {
+                int startColor = 0xFF000000 | resolveVisualColor(
+                        target,
+                        0.08F,
+                        rayVisualColorMode,
+                        rayVisualSaturationBoost,
+                        rayVisualAnimationSpeed
+                );
+                int endColor = 0xFF000000 | resolveVisualColor(
+                        target,
+                        0.42F,
+                        rayVisualColorMode,
+                        rayVisualSaturationBoost,
+                        rayVisualAnimationSpeed
+                );
+                if (rayVisualGlowEnabled) {
                     drawThickRay(
                             matrix,
                             lineConsumer,
-                            startX,
-                            startY,
+                            rayStartX,
+                            rayStartY,
                             projected.x,
                             projected.y,
                             rayThickness * 2.6F,
@@ -604,17 +844,23 @@ public class NoKnockbackClient implements ClientModInitializer {
                             withAlpha(endColor, 0.38F)
                     );
                 }
-                drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, startColor, endColor);
+                drawThickRay(matrix, lineConsumer, rayStartX, rayStartY, projected.x, projected.y, rayThickness, startColor, endColor);
 
-                if (distanceDisplayEnabled) {
+                if (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.RAY_MIDDLE) {
                     int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
                     labels.add(createRayDistanceLabel(
                             Integer.toString(Math.max(0, meters)) + "m",
-                            startX,
-                            startY,
+                            rayStartX,
+                            rayStartY,
                             projected.x,
                             projected.y,
-                            endColor
+                            0xFF000000 | resolveVisualColor(
+                                    target,
+                                    0.18F,
+                                    distanceVisualColorMode,
+                                    distanceVisualSaturationBoost,
+                                    distanceVisualAnimationSpeed
+                            )
                     ));
                 }
             }
@@ -686,15 +932,15 @@ public class NoKnockbackClient implements ClientModInitializer {
         int fontHeight = client.textRenderer.fontHeight;
         for (RayDistanceLabel label : labels) {
             int rawWidth = client.textRenderer.getWidth(label.text());
-            int scaledWidth = Math.max(1, Math.round(rawWidth * rayLabelTextScale));
-            int scaledHeight = Math.max(1, Math.round(fontHeight * rayLabelTextScale));
+            int scaledWidth = Math.max(1, Math.round(rawWidth * distanceTextScale));
+            int scaledHeight = Math.max(1, Math.round(fontHeight * distanceTextScale));
 
             int x = Math.round(label.x()) - scaledWidth / 2;
             int y = Math.round(label.y()) - scaledHeight / 2;
             x = MathHelper.clamp(x, margin, Math.max(margin, screenWidth - scaledWidth - margin));
             y = MathHelper.clamp(y, margin, Math.max(margin, screenHeight - scaledHeight - margin));
 
-            if (visualGlowEnabled) {
+            if (distanceVisualGlowEnabled) {
                 drawContext.fill(
                         x - 4,
                         y - 3,
@@ -713,7 +959,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
             drawContext.getMatrices().push();
             drawContext.getMatrices().translate(x, y, 0.0F);
-            drawContext.getMatrices().scale(rayLabelTextScale, rayLabelTextScale, 1.0F);
+            drawContext.getMatrices().scale(distanceTextScale, distanceTextScale, 1.0F);
             int textColor = withAlpha(label.color(), 0.95F);
             drawContext.drawTextWithShadow(client.textRenderer, label.text(), 0, 0, textColor);
             drawContext.getMatrices().pop();
@@ -728,87 +974,209 @@ public class NoKnockbackClient implements ClientModInitializer {
             float tickDelta,
             float fovDegrees,
             int screenWidth,
-            int screenHeight
+            int screenHeight,
+            float rayStartX,
+            float rayStartY
     ) {
         if (client.world == null) return;
 
-        Vector3f projected = new Vector3f();
-        int iconSize = Math.max(8, Math.round(16.0F * ARMOR_OVERLAY_ICON_SCALE));
+        Vector3f centerProjected = new Vector3f();
+        Vector3f aboveProjected = new Vector3f();
+        Vector3f anchor = new Vector3f();
         for (PlayerEntity target : client.world.getPlayers()) {
             if (target == localPlayer || target.isRemoved()) continue;
 
-            Vec3d overlayPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.35, 0.0);
-            if (!projectToIndicator(overlayPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
+            Vec3d centerPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+            if (!projectToIndicator(centerPos, camera, screenWidth, screenHeight, fovDegrees, centerProjected)) continue;
 
-            List<ItemStack> displayStacks = new ArrayList<>(6);
+            Vec3d abovePos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.35, 0.0);
+            if (!projectToIndicator(abovePos, camera, screenWidth, screenHeight, fovDegrees, aboveProjected)) {
+                aboveProjected.set(centerProjected);
+            }
+
             if (playerArmorOverlayEnabled) {
+                List<ItemStack> armorStacks = new ArrayList<>(4);
                 ItemStack head = target.getEquippedStack(EquipmentSlot.HEAD);
                 ItemStack chest = target.getEquippedStack(EquipmentSlot.CHEST);
                 ItemStack legs = target.getEquippedStack(EquipmentSlot.LEGS);
                 ItemStack feet = target.getEquippedStack(EquipmentSlot.FEET);
-                if (!head.isEmpty()) displayStacks.add(head);
-                if (!chest.isEmpty()) displayStacks.add(chest);
-                if (!legs.isEmpty()) displayStacks.add(legs);
-                if (!feet.isEmpty()) displayStacks.add(feet);
+                if (!head.isEmpty()) armorStacks.add(head);
+                if (!chest.isEmpty()) armorStacks.add(chest);
+                if (!legs.isEmpty()) armorStacks.add(legs);
+                if (!feet.isEmpty()) armorStacks.add(feet);
+
+                if (!armorStacks.isEmpty()) {
+                    resolveOverlayAnchor(armorAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
+                    int accentColor = 0xFF000000 | resolveVisualColor(
+                            target,
+                            0.24F,
+                            armorVisualColorMode,
+                            armorVisualSaturationBoost,
+                            armorVisualAnimationSpeed
+                    );
+                    renderItemRow(
+                            drawContext,
+                            armorStacks,
+                            armorOverlayScale,
+                            anchor,
+                            screenWidth,
+                            screenHeight,
+                            accentColor,
+                            armorVisualGlowEnabled,
+                            -4,
+                            true
+                    );
+                }
             }
+
             if (heldItemOverlayEnabled) {
+                List<ItemStack> heldStacks = new ArrayList<>(2);
                 ItemStack mainHand = target.getMainHandStack();
                 ItemStack offHand = target.getOffHandStack();
-                if (!mainHand.isEmpty()) displayStacks.add(mainHand);
-                if (!offHand.isEmpty()) displayStacks.add(offHand);
-            }
-            if (displayStacks.isEmpty()) continue;
+                if (!mainHand.isEmpty()) heldStacks.add(mainHand);
+                if (!offHand.isEmpty()) heldStacks.add(offHand);
 
-            int accentColor = 0xFF000000 | resolveVisualColor(target, 0.24F);
-            int count = displayStacks.size();
-            int totalWidth = count * iconSize + (count - 1) * ARMOR_OVERLAY_ICON_SPACING;
-            int startX = Math.round(projected.x) - totalWidth / 2;
-            int startY = Math.round(projected.y) - iconSize - 6;
-            startX = MathHelper.clamp(startX, 1, Math.max(1, screenWidth - totalWidth - 1));
-            startY = MathHelper.clamp(startY, 1, Math.max(1, screenHeight - iconSize - 1));
-
-            if (visualGlowEnabled) {
-                drawContext.fill(
-                        startX - 3,
-                        startY - 3,
-                        startX + totalWidth + 3,
-                        startY + iconSize + 3,
-                        withAlpha(accentColor, 0.35F)
-                );
-            }
-            drawContext.fill(startX - 1, startY - 1, startX + totalWidth + 1, startY + iconSize + 1, 0x5A000000);
-
-            for (int i = 0; i < count; i++) {
-                int iconX = startX + i * (iconSize + ARMOR_OVERLAY_ICON_SPACING);
-                int iconY = startY;
-                drawContext.getMatrices().push();
-                drawContext.getMatrices().translate(iconX, iconY, 0.0F);
-                drawContext.getMatrices().scale(ARMOR_OVERLAY_ICON_SCALE, ARMOR_OVERLAY_ICON_SCALE, 1.0F);
-                drawContext.drawItem(displayStacks.get(i), 0, 0);
-                drawContext.getMatrices().pop();
+                if (!heldStacks.isEmpty()) {
+                    resolveOverlayAnchor(heldItemAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
+                    int accentColor = 0xFF000000 | resolveVisualColor(
+                            target,
+                            0.34F,
+                            heldItemVisualColorMode,
+                            heldItemVisualSaturationBoost,
+                            heldItemVisualAnimationSpeed
+                    );
+                    renderItemRow(
+                            drawContext,
+                            heldStacks,
+                            heldItemOverlayScale,
+                            anchor,
+                            screenWidth,
+                            screenHeight,
+                            accentColor,
+                            heldItemVisualGlowEnabled,
+                            4,
+                            false
+                    );
+                }
             }
 
-            if (distanceDisplayEnabled && client.textRenderer != null) {
+            if (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.ABOVE_PLAYER && client.textRenderer != null) {
+                resolveOverlayAnchor(distanceAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
                 int meters = Math.max(0, Math.round((float) localPlayer.getPos().distanceTo(target.getPos())));
                 String distanceText = meters + "m";
-                int textWidth = client.textRenderer.getWidth(distanceText);
+                int accentColor = 0xFF000000 | resolveVisualColor(
+                        target,
+                        0.18F,
+                        distanceVisualColorMode,
+                        distanceVisualSaturationBoost,
+                        distanceVisualAnimationSpeed
+                );
+                int textWidth = Math.max(1, Math.round(client.textRenderer.getWidth(distanceText) * distanceTextScale));
+                int textHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * distanceTextScale));
                 int textX = MathHelper.clamp(
-                        startX + totalWidth / 2 - textWidth / 2,
+                        Math.round(anchor.x) - textWidth / 2,
                         2,
                         Math.max(2, screenWidth - textWidth - 2)
                 );
                 int textY = MathHelper.clamp(
-                        startY - client.textRenderer.fontHeight - 3,
+                        Math.round(anchor.y) - textHeight - 8,
                         2,
-                        Math.max(2, screenHeight - client.textRenderer.fontHeight - 2)
+                        Math.max(2, screenHeight - textHeight - 2)
                 );
 
-                if (visualGlowEnabled) {
-                    drawContext.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + client.textRenderer.fontHeight + 2, withAlpha(accentColor, 0.32F));
+                if (distanceVisualGlowEnabled) {
+                    drawContext.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + textHeight + 2, withAlpha(accentColor, 0.32F));
                 }
-                drawContext.fill(textX - 2, textY - 1, textX + textWidth + 2, textY + client.textRenderer.fontHeight + 1, 0x65000000);
-                drawContext.drawTextWithShadow(client.textRenderer, distanceText, textX, textY, withAlpha(accentColor, 0.95F));
+                drawContext.fill(textX - 2, textY - 1, textX + textWidth + 2, textY + textHeight + 1, 0x65000000);
+                drawContext.getMatrices().push();
+                drawContext.getMatrices().translate(textX, textY, 0.0F);
+                drawContext.getMatrices().scale(distanceTextScale, distanceTextScale, 1.0F);
+                drawContext.drawTextWithShadow(client.textRenderer, distanceText, 0, 0, withAlpha(accentColor, 0.95F));
+                drawContext.getMatrices().pop();
+            } else if (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.RAY_MIDDLE && !playerRaysEnabled && client.textRenderer != null) {
+                resolveOverlayAnchor(distanceAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
+                int meters = Math.max(0, Math.round((float) localPlayer.getPos().distanceTo(target.getPos())));
+                String distanceText = meters + "m";
+                int accentColor = 0xFF000000 | resolveVisualColor(
+                        target,
+                        0.18F,
+                        distanceVisualColorMode,
+                        distanceVisualSaturationBoost,
+                        distanceVisualAnimationSpeed
+                );
+                int textWidth = Math.max(1, Math.round(client.textRenderer.getWidth(distanceText) * distanceTextScale));
+                int textHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * distanceTextScale));
+                int textX = MathHelper.clamp(Math.round(anchor.x) - textWidth / 2, 2, Math.max(2, screenWidth - textWidth - 2));
+                int textY = MathHelper.clamp(Math.round(anchor.y) - textHeight / 2, 2, Math.max(2, screenHeight - textHeight - 2));
+
+                if (distanceVisualGlowEnabled) {
+                    drawContext.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + textHeight + 2, withAlpha(accentColor, 0.32F));
+                }
+                drawContext.fill(textX - 2, textY - 1, textX + textWidth + 2, textY + textHeight + 1, 0x65000000);
+                drawContext.getMatrices().push();
+                drawContext.getMatrices().translate(textX, textY, 0.0F);
+                drawContext.getMatrices().scale(distanceTextScale, distanceTextScale, 1.0F);
+                drawContext.drawTextWithShadow(client.textRenderer, distanceText, 0, 0, withAlpha(accentColor, 0.95F));
+                drawContext.getMatrices().pop();
             }
+        }
+    }
+
+    private static void resolveOverlayAnchor(
+            OverlayAnchorMode mode,
+            float rayStartX,
+            float rayStartY,
+            Vector3f centerProjected,
+            Vector3f aboveProjected,
+            Vector3f out
+    ) {
+        if (mode == OverlayAnchorMode.ABOVE_PLAYER) {
+            out.set(aboveProjected);
+            return;
+        }
+
+        out.set(
+                rayStartX + (centerProjected.x - rayStartX) * RAY_LABEL_POSITION_FACTOR,
+                rayStartY + (centerProjected.y - rayStartY) * RAY_LABEL_POSITION_FACTOR,
+                0.0F
+        );
+    }
+
+    private static void renderItemRow(
+            DrawContext drawContext,
+            List<ItemStack> stacks,
+            float itemScale,
+            Vector3f anchor,
+            int screenWidth,
+            int screenHeight,
+            int accentColor,
+            boolean glowEnabled,
+            int yOffset,
+            boolean aboveAnchor
+    ) {
+        if (stacks.isEmpty()) return;
+
+        int iconSize = Math.max(6, Math.round(16.0F * MathHelper.clamp(itemScale, 0.35F, 2.5F)));
+        int count = stacks.size();
+        int totalWidth = count * iconSize + (count - 1) * ARMOR_OVERLAY_ICON_SPACING;
+        int startX = Math.round(anchor.x) - totalWidth / 2;
+        int startY = aboveAnchor ? Math.round(anchor.y) - iconSize + yOffset : Math.round(anchor.y) + yOffset;
+        startX = MathHelper.clamp(startX, 1, Math.max(1, screenWidth - totalWidth - 1));
+        startY = MathHelper.clamp(startY, 1, Math.max(1, screenHeight - iconSize - 1));
+
+        if (glowEnabled) {
+            drawContext.fill(startX - 3, startY - 3, startX + totalWidth + 3, startY + iconSize + 3, withAlpha(accentColor, 0.35F));
+        }
+        drawContext.fill(startX - 1, startY - 1, startX + totalWidth + 1, startY + iconSize + 1, 0x5A000000);
+
+        for (int i = 0; i < count; i++) {
+            int iconX = startX + i * (iconSize + ARMOR_OVERLAY_ICON_SPACING);
+            int iconY = startY;
+            drawContext.getMatrices().push();
+            drawContext.getMatrices().translate(iconX, iconY, 0.0F);
+            drawContext.getMatrices().scale(itemScale, itemScale, 1.0F);
+            drawContext.drawItem(stacks.get(i), 0, 0);
+            drawContext.getMatrices().pop();
         }
     }
 
@@ -846,7 +1214,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             textX = MathHelper.clamp(textX, 2, Math.max(2, screenWidth - scaledWidth - 2));
             textY = MathHelper.clamp(textY, 2, Math.max(2, screenHeight - scaledHeight - 2));
 
-            if (visualGlowEnabled) {
+            if (rayVisualGlowEnabled) {
                 int accentColor = 0xFF000000 | resolveVisualColor(target, 0.56F);
                 drawContext.fill(textX - 4, textY - 3, textX + scaledWidth + 4, textY + scaledHeight + 3, withAlpha(accentColor, 0.33F));
             }
@@ -898,9 +1266,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             entries.sort(Comparator.comparingDouble(PlayerDistanceEntry::distance));
 
             for (PlayerDistanceEntry entry : entries) {
-                String lineText = distanceDisplayEnabled
-                        ? entry.name() + " - " + (int) Math.round(entry.distance()) + " m"
-                        : entry.name();
+                String lineText = entry.name() + " - " + (int) Math.round(entry.distance()) + " m";
                 lines.add(new PlayerListLine(
                         lineText,
                         entry.displayColor()
@@ -934,7 +1300,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         int x2 = x1 + panelWidth;
         int y2 = y1 + panelHeight;
 
-        if (visualGlowEnabled && !lines.isEmpty()) {
+        if (rayVisualGlowEnabled && !lines.isEmpty()) {
             int glowColor = withAlpha(lines.get(0).color(), 0.32F * playerListAlphaMultiplier);
             drawContext.fill(x1 - 4, y1 - 4, x2 + 4, y2 + 4, glowColor);
         }
@@ -945,7 +1311,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         int textY = y1 + PLAYER_LIST_PADDING;
         for (PlayerListLine line : lines) {
             int textColor = withAlpha(line.color(), playerListAlphaMultiplier);
-            if (visualGlowEnabled) {
+            if (rayVisualGlowEnabled) {
                 drawContext.fill(
                         textX - 2,
                         textY - 1,
@@ -1071,52 +1437,76 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     private static int getPlayerGroupingColor(PlayerEntity player) {
         int baseColor = getPlayerBaseColor(player);
-        if (visualColorMode == VisualColorMode.NICK) {
+        if (rayVisualColorMode == VisualColorMode.NICK) {
             return baseColor;
         }
 
-        return toVividColor(baseColor);
+        return toVividColor(baseColor, rayVisualSaturationBoost);
     }
 
     private static int resolveVisualColor(PlayerEntity player, float offset) {
-        return resolveVisualColor(getPlayerBaseColor(player), player.getId(), offset);
+        return resolveVisualColor(
+                getPlayerBaseColor(player),
+                player.getId(),
+                offset,
+                rayVisualColorMode,
+                rayVisualSaturationBoost,
+                rayVisualAnimationSpeed
+        );
     }
 
-    private static int resolveVisualColor(int baseColor, int seed, float offset) {
+    private static int resolveVisualColor(
+            PlayerEntity player,
+            float offset,
+            VisualColorMode colorMode,
+            float saturationBoost,
+            float animationSpeed
+    ) {
+        return resolveVisualColor(getPlayerBaseColor(player), player.getId(), offset, colorMode, saturationBoost, animationSpeed);
+    }
+
+    private static int resolveVisualColor(
+            int baseColor,
+            int seed,
+            float offset,
+            VisualColorMode colorMode,
+            float saturationBoost,
+            float animationSpeed
+    ) {
         int rgbBase = baseColor & 0x00FFFFFF;
-        return switch (visualColorMode) {
+        return switch (colorMode) {
             case NICK -> rgbBase;
-            case VIVID -> toVividColor(rgbBase);
-            case GRADIENT -> toGradientColor(rgbBase, seed, offset);
-            case RAINBOW -> toRainbowColor(seed, offset);
+            case VIVID -> toVividColor(rgbBase, saturationBoost);
+            case GRADIENT -> toGradientColor(rgbBase, seed, offset, saturationBoost, animationSpeed);
+            case RAINBOW -> toRainbowColor(seed, offset, animationSpeed);
         };
     }
 
-    private static int toVividColor(int rgbColor) {
+    private static int toVividColor(int rgbColor, float saturationBoost) {
         float[] hsv = rgbToHsv(rgbColor);
-        float saturation = MathHelper.clamp(Math.max(hsv[1], 0.45F) * visualSaturationBoost, 0.0F, 1.0F);
+        float saturation = MathHelper.clamp(Math.max(hsv[1], 0.45F) * saturationBoost, 0.0F, 1.0F);
         float value = MathHelper.clamp(Math.max(hsv[2], 0.72F) * 1.08F, 0.0F, 1.0F);
         return MathHelper.hsvToRgb(hsv[0], saturation, value);
     }
 
-    private static int toGradientColor(int rgbColor, int seed, float offset) {
+    private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
-        float phase = wrapUnit(visualTime() * 0.18F + seed * 0.037F + offset);
+        float phase = wrapUnit(visualTime(animationSpeed) * 0.18F + seed * 0.037F + offset);
         float wave = 0.5F + 0.5F * MathHelper.sin(phase * TWO_PI);
         float hueShift = MathHelper.lerp(wave, -0.14F, 0.14F);
         float hue = wrapUnit(hsv[0] + hueShift);
-        float saturation = MathHelper.clamp(Math.max(hsv[1], 0.55F) * visualSaturationBoost, 0.0F, 1.0F);
+        float saturation = MathHelper.clamp(Math.max(hsv[1], 0.55F) * saturationBoost, 0.0F, 1.0F);
         float value = MathHelper.clamp(Math.max(hsv[2], 0.8F) * 1.1F, 0.0F, 1.0F);
         return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
-    private static int toRainbowColor(int seed, float offset) {
-        float hue = wrapUnit(visualTime() * 0.22F + seed * 0.041F + offset);
+    private static int toRainbowColor(int seed, float offset, float animationSpeed) {
+        float hue = wrapUnit(visualTime(animationSpeed) * 0.22F + seed * 0.041F + offset);
         return MathHelper.hsvToRgb(hue, 0.92F, 1.0F);
     }
 
-    private static float visualTime() {
-        return (System.currentTimeMillis() / 1000.0F) * visualAnimationSpeed;
+    private static float visualTime(float animationSpeed) {
+        return (System.currentTimeMillis() / 1000.0F) * animationSpeed;
     }
 
     private static float wrapUnit(float value) {
@@ -1165,21 +1555,38 @@ public class NoKnockbackClient implements ClientModInitializer {
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
         heldItemOverlayEnabled = config.heldItemOverlayEnabled;
-        visualGlowEnabled = config.visualGlowEnabled;
+        rayVisualGlowEnabled = config.rayVisualGlowEnabled;
+        armorVisualGlowEnabled = config.armorVisualGlowEnabled;
+        heldItemVisualGlowEnabled = config.heldItemVisualGlowEnabled;
+        distanceVisualGlowEnabled = config.distanceVisualGlowEnabled;
         rayThickness = MathHelper.clamp(config.rayThickness, 0.5F, 8.0F);
         outlineThickness = MathHelper.clamp(config.outlineThickness, 0.5F, 6.0F);
         rayBottomStartHeight = MathHelper.clamp(config.rayBottomStartHeight, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
-        rayLabelTextScale = MathHelper.clamp(config.rayDistanceTextScale, 0.5F, 2.0F);
+        distanceTextScale = MathHelper.clamp(config.rayDistanceTextScale, 0.5F, 2.0F);
+        armorOverlayScale = MathHelper.clamp(config.armorOverlayScale, 0.35F, 2.5F);
+        heldItemOverlayScale = MathHelper.clamp(config.heldItemOverlayScale, 0.35F, 2.5F);
         targetHealthTextScale = MathHelper.clamp(config.targetHealthTextScale, 0.5F, 2.0F);
         playerListTextScale = MathHelper.clamp(config.playerListTextScale, 0.1F, 2.0F);
         playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
         playerListAlphaMultiplier = MathHelper.clamp(config.playerListAlpha, 0.1F, 1.0F);
-        visualSaturationBoost = MathHelper.clamp(config.visualSaturationBoost, 1.0F, 2.5F);
-        visualAnimationSpeed = MathHelper.clamp(config.visualAnimationSpeed, 0.2F, 4.0F);
+        rayVisualSaturationBoost = MathHelper.clamp(config.rayVisualSaturationBoost, 1.0F, 2.5F);
+        rayVisualAnimationSpeed = MathHelper.clamp(config.rayVisualAnimationSpeed, 0.2F, 4.0F);
+        armorVisualSaturationBoost = MathHelper.clamp(config.armorVisualSaturationBoost, 1.0F, 2.5F);
+        armorVisualAnimationSpeed = MathHelper.clamp(config.armorVisualAnimationSpeed, 0.2F, 4.0F);
+        heldItemVisualSaturationBoost = MathHelper.clamp(config.heldItemVisualSaturationBoost, 1.0F, 2.5F);
+        heldItemVisualAnimationSpeed = MathHelper.clamp(config.heldItemVisualAnimationSpeed, 0.2F, 4.0F);
+        distanceVisualSaturationBoost = MathHelper.clamp(config.distanceVisualSaturationBoost, 1.0F, 2.5F);
+        distanceVisualAnimationSpeed = MathHelper.clamp(config.distanceVisualAnimationSpeed, 0.2F, 4.0F);
         playerListOffsetX = MathHelper.clamp(config.playerListOffsetX, 0, MAX_PLAYER_LIST_OFFSET);
         playerListOffsetY = MathHelper.clamp(config.playerListOffsetY, 0, MAX_PLAYER_LIST_OFFSET);
         rayOrigin = parseRayOrigin(config.rayOrigin);
-        visualColorMode = parseVisualColorMode(config.visualColorMode);
+        armorAnchorMode = parseOverlayAnchorMode(config.armorAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
+        heldItemAnchorMode = parseOverlayAnchorMode(config.heldItemAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
+        distanceAnchorMode = parseOverlayAnchorMode(config.distanceAnchorMode, OverlayAnchorMode.RAY_MIDDLE);
+        rayVisualColorMode = parseVisualColorMode(config.rayVisualColorMode, VisualColorMode.VIVID);
+        armorVisualColorMode = parseVisualColorMode(config.armorVisualColorMode, VisualColorMode.VIVID);
+        heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.VIVID);
+        distanceVisualColorMode = parseVisualColorMode(config.distanceVisualColorMode, VisualColorMode.VIVID);
     }
 
     private static void applyConfiguredKey(KeyBinding keyBinding, String translationKey) {
@@ -1203,15 +1610,27 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
     }
 
-    private static VisualColorMode parseVisualColorMode(String rawValue) {
+    private static VisualColorMode parseVisualColorMode(String rawValue, VisualColorMode fallback) {
         if (rawValue == null || rawValue.isBlank()) {
-            return VisualColorMode.VIVID;
+            return fallback;
         }
 
         try {
             return VisualColorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
-            return VisualColorMode.VIVID;
+            return fallback;
+        }
+    }
+
+    private static OverlayAnchorMode parseOverlayAnchorMode(String rawValue, OverlayAnchorMode fallback) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return fallback;
+        }
+
+        try {
+            return OverlayAnchorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
         }
     }
 
@@ -1226,21 +1645,38 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
         data.heldItemOverlayEnabled = heldItemOverlayEnabled;
-        data.visualGlowEnabled = visualGlowEnabled;
+        data.rayVisualGlowEnabled = rayVisualGlowEnabled;
+        data.armorVisualGlowEnabled = armorVisualGlowEnabled;
+        data.heldItemVisualGlowEnabled = heldItemVisualGlowEnabled;
+        data.distanceVisualGlowEnabled = distanceVisualGlowEnabled;
         data.rayThickness = rayThickness;
         data.outlineThickness = outlineThickness;
         data.rayBottomStartHeight = rayBottomStartHeight;
-        data.rayDistanceTextScale = rayLabelTextScale;
+        data.rayDistanceTextScale = distanceTextScale;
+        data.armorOverlayScale = armorOverlayScale;
+        data.heldItemOverlayScale = heldItemOverlayScale;
         data.targetHealthTextScale = targetHealthTextScale;
         data.playerListTextScale = playerListTextScale;
         data.playerListMaxHeight = playerListMaxHeight;
         data.playerListAlpha = playerListAlphaMultiplier;
-        data.visualSaturationBoost = visualSaturationBoost;
-        data.visualAnimationSpeed = visualAnimationSpeed;
+        data.rayVisualSaturationBoost = rayVisualSaturationBoost;
+        data.rayVisualAnimationSpeed = rayVisualAnimationSpeed;
+        data.armorVisualSaturationBoost = armorVisualSaturationBoost;
+        data.armorVisualAnimationSpeed = armorVisualAnimationSpeed;
+        data.heldItemVisualSaturationBoost = heldItemVisualSaturationBoost;
+        data.heldItemVisualAnimationSpeed = heldItemVisualAnimationSpeed;
+        data.distanceVisualSaturationBoost = distanceVisualSaturationBoost;
+        data.distanceVisualAnimationSpeed = distanceVisualAnimationSpeed;
         data.playerListOffsetX = playerListOffsetX;
         data.playerListOffsetY = playerListOffsetY;
         data.rayOrigin = rayOrigin.name();
-        data.visualColorMode = visualColorMode.name();
+        data.armorAnchorMode = armorAnchorMode.name();
+        data.heldItemAnchorMode = heldItemAnchorMode.name();
+        data.distanceAnchorMode = distanceAnchorMode.name();
+        data.rayVisualColorMode = rayVisualColorMode.name();
+        data.armorVisualColorMode = armorVisualColorMode.name();
+        data.heldItemVisualColorMode = heldItemVisualColorMode.name();
+        data.distanceVisualColorMode = distanceVisualColorMode.name();
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -1280,5 +1716,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         VIVID,
         GRADIENT,
         RAINBOW
+    }
+
+    public enum OverlayAnchorMode {
+        ABOVE_PLAYER,
+        RAY_MIDDLE
     }
 }

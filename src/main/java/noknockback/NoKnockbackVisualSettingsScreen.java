@@ -12,9 +12,10 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 
 public class NoKnockbackVisualSettingsScreen extends Screen {
-    private static final int PANEL_WIDTH = 380;
+    private static final int PANEL_WIDTH = 400;
     private static final int ROW_HEIGHT = 20;
     private static final int ROW_GAP = 4;
+    private static final int SECTION_GAP = 8;
     private static final int TITLE_COLOR = 0xFFD7E6FF;
     private static final int SUBTITLE_COLOR = 0xFF9FB3CF;
 
@@ -22,19 +23,40 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
     private final Screen parent;
 
     @Nullable
-    private ButtonWidget armorToggleButton;
+    private ButtonWidget rayGlowButton;
     @Nullable
-    private ButtonWidget distanceToggleButton;
+    private ButtonWidget armorGlowButton;
     @Nullable
-    private ButtonWidget heldItemToggleButton;
+    private ButtonWidget heldItemGlowButton;
     @Nullable
-    private ButtonWidget glowToggleButton;
+    private ButtonWidget distanceGlowButton;
+
     @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> colorModeButton;
+    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> rayColorModeButton;
     @Nullable
-    private SettingSlider saturationSlider;
+    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> armorColorModeButton;
     @Nullable
-    private SettingSlider animationSpeedSlider;
+    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> heldItemColorModeButton;
+    @Nullable
+    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> distanceColorModeButton;
+
+    @Nullable
+    private SettingSlider raySaturationSlider;
+    @Nullable
+    private SettingSlider armorSaturationSlider;
+    @Nullable
+    private SettingSlider heldItemSaturationSlider;
+    @Nullable
+    private SettingSlider distanceSaturationSlider;
+
+    @Nullable
+    private SettingSlider raySpeedSlider;
+    @Nullable
+    private SettingSlider armorSpeedSlider;
+    @Nullable
+    private SettingSlider heldItemSpeedSlider;
+    @Nullable
+    private SettingSlider distanceSpeedSlider;
 
     public NoKnockbackVisualSettingsScreen(@Nullable Screen parent) {
         super(Text.literal("Visual Settings"));
@@ -44,71 +66,120 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
     @Override
     protected void init() {
         int left = (this.width - PANEL_WIDTH) / 2;
-        int y = Math.max(34, this.height / 2 - 95);
+        int y = Math.max(36, this.height / 2 - 250);
 
-        this.armorToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setPlayerArmorOverlayEnabled(!NoKnockbackClient.isPlayerArmorOverlayEnabled());
+        y = this.addStyleSectionTitle("Rays", left, y);
+        this.rayGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setRayVisualGlowEnabled(!NoKnockbackClient.isRayVisualGlowEnabled());
             this.refreshLabels();
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
-
-        this.distanceToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setDistanceDisplayEnabled(!NoKnockbackClient.isDistanceDisplayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.heldItemToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setHeldItemOverlayEnabled(!NoKnockbackClient.isHeldItemOverlayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.glowToggleButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setVisualGlowEnabled(!NoKnockbackClient.isVisualGlowEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + ROW_GAP;
-
-        this.colorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
+        this.rayColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
                 .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getVisualColorMode())
-                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setVisualColorMode(value);
+                .initially(NoKnockbackClient.getRayVisualColorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Color Mode"), (button, value) -> {
+                    NoKnockbackClient.setRayVisualColorMode(value);
                     this.refreshLabels();
                 }));
         y += ROW_HEIGHT + ROW_GAP;
-
-        this.saturationSlider = this.addDrawableChild(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Color Saturation",
-                1.0,
-                2.5,
-                0.1,
-                NoKnockbackClient.getVisualSaturationBoost()
-        ) {
+        this.raySaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getRayVisualSaturationBoost()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setVisualSaturationBoost((float) value);
+                NoKnockbackClient.setRayVisualSaturationBoost((float) value);
             }
         });
         y += ROW_HEIGHT + ROW_GAP;
-
-        this.animationSpeedSlider = this.addDrawableChild(new SettingSlider(
-                left,
-                y,
-                PANEL_WIDTH,
-                "Color Animation Speed",
-                0.2,
-                4.0,
-                0.1,
-                NoKnockbackClient.getVisualAnimationSpeed()
-        ) {
+        this.raySpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getRayVisualAnimationSpeed()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setVisualAnimationSpeed((float) value);
+                NoKnockbackClient.setRayVisualAnimationSpeed((float) value);
+            }
+        });
+        y += ROW_HEIGHT + SECTION_GAP;
+
+        y = this.addStyleSectionTitle("Armor", left, y);
+        this.armorGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setArmorVisualGlowEnabled(!NoKnockbackClient.isArmorVisualGlowEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+        this.armorColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .initially(NoKnockbackClient.getArmorVisualColorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Armor Color Mode"), (button, value) -> {
+                    NoKnockbackClient.setArmorVisualColorMode(value);
+                    this.refreshLabels();
+                }));
+        y += ROW_HEIGHT + ROW_GAP;
+        this.armorSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getArmorVisualSaturationBoost()) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setArmorVisualSaturationBoost((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+        this.armorSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getArmorVisualAnimationSpeed()) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setArmorVisualAnimationSpeed((float) value);
+            }
+        });
+        y += ROW_HEIGHT + SECTION_GAP;
+
+        y = this.addStyleSectionTitle("Held Item", left, y);
+        this.heldItemGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setHeldItemVisualGlowEnabled(!NoKnockbackClient.isHeldItemVisualGlowEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+        this.heldItemColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .initially(NoKnockbackClient.getHeldItemVisualColorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Held Item Color Mode"), (button, value) -> {
+                    NoKnockbackClient.setHeldItemVisualColorMode(value);
+                    this.refreshLabels();
+                }));
+        y += ROW_HEIGHT + ROW_GAP;
+        this.heldItemSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getHeldItemVisualSaturationBoost()) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+        this.heldItemSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getHeldItemVisualAnimationSpeed()) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value);
+            }
+        });
+        y += ROW_HEIGHT + SECTION_GAP;
+
+        y = this.addStyleSectionTitle("Distance", left, y);
+        this.distanceGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
+            NoKnockbackClient.setDistanceVisualGlowEnabled(!NoKnockbackClient.isDistanceVisualGlowEnabled());
+            this.refreshLabels();
+        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+        y += ROW_HEIGHT + ROW_GAP;
+        this.distanceColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .initially(NoKnockbackClient.getDistanceVisualColorMode())
+                .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Distance Color Mode"), (button, value) -> {
+                    NoKnockbackClient.setDistanceVisualColorMode(value);
+                    this.refreshLabels();
+                }));
+        y += ROW_HEIGHT + ROW_GAP;
+        this.distanceSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getDistanceVisualSaturationBoost()) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setDistanceVisualSaturationBoost((float) value);
+            }
+        });
+        y += ROW_HEIGHT + ROW_GAP;
+        this.distanceSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getDistanceVisualAnimationSpeed()) {
+            @Override
+            protected void onValueChanged(double value) {
+                NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value);
             }
         });
 
@@ -124,7 +195,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         super.render(context, mouseX, mouseY, delta);
 
         context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 10, TITLE_COLOR);
-        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Glow, color styles and equipment details"), this.width / 2, 20, SUBTITLE_COLOR);
+        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Separate visual profile for each function"), this.width / 2, 20, SUBTITLE_COLOR);
     }
 
     @Override
@@ -139,33 +210,62 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         return false;
     }
 
+    private int addStyleSectionTitle(String title, int left, int y) {
+        this.addDrawable((context, mouseX, mouseY, delta) -> context.drawTextWithShadow(this.textRenderer, Text.literal(title), left, y, 0xFFE5EEF9));
+        return y + 12;
+    }
+
     private void refreshLabels() {
-        if (this.armorToggleButton != null) {
-            this.armorToggleButton.setMessage(this.toggleText("Armor Through Walls", NoKnockbackClient.isPlayerArmorOverlayEnabled()));
+        if (this.rayGlowButton != null) {
+            this.rayGlowButton.setMessage(this.toggleText("Ray Glow", NoKnockbackClient.isRayVisualGlowEnabled()));
+        }
+        if (this.armorGlowButton != null) {
+            this.armorGlowButton.setMessage(this.toggleText("Armor Glow", NoKnockbackClient.isArmorVisualGlowEnabled()));
+        }
+        if (this.heldItemGlowButton != null) {
+            this.heldItemGlowButton.setMessage(this.toggleText("Held Item Glow", NoKnockbackClient.isHeldItemVisualGlowEnabled()));
+        }
+        if (this.distanceGlowButton != null) {
+            this.distanceGlowButton.setMessage(this.toggleText("Distance Glow", NoKnockbackClient.isDistanceVisualGlowEnabled()));
         }
 
-        if (this.distanceToggleButton != null) {
-            this.distanceToggleButton.setMessage(this.toggleText("Show Distances", NoKnockbackClient.isDistanceDisplayEnabled()));
+        if (this.rayColorModeButton != null) {
+            this.rayColorModeButton.setValue(NoKnockbackClient.getRayVisualColorMode());
+        }
+        if (this.armorColorModeButton != null) {
+            this.armorColorModeButton.setValue(NoKnockbackClient.getArmorVisualColorMode());
+        }
+        if (this.heldItemColorModeButton != null) {
+            this.heldItemColorModeButton.setValue(NoKnockbackClient.getHeldItemVisualColorMode());
+        }
+        if (this.distanceColorModeButton != null) {
+            this.distanceColorModeButton.setValue(NoKnockbackClient.getDistanceVisualColorMode());
         }
 
-        if (this.heldItemToggleButton != null) {
-            this.heldItemToggleButton.setMessage(this.toggleText("Show Held Items", NoKnockbackClient.isHeldItemOverlayEnabled()));
+        if (this.raySaturationSlider != null) {
+            this.raySaturationSlider.sync(NoKnockbackClient.getRayVisualSaturationBoost());
+        }
+        if (this.armorSaturationSlider != null) {
+            this.armorSaturationSlider.sync(NoKnockbackClient.getArmorVisualSaturationBoost());
+        }
+        if (this.heldItemSaturationSlider != null) {
+            this.heldItemSaturationSlider.sync(NoKnockbackClient.getHeldItemVisualSaturationBoost());
+        }
+        if (this.distanceSaturationSlider != null) {
+            this.distanceSaturationSlider.sync(NoKnockbackClient.getDistanceVisualSaturationBoost());
         }
 
-        if (this.glowToggleButton != null) {
-            this.glowToggleButton.setMessage(this.toggleText("Glow Effects", NoKnockbackClient.isVisualGlowEnabled()));
+        if (this.raySpeedSlider != null) {
+            this.raySpeedSlider.sync(NoKnockbackClient.getRayVisualAnimationSpeed());
         }
-
-        if (this.colorModeButton != null) {
-            this.colorModeButton.setValue(NoKnockbackClient.getVisualColorMode());
+        if (this.armorSpeedSlider != null) {
+            this.armorSpeedSlider.sync(NoKnockbackClient.getArmorVisualAnimationSpeed());
         }
-
-        if (this.saturationSlider != null) {
-            this.saturationSlider.sync(NoKnockbackClient.getVisualSaturationBoost());
+        if (this.heldItemSpeedSlider != null) {
+            this.heldItemSpeedSlider.sync(NoKnockbackClient.getHeldItemVisualAnimationSpeed());
         }
-
-        if (this.animationSpeedSlider != null) {
-            this.animationSpeedSlider.sync(NoKnockbackClient.getVisualAnimationSpeed());
+        if (this.distanceSpeedSlider != null) {
+            this.distanceSpeedSlider.sync(NoKnockbackClient.getDistanceVisualAnimationSpeed());
         }
     }
 
