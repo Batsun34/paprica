@@ -757,7 +757,6 @@ public class NoKnockbackMenuScreen extends Screen {
                 panels.add(new Panel("Trails", 0, List.of(
                         Control.toggle("trails.enabled", "Enabled", NoKnockbackClient::isPlayerTrailsEnabled, NoKnockbackClient::setPlayerTrailsEnabled),
                         Control.keybind("trails.bind", "Bind", NoKnockbackClient.getPlayerTrailsKeyBinding()),
-                        Control.toggle("trails.include_self", "Include Self", NoKnockbackClient::isPlayerTrailsIncludeSelf, NoKnockbackClient::setPlayerTrailsIncludeSelf),
                         Control.cycle("trails.type", "Trail Type", Control.TRAIL_TYPES,
                                 () -> NoKnockbackClient.getTrailType().ordinal(),
                                 idx -> NoKnockbackClient.setTrailType(NoKnockbackClient.TrailType.values()[idx])
@@ -914,7 +913,7 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     private static final class Control {
-        private static final String[] COLOR_MODES = new String[]{"Nick", "Gradient", "Rainbow"};
+        private static final String[] COLOR_MODES = new String[]{"Nick", "Gradient", "Nick Gradient", "Rainbow"};
         private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
         private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
         private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};

@@ -70,7 +70,6 @@ public final class NoKnockbackConfig {
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
         sanitized.playerTrailsEnabled = data.playerTrailsEnabled;
-        sanitized.playerTrailsIncludeSelf = data.playerTrailsIncludeSelf;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
@@ -255,7 +254,6 @@ public final class NoKnockbackConfig {
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
         public boolean playerTrailsEnabled = false;
-        public boolean playerTrailsIncludeSelf = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;

@@ -90,7 +90,6 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
     private static boolean playerTrailsEnabled = false;
-    private static boolean playerTrailsIncludeSelf = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
@@ -237,16 +236,6 @@ public class NoKnockbackClient implements ClientModInitializer {
             trailSegments.clear();
             trailStates.clear();
         }
-        saveConfigNow();
-    }
-
-    public static boolean isPlayerTrailsIncludeSelf() {
-        return playerTrailsIncludeSelf;
-    }
-
-    public static void setPlayerTrailsIncludeSelf(boolean enabled) {
-        if (playerTrailsIncludeSelf == enabled) return;
-        playerTrailsIncludeSelf = enabled;
         saveConfigNow();
     }
 
@@ -1442,10 +1431,8 @@ public class NoKnockbackClient implements ClientModInitializer {
 
         Set<UUID> seen = new HashSet<>();
         PlayerEntity localPlayer = client.player;
-        boolean includeSelf = playerTrailsIncludeSelf;
         for (PlayerEntity target : client.world.getPlayers()) {
             if (target == null || target.isRemoved()) continue;
-            if (!includeSelf && target == localPlayer) continue;
             UUID uuid = target.getUuid();
             seen.add(uuid);
 
@@ -2282,7 +2269,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         int saltedSeed = seed ^ (revision * 0x9E3779B9);
         return switch (colorMode) {
             case NICK -> rgbBase;
-            case GRADIENT -> toGradientColor(rgbBase, saltedSeed, offset, saturationBoost, animationSpeed);
+            case GRADIENT -> toGradientColor(seedBaseColor(saltedSeed), saltedSeed, offset, saturationBoost, animationSpeed);
+            case NICK_GRADIENT -> toGradientColor(rgbBase, saltedSeed, offset, saturationBoost, animationSpeed);
             case RAINBOW -> toRainbowColor(saltedSeed, offset, saturationBoost, animationSpeed);
         };
     }
@@ -2336,6 +2324,13 @@ public class NoKnockbackClient implements ClientModInitializer {
             }
         }
         return (System.nanoTime() / 1_000_000_000.0F) * animationSpeed;
+    }
+
+    private static int seedBaseColor(int seed) {
+        float hue = seedToUnit(seed * 0x1F123BB5);
+        float saturation = 0.75F;
+        float value = 1.0F;
+        return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
     private static int nextRevision(int value) {
@@ -2416,7 +2411,6 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
         playerTrailsEnabled = config.playerTrailsEnabled;
-        playerTrailsIncludeSelf = config.playerTrailsIncludeSelf;
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
@@ -2588,7 +2582,6 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
         data.playerTrailsEnabled = playerTrailsEnabled;
-        data.playerTrailsIncludeSelf = playerTrailsIncludeSelf;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
@@ -2698,6 +2691,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     public enum VisualColorMode {
         NICK,
         GRADIENT,
+        NICK_GRADIENT,
         RAINBOW
     }
 
