@@ -70,6 +70,7 @@ public final class NoKnockbackConfig {
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
         sanitized.playerTrailsEnabled = data.playerTrailsEnabled;
+        sanitized.autoAttackEnabled = data.autoAttackEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
@@ -82,6 +83,7 @@ public final class NoKnockbackConfig {
         sanitized.armorVisualGlowEnabled = data.armorVisualGlowEnabled;
         sanitized.heldItemVisualGlowEnabled = data.heldItemVisualGlowEnabled;
         sanitized.distanceVisualGlowEnabled = data.distanceVisualGlowEnabled;
+        sanitized.autoAttackRequireLineOfSight = data.autoAttackRequireLineOfSight;
         sanitized.rayThickness = MathHelper.clamp(data.rayThickness, 0.5F, 8.0F);
         sanitized.outlineThickness = MathHelper.clamp(data.outlineThickness, 0.5F, 6.0F);
         sanitized.rayBottomStartHeight = MathHelper.clamp(data.rayBottomStartHeight, 0.0F, 300.0F);
@@ -122,17 +124,22 @@ public final class NoKnockbackConfig {
         sanitized.trailLifetimeSeconds = MathHelper.clamp(data.trailLifetimeSeconds, 0.1F, 10.0F);
         sanitized.trailGradientSpeed = MathHelper.clamp(data.trailGradientSpeed, 0.1F, 5.0F);
         sanitized.trailAlpha = MathHelper.clamp(data.trailAlpha, 0.1F, 1.0F);
+        sanitized.autoAttackRate = MathHelper.clamp(data.autoAttackRate, 1.0F, 20.0F);
+        sanitized.autoAttackCircleRadius = MathHelper.clamp(data.autoAttackCircleRadius, 20.0F, 600.0F);
         sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
         sanitized.skyTopColor = data.skyTopColor & 0xFFFFFF;
         sanitized.skyBottomColor = data.skyBottomColor & 0xFFFFFF;
         sanitized.trailFixedColor = data.trailFixedColor & 0xFFFFFF;
+        sanitized.autoAttackCircleColor = data.autoAttackCircleColor & 0xFFFFFF;
         sanitized.menuLastTab = data.menuLastTab == null ? "RAYS" : data.menuLastTab;
         sanitized.menuScrollOffset = data.menuScrollOffset;
         sanitized.trailType = sanitizeTrailType(data.trailType);
         sanitized.trailOrigin = sanitizeTrailOrigin(data.trailOrigin);
         sanitized.trailColorMode = sanitizeTrailColorMode(data.trailColorMode);
+        sanitized.autoAttackMode = sanitizeAutoAttackMode(data.autoAttackMode);
+        sanitized.autoAttackCircleColorMode = sanitizeCircleColorMode(data.autoAttackCircleColorMode);
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
         sanitized.noKnockbackKey = sanitizeKey(data.noKnockbackKey, "key.keyboard.n");
@@ -140,6 +147,9 @@ public final class NoKnockbackConfig {
         sanitized.playerRaysKey = sanitizeKey(data.playerRaysKey, "key.keyboard.j");
         sanitized.playerListKey = sanitizeKey(data.playerListKey, "key.keyboard.k");
         sanitized.playerTrailsKey = sanitizeKey(data.playerTrailsKey, "key.keyboard.l");
+        sanitized.autoAttackKey = sanitizeKey(data.autoAttackKey, "key.keyboard.r");
+        sanitized.markTargetKey = sanitizeKey(data.markTargetKey, "key.keyboard.m");
+        sanitized.unmarkTargetKey = sanitizeKey(data.unmarkTargetKey, "key.keyboard.u");
         sanitized.menuKey = sanitizeKey(data.menuKey, "key.keyboard.right.shift");
 
         return sanitized;
@@ -246,6 +256,30 @@ public final class NoKnockbackConfig {
         }
     }
 
+    private static String sanitizeAutoAttackMode(String value) {
+        if (value == null || value.isBlank()) {
+            return NoKnockbackClient.AutoAttackMode.CIRCLE.name();
+        }
+
+        try {
+            return NoKnockbackClient.AutoAttackMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.AutoAttackMode.CIRCLE.name();
+        }
+    }
+
+    private static String sanitizeCircleColorMode(String value) {
+        if (value == null || value.isBlank()) {
+            return NoKnockbackClient.CircleColorMode.FIXED.name();
+        }
+
+        try {
+            return NoKnockbackClient.CircleColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.CircleColorMode.FIXED.name();
+        }
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean noKnockbackEnabled = true;
@@ -254,6 +288,7 @@ public final class NoKnockbackConfig {
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
         public boolean playerTrailsEnabled = false;
+        public boolean autoAttackEnabled = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
@@ -266,6 +301,7 @@ public final class NoKnockbackConfig {
         public boolean armorVisualGlowEnabled = false;
         public boolean heldItemVisualGlowEnabled = false;
         public boolean distanceVisualGlowEnabled = false;
+        public boolean autoAttackRequireLineOfSight = true;
         public float rayThickness = 2.0F;
         public float outlineThickness = 1.0F;
         public float rayBottomStartHeight = 2.0F;
@@ -306,17 +342,22 @@ public final class NoKnockbackConfig {
         public float trailLifetimeSeconds = 2.5F;
         public float trailGradientSpeed = 1.0F;
         public float trailAlpha = 1.0F;
+        public float autoAttackRate = 6.0F;
+        public float autoAttackCircleRadius = 120.0F;
         public float handFovScale = 1.0F;
         public float handOffsetX = 0.0F;
         public float handOffsetY = 0.0F;
         public int skyTopColor = 0x78A7FF;
         public int skyBottomColor = 0xA0C8FF;
         public int trailFixedColor = 0x4CB1FF;
+        public int autoAttackCircleColor = 0x4CB1FF;
         public String menuLastTab = "RAYS";
         public double menuScrollOffset = 0.0;
         public String trailType = NoKnockbackClient.TrailType.THIN_LINE.name();
         public String trailOrigin = NoKnockbackClient.TrailOrigin.BACK.name();
         public String trailColorMode = NoKnockbackClient.TrailColorMode.NICK.name();
+        public String autoAttackMode = NoKnockbackClient.AutoAttackMode.CIRCLE.name();
+        public String autoAttackCircleColorMode = NoKnockbackClient.CircleColorMode.FIXED.name();
 
         public String speedToggleKey = "key.keyboard.v";
         public String noKnockbackKey = "key.keyboard.n";
@@ -324,6 +365,9 @@ public final class NoKnockbackConfig {
         public String playerRaysKey = "key.keyboard.j";
         public String playerListKey = "key.keyboard.k";
         public String playerTrailsKey = "key.keyboard.l";
+        public String autoAttackKey = "key.keyboard.r";
+        public String markTargetKey = "key.keyboard.m";
+        public String unmarkTargetKey = "key.keyboard.u";
         public String menuKey = "key.keyboard.right.shift";
     }
 }

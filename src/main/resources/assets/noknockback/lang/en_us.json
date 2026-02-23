@@ -5,6 +5,10 @@
   "key.paprika.player_esp": "Toggle Player ESP",
   "key.paprika.player_rays": "Toggle Player Rays",
   "key.paprika.player_list": "Toggle Player List",
+  "key.paprika.player_trails": "Toggle Player Trails",
+  "key.paprika.auto_attack": "Toggle Auto Attack",
+  "key.paprika.mark_target": "Mark Target",
+  "key.paprika.unmark_target": "Unmark Target",
   "key.paprika.menu": "Open Paprika Menu",
 
   "category.noknockback": "Paprika",
@@ -13,5 +17,9 @@
   "key.noknockback.player_esp": "Toggle Player ESP",
   "key.noknockback.player_rays": "Toggle Player Rays",
   "key.noknockback.player_list": "Toggle Player List",
+  "key.noknockback.player_trails": "Toggle Player Trails",
+  "key.noknockback.auto_attack": "Toggle Auto Attack",
+  "key.noknockback.mark_target": "Mark Target",
+  "key.noknockback.unmark_target": "Unmark Target",
   "key.noknockback.menu": "Open Paprika Menu"
 }

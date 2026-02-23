@@ -18,12 +18,15 @@ import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
+import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import noknockback.mixin.client.GameRendererAccessor;
 
@@ -60,6 +63,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int DEFAULT_SKY_TOP_COLOR = 0x78A7FF;
     private static final int DEFAULT_SKY_BOTTOM_COLOR = 0xA0C8FF;
     private static final float DEFAULT_HAND_FOV_SCALE = 1.0F;
+    private static final float DEFAULT_AUTO_ATTACK_RATE = 6.0F;
+    private static final float DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS = 120.0F;
+    private static final int DEFAULT_AUTO_ATTACK_CIRCLE_COLOR = 0x4CB1FF;
     private static final int MAX_PLAYER_LIST_OFFSET = 4096;
     private static final int PLAYER_LIST_PADDING = 3;
     private static final int PLAYER_LIST_BG_COLOR = 0x65000000;
@@ -68,6 +74,8 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final float RAY_LABEL_POSITION_FACTOR = 0.62F;
     private static final float RAY_START_CLEARANCE = 12.0F;
     private static final int RAY_LABEL_BG_COLOR = 0x6A000000;
+    private static final float AUTO_ATTACK_CIRCLE_THICKNESS = 1.6F;
+    private static final int AUTO_ATTACK_CIRCLE_SEED = 0xC1CC1E;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int OVERLAY_GROUP_GAP = 4;
     private static final int TARGET_HEALTH_BG_COLOR = 0x7A000000;
@@ -91,6 +99,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
     private static boolean playerTrailsEnabled = false;
+    private static boolean autoAttackEnabled = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
@@ -101,6 +110,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean armorVisualGlowEnabled = false;
     private static boolean heldItemVisualGlowEnabled = false;
     private static boolean distanceVisualGlowEnabled = false;
+    private static boolean autoAttackRequireLineOfSight = true;
     private static float rayThickness = 2.0F;
     private static float outlineThickness = 1.0F;
     private static float rayBottomStartHeight = 2.0F;
@@ -129,6 +139,8 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float trailLifetimeSeconds = 2.5F;
     private static float trailGradientSpeed = 1.0F;
     private static float trailAlpha = 1.0F;
+    private static float autoAttackRate = DEFAULT_AUTO_ATTACK_RATE;
+    private static float autoAttackCircleRadius = DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
     private static float handOffsetX = 0.0F;
     private static float handOffsetY = 0.0F;
@@ -147,21 +159,29 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode distanceVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode espVisualColorMode = VisualColorMode.NICK;
+    private static AutoAttackMode autoAttackMode = AutoAttackMode.CIRCLE;
+    private static CircleColorMode autoAttackCircleColorMode = CircleColorMode.FIXED;
     private static TrailType trailType = TrailType.THIN_LINE;
     private static TrailOrigin trailOrigin = TrailOrigin.BACK;
     private static TrailColorMode trailColorMode = TrailColorMode.NICK;
     private static int skyTopColor = DEFAULT_SKY_TOP_COLOR;
     private static int skyBottomColor = DEFAULT_SKY_BOTTOM_COLOR;
     private static int trailFixedColor = 0x4CB1FF;
+    private static int autoAttackCircleColor = DEFAULT_AUTO_ATTACK_CIRCLE_COLOR;
     private static KeyBinding toggleKey;
     private static KeyBinding toggleNoKnockbackKey;
     private static KeyBinding togglePlayerEspKey;
     private static KeyBinding togglePlayerRaysKey;
     private static KeyBinding togglePlayerListKey;
     private static KeyBinding togglePlayerTrailsKey;
+    private static KeyBinding toggleAutoAttackKey;
+    private static KeyBinding markTargetKey;
+    private static KeyBinding unmarkTargetKey;
     private static KeyBinding openMenuKey;
 
     private Vec3d lastVelocity = Vec3d.ZERO;
+    private static String markedPlayerName;
+    private static double lastAutoAttackTime;
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
     private static final List<TrailSegment> trailSegments = new ArrayList<>();
@@ -240,6 +260,16 @@ public class NoKnockbackClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static boolean isAutoAttackEnabled() {
+        return autoAttackEnabled;
+    }
+
+    public static void setAutoAttackEnabled(boolean enabled) {
+        if (autoAttackEnabled == enabled) return;
+        autoAttackEnabled = enabled;
+        saveConfigNow();
+    }
+
     public static boolean isTargetHealthOverlayEnabled() {
         return targetHealthOverlayEnabled;
     }
@@ -267,6 +297,16 @@ public class NoKnockbackClient implements ClientModInitializer {
     public static void setDistanceDisplayEnabled(boolean enabled) {
         if (distanceDisplayEnabled == enabled) return;
         distanceDisplayEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isAutoAttackRequireLineOfSight() {
+        return autoAttackRequireLineOfSight;
+    }
+
+    public static void setAutoAttackRequireLineOfSight(boolean enabled) {
+        if (autoAttackRequireLineOfSight == enabled) return;
+        autoAttackRequireLineOfSight = enabled;
         saveConfigNow();
     }
 
@@ -729,6 +769,28 @@ public class NoKnockbackClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static float getAutoAttackRate() {
+        return autoAttackRate;
+    }
+
+    public static void setAutoAttackRate(float rate) {
+        float clamped = MathHelper.clamp(rate, 1.0F, 20.0F);
+        if (Math.abs(autoAttackRate - clamped) < 0.0001F) return;
+        autoAttackRate = clamped;
+        saveConfigNow();
+    }
+
+    public static float getAutoAttackCircleRadius() {
+        return autoAttackCircleRadius;
+    }
+
+    public static void setAutoAttackCircleRadius(float radius) {
+        float clamped = MathHelper.clamp(radius, 20.0F, 600.0F);
+        if (Math.abs(autoAttackCircleRadius - clamped) < 0.0001F) return;
+        autoAttackCircleRadius = clamped;
+        saveConfigNow();
+    }
+
     public static int getTrailFixedColor() {
         return trailFixedColor & 0xFFFFFF;
     }
@@ -766,6 +828,68 @@ public class NoKnockbackClient implements ClientModInitializer {
         int updated = (trailFixedColor & 0xFFFF00) | clamped;
         if (trailFixedColor == updated) return;
         trailFixedColor = updated;
+        saveConfigNow();
+    }
+
+    public static AutoAttackMode getAutoAttackMode() {
+        return autoAttackMode;
+    }
+
+    public static void setAutoAttackMode(AutoAttackMode mode) {
+        AutoAttackMode updated = mode == null ? AutoAttackMode.CIRCLE : mode;
+        if (autoAttackMode == updated) return;
+        autoAttackMode = updated;
+        saveConfigNow();
+    }
+
+    public static CircleColorMode getAutoAttackCircleColorMode() {
+        return autoAttackCircleColorMode;
+    }
+
+    public static void setAutoAttackCircleColorMode(CircleColorMode mode) {
+        CircleColorMode updated = mode == null ? CircleColorMode.FIXED : mode;
+        if (autoAttackCircleColorMode == updated) return;
+        autoAttackCircleColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static int getAutoAttackCircleColor() {
+        return autoAttackCircleColor & 0xFFFFFF;
+    }
+
+    public static int getAutoAttackCircleRed() {
+        return (autoAttackCircleColor >> 16) & 0xFF;
+    }
+
+    public static int getAutoAttackCircleGreen() {
+        return (autoAttackCircleColor >> 8) & 0xFF;
+    }
+
+    public static int getAutoAttackCircleBlue() {
+        return autoAttackCircleColor & 0xFF;
+    }
+
+    public static void setAutoAttackCircleRed(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (autoAttackCircleColor & 0x00FFFF) | (clamped << 16);
+        if (autoAttackCircleColor == updated) return;
+        autoAttackCircleColor = updated;
+        saveConfigNow();
+    }
+
+    public static void setAutoAttackCircleGreen(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (autoAttackCircleColor & 0xFF00FF) | (clamped << 8);
+        if (autoAttackCircleColor == updated) return;
+        autoAttackCircleColor = updated;
+        saveConfigNow();
+    }
+
+    public static void setAutoAttackCircleBlue(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (autoAttackCircleColor & 0xFFFF00) | clamped;
+        if (autoAttackCircleColor == updated) return;
+        autoAttackCircleColor = updated;
         saveConfigNow();
     }
 
@@ -1066,6 +1190,18 @@ public class NoKnockbackClient implements ClientModInitializer {
         return togglePlayerTrailsKey;
     }
 
+    public static KeyBinding getAutoAttackKeyBinding() {
+        return toggleAutoAttackKey;
+    }
+
+    public static KeyBinding getMarkTargetKeyBinding() {
+        return markTargetKey;
+    }
+
+    public static KeyBinding getUnmarkTargetKeyBinding() {
+        return unmarkTargetKey;
+    }
+
     public static KeyBinding getOpenMenuKeyBinding() {
         return openMenuKey;
     }
@@ -1147,6 +1283,27 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.paprika"
         ));
 
+        toggleAutoAttackKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.auto_attack",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_R,
+                "category.paprika"
+        ));
+
+        markTargetKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.mark_target",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_M,
+                "category.paprika"
+        ));
+
+        unmarkTargetKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.unmark_target",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_U,
+                "category.paprika"
+        ));
+
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.paprika.menu",
                 InputUtil.Type.KEYSYM,
@@ -1160,6 +1317,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         applyConfiguredKey(togglePlayerRaysKey, loadedConfig.playerRaysKey);
         applyConfiguredKey(togglePlayerListKey, loadedConfig.playerListKey);
         applyConfiguredKey(togglePlayerTrailsKey, loadedConfig.playerTrailsKey);
+        applyConfiguredKey(toggleAutoAttackKey, loadedConfig.autoAttackKey);
+        applyConfiguredKey(markTargetKey, loadedConfig.markTargetKey);
+        applyConfiguredKey(unmarkTargetKey, loadedConfig.unmarkTargetKey);
         applyConfiguredKey(openMenuKey, loadedConfig.menuKey);
         KeyBinding.updateKeysByCode();
         saveConfigNow();
@@ -1171,6 +1331,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         ));
 
         WorldRenderEvents.AFTER_ENTITIES.register(NoKnockbackClient::renderPlayerTrails);
+        WorldRenderEvents.AFTER_ENTITIES.register(NoKnockbackClient::renderMarkedTargetDecal);
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     }
 
@@ -1237,7 +1398,38 @@ public class NoKnockbackClient implements ClientModInitializer {
             );
         }
 
+        while (toggleAutoAttackKey.wasPressed()) {
+            setAutoAttackEnabled(!autoAttackEnabled);
+            player.sendMessage(
+                    Text.literal("[Paprika] Auto Attack: " + (autoAttackEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        while (markTargetKey.wasPressed()) {
+            if (markTarget(client)) {
+                player.sendMessage(
+                        Text.literal("[Paprika] Marked: " + markedPlayerName),
+                        true
+                );
+            } else {
+                player.sendMessage(
+                        Text.literal("[Paprika] Mark failed: no target in circle"),
+                        true
+                );
+            }
+        }
+
+        while (unmarkTargetKey.wasPressed()) {
+            markedPlayerName = null;
+            player.sendMessage(
+                    Text.literal("[Paprika] Mark cleared"),
+                    true
+            );
+        }
+
         updatePlayerTrails(client);
+        tryAutoAttack(client);
 
         Vec3d velocity = player.getVelocity();
 
@@ -1331,6 +1523,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (targetHealthOverlayEnabled) {
             renderTargetHealthOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
         }
+        if (autoAttackEnabled && autoAttackMode == AutoAttackMode.CIRCLE) {
+            renderAutoAttackCircle(drawContext, screenWidth, screenHeight);
+        }
         if (!playerRaysEnabled) return;
 
         Vector3f projected = new Vector3f();
@@ -1388,6 +1583,45 @@ public class NoKnockbackClient implements ClientModInitializer {
                         rayThickness,
                         withAlpha(coreStart, rayAlpha),
                         withAlpha(coreEnd, rayAlpha)
+                );
+            }
+        });
+    }
+
+    private static void renderAutoAttackCircle(DrawContext drawContext, int screenWidth, int screenHeight) {
+        float radius = autoAttackCircleRadius;
+        if (radius <= 2.0F) return;
+
+        float centerX = screenWidth * 0.5F;
+        float centerY = screenHeight * 0.5F;
+        int segments = Math.max(32, Math.round(radius * 0.6F));
+
+        drawContext.draw(vertexConsumers -> {
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
+            Matrix4f matrix = drawContext.getMatrices().peek().getPositionMatrix();
+
+            for (int i = 0; i < segments; i++) {
+                float t1 = (float) i / segments;
+                float t2 = (float) (i + 1) / segments;
+                float angle1 = TWO_PI * t1;
+                float angle2 = TWO_PI * t2;
+                float x1 = centerX + MathHelper.cos(angle1) * radius;
+                float y1 = centerY + MathHelper.sin(angle1) * radius;
+                float x2 = centerX + MathHelper.cos(angle2) * radius;
+                float y2 = centerY + MathHelper.sin(angle2) * radius;
+
+                int c1 = resolveAutoAttackCircleColor(t1);
+                int c2 = resolveAutoAttackCircleColor(t2);
+                drawThickRay(
+                        matrix,
+                        lineConsumer,
+                        x1,
+                        y1,
+                        x2,
+                        y2,
+                        AUTO_ATTACK_CIRCLE_THICKNESS,
+                        c1,
+                        c2
                 );
             }
         });
@@ -1532,11 +1766,213 @@ public class NoKnockbackClient implements ClientModInitializer {
         context.matrixStack().pop();
     }
 
+    private static void renderMarkedTargetDecal(WorldRenderContext context) {
+        if (markedPlayerName == null || markedPlayerName.isBlank()) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) return;
+        PlayerEntity target = findMarkedPlayer(client);
+        if (target == null) return;
+
+        float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
+        Vec3d cameraPos = context.camera().getPos();
+        Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.55, 0.0);
+
+        float height = Math.max(0.6F, target.getHeight() * 1.1F);
+        float width = Math.max(0.35F, target.getWidth() * 0.9F);
+        float radius = Math.max(0.25F, target.getWidth() * 0.75F);
+        float halfH = height * 0.5F;
+        float halfW = width * 0.5F;
+        float angle = visualTime(1.0F) * 45.0F;
+
+        int color = 0xFF000000 | applyEmissive(0x4CB1FF, 1.0F);
+
+        context.matrixStack().push();
+        context.matrixStack().translate(targetPos.x - cameraPos.x, targetPos.y - cameraPos.y, targetPos.z - cameraPos.z);
+        context.matrixStack().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(angle));
+
+        VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getDebugQuads());
+        Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
+
+        addQuad(consumer, matrix,
+                new Vec3d(-halfW, -halfH, radius),
+                new Vec3d(halfW, -halfH, radius),
+                new Vec3d(halfW, halfH, radius),
+                new Vec3d(-halfW, halfH, radius),
+                color
+        );
+        addQuad(consumer, matrix,
+                new Vec3d(-halfW, halfH, radius),
+                new Vec3d(halfW, halfH, radius),
+                new Vec3d(halfW, -halfH, radius),
+                new Vec3d(-halfW, -halfH, radius),
+                color
+        );
+
+        context.matrixStack().push();
+        context.matrixStack().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90.0F));
+        matrix = context.matrixStack().peek().getPositionMatrix();
+        addQuad(consumer, matrix,
+                new Vec3d(-halfW, -halfH, radius),
+                new Vec3d(halfW, -halfH, radius),
+                new Vec3d(halfW, halfH, radius),
+                new Vec3d(-halfW, halfH, radius),
+                color
+        );
+        addQuad(consumer, matrix,
+                new Vec3d(-halfW, halfH, radius),
+                new Vec3d(halfW, halfH, radius),
+                new Vec3d(halfW, -halfH, radius),
+                new Vec3d(-halfW, -halfH, radius),
+                color
+        );
+        context.matrixStack().pop();
+
+        context.matrixStack().pop();
+    }
+
     private static void addQuad(VertexConsumer consumer, Matrix4f matrix, Vec3d v1, Vec3d v2, Vec3d v3, Vec3d v4, int color) {
         consumer.vertex(matrix, (float) v1.x, (float) v1.y, (float) v1.z).color(color);
         consumer.vertex(matrix, (float) v2.x, (float) v2.y, (float) v2.z).color(color);
         consumer.vertex(matrix, (float) v3.x, (float) v3.y, (float) v3.z).color(color);
         consumer.vertex(matrix, (float) v4.x, (float) v4.y, (float) v4.z).color(color);
+    }
+
+    private static boolean markTarget(MinecraftClient client) {
+        if (client == null || client.player == null || client.world == null || client.gameRenderer == null) return false;
+        Camera camera = client.gameRenderer.getCamera();
+        if (camera == null || !camera.isReady()) return false;
+        int width = client.getWindow().getScaledWidth();
+        int height = client.getWindow().getScaledHeight();
+        if (width <= 0 || height <= 0) return false;
+        float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
+        float fov = client.options.getFov().getValue().floatValue();
+        if (client.gameRenderer instanceof GameRendererAccessor accessor) {
+            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+        }
+
+        PlayerEntity target = findTargetInCircle(client, camera, tickDelta, fov, width, height, autoAttackCircleRadius);
+        if (target == null) return false;
+        markedPlayerName = target.getGameProfile().getName();
+        return true;
+    }
+
+    private static void tryAutoAttack(MinecraftClient client) {
+        if (!autoAttackEnabled) return;
+        if (client == null || client.player == null || client.world == null || client.interactionManager == null) return;
+        if (client.currentScreen != null) return;
+
+        double now = currentTimeSeconds();
+        double interval = 1.0 / Math.max(0.1, autoAttackRate);
+        if (now - lastAutoAttackTime < interval) return;
+
+        Camera camera = client.gameRenderer != null ? client.gameRenderer.getCamera() : null;
+        if (camera == null || !camera.isReady()) return;
+
+        int width = client.getWindow().getScaledWidth();
+        int height = client.getWindow().getScaledHeight();
+        if (width <= 0 || height <= 0) return;
+
+        float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
+        float fov = client.options.getFov().getValue().floatValue();
+        if (client.gameRenderer instanceof GameRendererAccessor accessor) {
+            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+        }
+
+        PlayerEntity target = selectAutoAttackTarget(client, camera, tickDelta, fov, width, height);
+        if (target == null) return;
+
+        double reach = getAttackReach(client.player);
+        if (client.player.squaredDistanceTo(target) > reach * reach) return;
+        if (autoAttackRequireLineOfSight && !client.player.canSee(target)) return;
+
+        client.interactionManager.attackEntity(client.player, target);
+        client.player.swingHand(Hand.MAIN_HAND);
+        lastAutoAttackTime = now;
+    }
+
+    private static PlayerEntity selectAutoAttackTarget(
+            MinecraftClient client,
+            Camera camera,
+            float tickDelta,
+            float fov,
+            int width,
+            int height
+    ) {
+        return switch (autoAttackMode) {
+            case MARK_ONLY -> findMarkedPlayer(client);
+            case ALL_NEARBY -> findNearestPlayer(client, getAttackReach(client.player), autoAttackRequireLineOfSight);
+            case CIRCLE -> findTargetInCircle(client, camera, tickDelta, fov, width, height, autoAttackCircleRadius);
+        };
+    }
+
+    private static PlayerEntity findTargetInCircle(
+            MinecraftClient client,
+            Camera camera,
+            float tickDelta,
+            float fov,
+            int width,
+            int height,
+            float radius
+    ) {
+        if (client.world == null || client.player == null) return null;
+        float centerX = width * 0.5F;
+        float centerY = height * 0.5F;
+        float radiusSq = radius * radius;
+        PlayerEntity best = null;
+        float bestDistSq = Float.MAX_VALUE;
+        Vector3f projected = new Vector3f();
+
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == null || target.isRemoved() || target == client.player) continue;
+            Vec3d pos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+            if (!projectToScreen(pos, camera, width, height, fov, projected)) continue;
+
+            float dx = projected.x - centerX;
+            float dy = projected.y - centerY;
+            float distSq = dx * dx + dy * dy;
+            if (distSq > radiusSq) continue;
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                best = target;
+            }
+        }
+        return best;
+    }
+
+    private static PlayerEntity findNearestPlayer(MinecraftClient client, double maxDistance, boolean requireSight) {
+        if (client.world == null || client.player == null) return null;
+        PlayerEntity best = null;
+        double bestDistSq = Double.MAX_VALUE;
+        double maxDistSq = maxDistance * maxDistance;
+
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == null || target.isRemoved() || target == client.player) continue;
+            double distSq = client.player.squaredDistanceTo(target);
+            if (distSq > maxDistSq) continue;
+            if (requireSight && !client.player.canSee(target)) continue;
+            if (distSq < bestDistSq) {
+                bestDistSq = distSq;
+                best = target;
+            }
+        }
+        return best;
+    }
+
+    private static PlayerEntity findMarkedPlayer(MinecraftClient client) {
+        if (client.world == null || markedPlayerName == null || markedPlayerName.isBlank()) return null;
+        for (PlayerEntity target : client.world.getPlayers()) {
+            if (target == null || target.isRemoved()) continue;
+            if (target.getGameProfile().getName().equalsIgnoreCase(markedPlayerName)) {
+                return target;
+            }
+        }
+        return null;
+    }
+
+    private static double getAttackReach(PlayerEntity player) {
+        if (player == null) return 3.0;
+        double reach = player.getAttributeValue(EntityAttributes.ENTITY_INTERACTION_RANGE);
+        return reach > 0.0 ? reach : 3.0;
     }
 
     private static Vec3d computeTrailOrigin(PlayerEntity player, Vec3d backDir) {
@@ -2298,6 +2734,15 @@ public class NoKnockbackClient implements ClientModInitializer {
         };
     }
 
+    private static int resolveAutoAttackCircleColor(float offset) {
+        int rgb = switch (autoAttackCircleColorMode) {
+            case FIXED -> autoAttackCircleColor;
+            case GRADIENT -> toGradientColor(seedBaseColor(AUTO_ATTACK_CIRCLE_SEED), AUTO_ATTACK_CIRCLE_SEED, offset, DEFAULT_STYLE_SATURATION, 1.0F);
+            case RAINBOW -> toRainbowColor(AUTO_ATTACK_CIRCLE_SEED, offset, DEFAULT_STYLE_SATURATION, 1.0F);
+        };
+        return 0xFF000000 | applyEmissive(rgb, 0.9F);
+    }
+
     private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
         float baseHue = hsv[0];
@@ -2454,6 +2899,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
         playerTrailsEnabled = config.playerTrailsEnabled;
+        autoAttackEnabled = config.autoAttackEnabled;
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
@@ -2466,6 +2912,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         armorVisualGlowEnabled = config.armorVisualGlowEnabled;
         heldItemVisualGlowEnabled = config.heldItemVisualGlowEnabled;
         distanceVisualGlowEnabled = config.distanceVisualGlowEnabled;
+        autoAttackRequireLineOfSight = config.autoAttackRequireLineOfSight;
         rayThickness = MathHelper.clamp(config.rayThickness, 0.5F, 8.0F);
         outlineThickness = MathHelper.clamp(config.outlineThickness, 0.5F, 6.0F);
         rayBottomStartHeight = MathHelper.clamp(config.rayBottomStartHeight, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
@@ -2494,6 +2941,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         trailLifetimeSeconds = MathHelper.clamp(config.trailLifetimeSeconds, 0.1F, 10.0F);
         trailGradientSpeed = MathHelper.clamp(config.trailGradientSpeed, 0.1F, 5.0F);
         trailAlpha = MathHelper.clamp(config.trailAlpha, 0.1F, 1.0F);
+        autoAttackRate = MathHelper.clamp(config.autoAttackRate, 1.0F, 20.0F);
+        autoAttackCircleRadius = MathHelper.clamp(config.autoAttackCircleRadius, 20.0F, 600.0F);
         handFovScale = MathHelper.clamp(config.handFovScale, 0.5F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
@@ -2502,6 +2951,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         skyTopColor = config.skyTopColor & 0xFFFFFF;
         skyBottomColor = config.skyBottomColor & 0xFFFFFF;
         trailFixedColor = config.trailFixedColor & 0xFFFFFF;
+        autoAttackCircleColor = config.autoAttackCircleColor & 0xFFFFFF;
         menuLastTabId = (config.menuLastTab == null || config.menuLastTab.isBlank()) ? "RAYS" : config.menuLastTab;
         menuScrollOffset = config.menuScrollOffset;
         rayOrigin = parseRayOrigin(config.rayOrigin);
@@ -2514,6 +2964,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
         distanceVisualColorMode = parseVisualColorMode(config.distanceVisualColorMode, VisualColorMode.NICK);
         espVisualColorMode = parseVisualColorMode(config.espVisualColorMode, VisualColorMode.NICK);
+        autoAttackMode = parseAutoAttackMode(config.autoAttackMode);
+        autoAttackCircleColorMode = parseCircleColorMode(config.autoAttackCircleColorMode);
         trailType = parseTrailType(config.trailType);
         trailOrigin = parseTrailOrigin(config.trailOrigin);
         trailColorMode = parseTrailColorMode(config.trailColorMode);
@@ -2616,6 +3068,30 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
     }
 
+    private static AutoAttackMode parseAutoAttackMode(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return AutoAttackMode.CIRCLE;
+        }
+
+        try {
+            return AutoAttackMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return AutoAttackMode.CIRCLE;
+        }
+    }
+
+    private static CircleColorMode parseCircleColorMode(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return CircleColorMode.FIXED;
+        }
+
+        try {
+            return CircleColorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return CircleColorMode.FIXED;
+        }
+    }
+
     private static NoKnockbackConfig.Data captureConfig() {
         NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
         data.speedEnabled = speedEnabled;
@@ -2625,6 +3101,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
         data.playerTrailsEnabled = playerTrailsEnabled;
+        data.autoAttackEnabled = autoAttackEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
@@ -2637,6 +3114,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.armorVisualGlowEnabled = armorVisualGlowEnabled;
         data.heldItemVisualGlowEnabled = heldItemVisualGlowEnabled;
         data.distanceVisualGlowEnabled = distanceVisualGlowEnabled;
+        data.autoAttackRequireLineOfSight = autoAttackRequireLineOfSight;
         data.rayThickness = rayThickness;
         data.outlineThickness = outlineThickness;
         data.rayBottomStartHeight = rayBottomStartHeight;
@@ -2665,6 +3143,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.trailLifetimeSeconds = trailLifetimeSeconds;
         data.trailGradientSpeed = trailGradientSpeed;
         data.trailAlpha = trailAlpha;
+        data.autoAttackRate = autoAttackRate;
+        data.autoAttackCircleRadius = autoAttackCircleRadius;
         data.handFovScale = handFovScale;
         data.handOffsetX = handOffsetX;
         data.handOffsetY = handOffsetY;
@@ -2673,6 +3153,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.skyTopColor = skyTopColor & 0xFFFFFF;
         data.skyBottomColor = skyBottomColor & 0xFFFFFF;
         data.trailFixedColor = trailFixedColor & 0xFFFFFF;
+        data.autoAttackCircleColor = autoAttackCircleColor & 0xFFFFFF;
         data.menuLastTab = menuLastTabId;
         data.menuScrollOffset = menuScrollOffset;
         data.rayOrigin = rayOrigin.name();
@@ -2685,6 +3166,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.heldItemVisualColorMode = heldItemVisualColorMode.name();
         data.distanceVisualColorMode = distanceVisualColorMode.name();
         data.espVisualColorMode = espVisualColorMode.name();
+        data.autoAttackMode = autoAttackMode.name();
+        data.autoAttackCircleColorMode = autoAttackCircleColorMode.name();
         data.trailType = trailType.name();
         data.trailOrigin = trailOrigin.name();
         data.trailColorMode = trailColorMode.name();
@@ -2706,6 +3189,15 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
         if (togglePlayerTrailsKey != null) {
             data.playerTrailsKey = togglePlayerTrailsKey.getBoundKeyTranslationKey();
+        }
+        if (toggleAutoAttackKey != null) {
+            data.autoAttackKey = toggleAutoAttackKey.getBoundKeyTranslationKey();
+        }
+        if (markTargetKey != null) {
+            data.markTargetKey = markTargetKey.getBoundKeyTranslationKey();
+        }
+        if (unmarkTargetKey != null) {
+            data.unmarkTargetKey = unmarkTargetKey.getBoundKeyTranslationKey();
         }
         if (openMenuKey != null) {
             data.menuKey = openMenuKey.getBoundKeyTranslationKey();
@@ -2735,6 +3227,18 @@ public class NoKnockbackClient implements ClientModInitializer {
         NICK,
         GRADIENT,
         NICK_GRADIENT,
+        RAINBOW
+    }
+
+    public enum AutoAttackMode {
+        CIRCLE,
+        MARK_ONLY,
+        ALL_NEARBY
+    }
+
+    public enum CircleColorMode {
+        FIXED,
+        GRADIENT,
         RAINBOW
     }
 

@@ -5,6 +5,10 @@
   "key.paprika.player_esp": "Переключить ESP игроков",
   "key.paprika.player_rays": "Переключить лучи игроков",
   "key.paprika.player_list": "Переключить список игроков",
+  "key.paprika.player_trails": "Переключить трейлы игроков",
+  "key.paprika.auto_attack": "Переключить автоудары",
+  "key.paprika.mark_target": "Отметить цель",
+  "key.paprika.unmark_target": "Снять метку",
   "key.paprika.menu": "Открыть меню Paprika",
 
   "category.noknockback": "Paprika",
@@ -13,5 +17,9 @@
   "key.noknockback.player_esp": "Переключить ESP игроков",
   "key.noknockback.player_rays": "Переключить лучи игроков",
   "key.noknockback.player_list": "Переключить список игроков",
+  "key.noknockback.player_trails": "Переключить трейлы игроков",
+  "key.noknockback.auto_attack": "Переключить автоудары",
+  "key.noknockback.mark_target": "Отметить цель",
+  "key.noknockback.unmark_target": "Снять метку",
   "key.noknockback.menu": "Открыть меню Paprika"
 }

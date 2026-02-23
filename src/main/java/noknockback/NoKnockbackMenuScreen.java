@@ -673,6 +673,32 @@ public class NoKnockbackMenuScreen extends Screen {
                     Control.toggle("speed.enabled", "Enabled", NoKnockbackClient::isSpeedEnabled, NoKnockbackClient::setSpeedEnabled),
                     Control.keybind("speed.bind", "Bind", NoKnockbackClient.getSpeedToggleKeyBinding())
             )));
+            case AUTO_ATTACK -> {
+                panels.add(new Panel("Auto Attack", 0, List.of(
+                        Control.toggle("auto_attack.enabled", "Enabled", NoKnockbackClient::isAutoAttackEnabled, NoKnockbackClient::setAutoAttackEnabled),
+                        Control.keybind("auto_attack.bind", "Bind", NoKnockbackClient.getAutoAttackKeyBinding()),
+                        Control.cycle("auto_attack.mode", "Attack Mode", Control.AUTO_ATTACK_MODES,
+                                () -> NoKnockbackClient.getAutoAttackMode().ordinal(),
+                                idx -> NoKnockbackClient.setAutoAttackMode(NoKnockbackClient.AutoAttackMode.values()[idx])
+                        ),
+                        Control.slider("auto_attack.rate", "Hits Per Second", 1.0, 20.0, 0.5, NoKnockbackClient::getAutoAttackRate, value -> NoKnockbackClient.setAutoAttackRate((float) value)),
+                        Control.toggle("auto_attack.los", "Require Line of Sight", NoKnockbackClient::isAutoAttackRequireLineOfSight, NoKnockbackClient::setAutoAttackRequireLineOfSight)
+                )));
+                panels.add(new Panel("Mark", 0, List.of(
+                        Control.keybind("auto_attack.mark", "Mark Target", NoKnockbackClient.getMarkTargetKeyBinding()),
+                        Control.keybind("auto_attack.unmark", "Unmark Target", NoKnockbackClient.getUnmarkTargetKeyBinding())
+                )));
+                panels.add(new Panel("Circle", 1, List.of(
+                        Control.slider("auto_attack.radius", "Circle Radius", 20.0, 600.0, 2.0, NoKnockbackClient::getAutoAttackCircleRadius, value -> NoKnockbackClient.setAutoAttackCircleRadius((float) value)),
+                        Control.cycle("auto_attack.circle_color", "Circle Color", Control.CIRCLE_COLOR_MODES,
+                                () -> NoKnockbackClient.getAutoAttackCircleColorMode().ordinal(),
+                                idx -> NoKnockbackClient.setAutoAttackCircleColorMode(NoKnockbackClient.CircleColorMode.values()[idx])
+                        ),
+                        Control.slider("auto_attack.circle_r", "Circle Red", 0, 255, 1, NoKnockbackClient::getAutoAttackCircleRed, value -> NoKnockbackClient.setAutoAttackCircleRed((int) value)),
+                        Control.slider("auto_attack.circle_g", "Circle Green", 0, 255, 1, NoKnockbackClient::getAutoAttackCircleGreen, value -> NoKnockbackClient.setAutoAttackCircleGreen((int) value)),
+                        Control.slider("auto_attack.circle_b", "Circle Blue", 0, 255, 1, NoKnockbackClient::getAutoAttackCircleBlue, value -> NoKnockbackClient.setAutoAttackCircleBlue((int) value))
+                )));
+            }
             case ESP -> panels.add(new Panel("ESP", 0, List.of(
                     Control.toggle("esp.enabled", "Enabled", NoKnockbackClient::isPlayerEspEnabled, NoKnockbackClient::setPlayerEspEnabled),
                     Control.keybind("esp.bind", "Bind", NoKnockbackClient.getPlayerEspKeyBinding()),
@@ -827,6 +853,7 @@ public class NoKnockbackMenuScreen extends Screen {
 
     private enum ModuleGroup {
         MOVEMENT("Movement"),
+        COMBAT("Combat"),
         VISUAL("Visuals"),
         OVERLAY("Overlay"),
         SYSTEM("System");
@@ -841,6 +868,7 @@ public class NoKnockbackMenuScreen extends Screen {
     private enum ModuleTab {
         NO_KNOCKBACK("No Knockback", ModuleGroup.MOVEMENT),
         SPEED("Sneak Movement Speed", ModuleGroup.MOVEMENT),
+        AUTO_ATTACK("Auto Attack", ModuleGroup.COMBAT),
         ESP("Player ESP", ModuleGroup.VISUAL),
         RAYS("Rays", ModuleGroup.VISUAL),
         TRAILS("Trails", ModuleGroup.VISUAL),
@@ -918,6 +946,8 @@ public class NoKnockbackMenuScreen extends Screen {
         private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
         private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};
         private static final String[] TRAIL_COLOR_MODES = new String[]{"Nick", "Fixed", "Gradient", "Nick Gradient"};
+        private static final String[] AUTO_ATTACK_MODES = new String[]{"Circle", "Marked Only", "All Nearby"};
+        private static final String[] CIRCLE_COLOR_MODES = new String[]{"Fixed", "Gradient", "Rainbow"};
 
         private final String id;
         private final ControlType type;
