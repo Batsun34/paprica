@@ -25,6 +25,8 @@ import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.hit.EntityHitResult;
+import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
@@ -76,6 +78,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int RAY_LABEL_BG_COLOR = 0x6A000000;
     private static final float AUTO_ATTACK_CIRCLE_THICKNESS = 1.6F;
     private static final int AUTO_ATTACK_CIRCLE_SEED = 0xC1CC1E;
+    private static final float MARK_AIM_RADIUS = 18.0F;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int OVERLAY_GROUP_GAP = 4;
     private static final int TARGET_HEALTH_BG_COLOR = 0x7A000000;
@@ -1414,7 +1417,7 @@ public class NoKnockbackClient implements ClientModInitializer {
                 );
             } else {
                 player.sendMessage(
-                        Text.literal("[Paprika] Mark failed: no target in circle"),
+                        Text.literal("[Paprika] Mark failed: aim at a player"),
                         true
                 );
             }
@@ -1832,18 +1835,20 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     private static boolean markTarget(MinecraftClient client) {
         if (client == null || client.player == null || client.world == null || client.gameRenderer == null) return false;
-        Camera camera = client.gameRenderer.getCamera();
-        if (camera == null || !camera.isReady()) return false;
-        int width = client.getWindow().getScaledWidth();
-        int height = client.getWindow().getScaledHeight();
-        if (width <= 0 || height <= 0) return false;
-        float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
-        float fov = client.options.getFov().getValue().floatValue();
-        if (client.gameRenderer instanceof GameRendererAccessor accessor) {
-            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+        PlayerEntity target = findCrosshairTarget(client);
+        if (target == null) {
+            Camera camera = client.gameRenderer.getCamera();
+            if (camera == null || !camera.isReady()) return false;
+            int width = client.getWindow().getScaledWidth();
+            int height = client.getWindow().getScaledHeight();
+            if (width <= 0 || height <= 0) return false;
+            float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
+            float fov = client.options.getFov().getValue().floatValue();
+            if (client.gameRenderer instanceof GameRendererAccessor accessor) {
+                fov = accessor.noknockback$getFov(camera, tickDelta, true);
+            }
+            target = findTargetInCircle(client, camera, tickDelta, fov, width, height, MARK_AIM_RADIUS);
         }
-
-        PlayerEntity target = findTargetInCircle(client, camera, tickDelta, fov, width, height, autoAttackCircleRadius);
         if (target == null) return false;
         markedPlayerName = target.getGameProfile().getName();
         return true;
@@ -1937,6 +1942,18 @@ public class NoKnockbackClient implements ClientModInitializer {
             }
         }
         return best;
+    }
+
+    private static PlayerEntity findCrosshairTarget(MinecraftClient client) {
+        HitResult hit = client.crosshairTarget;
+        if (hit instanceof EntityHitResult entityHit) {
+            if (entityHit.getEntity() instanceof PlayerEntity player) {
+                if (!player.isRemoved() && player != client.player) {
+                    return player;
+                }
+            }
+        }
+        return null;
     }
 
     private static boolean isPlayerInCircle(
