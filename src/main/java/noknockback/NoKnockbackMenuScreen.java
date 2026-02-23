@@ -676,7 +676,14 @@ public class NoKnockbackMenuScreen extends Screen {
             case ESP -> panels.add(new Panel("ESP", 0, List.of(
                     Control.toggle("esp.enabled", "Enabled", NoKnockbackClient::isPlayerEspEnabled, NoKnockbackClient::setPlayerEspEnabled),
                     Control.keybind("esp.bind", "Bind", NoKnockbackClient.getPlayerEspKeyBinding()),
-                    Control.slider("esp.outline_thickness", "Outline Thickness", 0.5, 6.0, 0.1, NoKnockbackClient::getOutlineThickness, value -> NoKnockbackClient.setOutlineThickness((float) value))
+                    Control.slider("esp.outline_thickness", "Outline Thickness", 0.5, 6.0, 0.1, NoKnockbackClient::getOutlineThickness, value -> NoKnockbackClient.setOutlineThickness((float) value)),
+                    Control.toggle("esp.glow", "Glow", NoKnockbackClient::isEspVisualGlowEnabled, NoKnockbackClient::setEspVisualGlowEnabled),
+                    Control.cycle("esp.color_mode", "Color Mode", Control.COLOR_MODES,
+                            () -> NoKnockbackClient.getEspVisualColorMode().ordinal(),
+                            idx -> NoKnockbackClient.setEspVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                    ),
+                    Control.slider("esp.saturation", "Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getEspVisualSaturationBoost, value -> NoKnockbackClient.setEspVisualSaturationBoost((float) value)),
+                    Control.slider("esp.anim_speed", "Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getEspVisualAnimationSpeed, value -> NoKnockbackClient.setEspVisualAnimationSpeed((float) value))
             )));
             case RAYS -> {
                 panels.add(new Panel("Rays", 0, List.of(
@@ -760,7 +767,12 @@ public class NoKnockbackMenuScreen extends Screen {
                         Control.toggle("hands.hide", "Hide Hands With Item", NoKnockbackClient::isHideHandsWithItemEnabled, NoKnockbackClient::setHideHandsWithItemEnabled),
                         Control.slider("hands.fov", "Hand FOV", 0.5, 1.6, 0.01, NoKnockbackClient::getHandFovScale, value -> NoKnockbackClient.setHandFovScale((float) value)),
                         Control.slider("hands.offset_x", "Hand Offset X", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetX, value -> NoKnockbackClient.setHandOffsetX((float) value)),
-                        Control.slider("hands.offset_y", "Hand Offset Y", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetY, value -> NoKnockbackClient.setHandOffsetY((float) value))
+                        Control.slider("hands.offset_y", "Hand Offset Y", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetY, value -> NoKnockbackClient.setHandOffsetY((float) value)),
+                        Control.toggle("hands.flip_item", "Flip Item", NoKnockbackClient::isHandItemFlipEnabled, NoKnockbackClient::setHandItemFlipEnabled),
+                        Control.cycle("hands.orientation", "Item Orientation", new String[]{"Default", "Left", "Right"},
+                                () -> NoKnockbackClient.getHandItemOrientation().ordinal(),
+                                idx -> NoKnockbackClient.setHandItemOrientation(NoKnockbackClient.HandItemOrientation.values()[idx])
+                        )
                 )));
             }
             case TARGET_HEALTH -> panels.add(new Panel("Target Health", 0, List.of(

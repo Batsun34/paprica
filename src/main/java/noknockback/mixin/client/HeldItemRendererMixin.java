@@ -7,6 +7,7 @@ import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
+import net.minecraft.util.math.RotationAxis;
 import noknockback.NoKnockbackClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -42,13 +43,35 @@ public class HeldItemRendererMixin {
         float scale = NoKnockbackClient.getHandFovScale();
         float offsetX = NoKnockbackClient.getHandOffsetX();
         float offsetY = NoKnockbackClient.getHandOffsetY();
-        if (Math.abs(scale - 1.0F) > 0.0001F || Math.abs(offsetX) > 0.0001F || Math.abs(offsetY) > 0.0001F) {
+        boolean flipItem = NoKnockbackClient.isHandItemFlipEnabled();
+        NoKnockbackClient.HandItemOrientation orientation = NoKnockbackClient.getHandItemOrientation();
+        boolean hasItem = !this.paprika$currentItem.isEmpty();
+
+        boolean needsTransform = Math.abs(scale - 1.0F) > 0.0001F
+                || Math.abs(offsetX) > 0.0001F
+                || Math.abs(offsetY) > 0.0001F
+                || (hasItem && (flipItem || orientation != NoKnockbackClient.HandItemOrientation.DEFAULT));
+
+        if (needsTransform) {
             matrices.push();
             this.paprika$offsetPushed = true;
             Arm arm = hand == Hand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
             float signedOffsetX = arm == Arm.LEFT ? -offsetX : offsetX;
             matrices.translate(signedOffsetX, offsetY, 0.0F);
             matrices.scale(scale, scale, 1.0F);
+            if (hasItem) {
+                float zRot = switch (orientation) {
+                    case LEFT -> 25.0F;
+                    case RIGHT -> -25.0F;
+                    default -> 0.0F;
+                };
+                if (Math.abs(zRot) > 0.0001F) {
+                    matrices.multiply(RotationAxis.POSITIVE_Z.rotationDegrees(zRot));
+                }
+                if (flipItem) {
+                    matrices.multiply(RotationAxis.POSITIVE_X.rotationDegrees(180.0F));
+                }
+            }
         }
     }
 

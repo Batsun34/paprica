@@ -75,7 +75,9 @@ public final class NoKnockbackConfig {
         sanitized.heldItemOverlayEnabled = data.heldItemOverlayEnabled;
         sanitized.customSkyEnabled = data.customSkyEnabled;
         sanitized.hideHandsWithItemEnabled = data.hideHandsWithItemEnabled;
+        sanitized.handItemFlipEnabled = data.handItemFlipEnabled;
         sanitized.rayVisualGlowEnabled = data.rayVisualGlowEnabled;
+        sanitized.espVisualGlowEnabled = data.espVisualGlowEnabled;
         sanitized.armorVisualGlowEnabled = data.armorVisualGlowEnabled;
         sanitized.heldItemVisualGlowEnabled = data.heldItemVisualGlowEnabled;
         sanitized.distanceVisualGlowEnabled = data.distanceVisualGlowEnabled;
@@ -103,6 +105,8 @@ public final class NoKnockbackConfig {
         sanitized.armorVisualColorMode = sanitizeVisualColorMode(data.armorVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
         sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
         sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
+        sanitized.espVisualColorMode = sanitizeVisualColorMode(data.espVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
+        sanitized.handItemOrientation = sanitizeHandItemOrientation(data.handItemOrientation);
         sanitized.rayVisualSaturationBoost = MathHelper.clamp(data.rayVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.rayVisualAnimationSpeed = MathHelper.clamp(data.rayVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.armorVisualSaturationBoost = MathHelper.clamp(data.armorVisualSaturationBoost, 1.0F, 2.5F);
@@ -111,6 +115,8 @@ public final class NoKnockbackConfig {
         sanitized.heldItemVisualAnimationSpeed = MathHelper.clamp(data.heldItemVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.distanceVisualSaturationBoost = MathHelper.clamp(data.distanceVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.distanceVisualAnimationSpeed = MathHelper.clamp(data.distanceVisualAnimationSpeed, 0.2F, 4.0F);
+        sanitized.espVisualSaturationBoost = MathHelper.clamp(data.espVisualSaturationBoost, 1.0F, 2.5F);
+        sanitized.espVisualAnimationSpeed = MathHelper.clamp(data.espVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
@@ -182,6 +188,18 @@ public final class NoKnockbackConfig {
         }
     }
 
+    private static String sanitizeHandItemOrientation(String value) {
+        if (value == null || value.isBlank()) {
+            return NoKnockbackClient.HandItemOrientation.DEFAULT.name();
+        }
+
+        try {
+            return NoKnockbackClient.HandItemOrientation.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.HandItemOrientation.DEFAULT.name();
+        }
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean noKnockbackEnabled = true;
@@ -195,7 +213,9 @@ public final class NoKnockbackConfig {
         public boolean heldItemOverlayEnabled = false;
         public boolean customSkyEnabled = false;
         public boolean hideHandsWithItemEnabled = false;
+        public boolean handItemFlipEnabled = false;
         public boolean rayVisualGlowEnabled = false;
+        public boolean espVisualGlowEnabled = false;
         public boolean armorVisualGlowEnabled = false;
         public boolean heldItemVisualGlowEnabled = false;
         public boolean distanceVisualGlowEnabled = false;
@@ -223,6 +243,8 @@ public final class NoKnockbackConfig {
         public String armorVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
         public String heldItemVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
         public String distanceVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
+        public String espVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
+        public String handItemOrientation = NoKnockbackClient.HandItemOrientation.DEFAULT.name();
         public float rayVisualSaturationBoost = 1.35F;
         public float rayVisualAnimationSpeed = 1.0F;
         public float armorVisualSaturationBoost = 1.35F;
@@ -231,6 +253,8 @@ public final class NoKnockbackConfig {
         public float heldItemVisualAnimationSpeed = 1.0F;
         public float distanceVisualSaturationBoost = 1.35F;
         public float distanceVisualAnimationSpeed = 1.0F;
+        public float espVisualSaturationBoost = 1.35F;
+        public float espVisualAnimationSpeed = 1.0F;
         public float handFovScale = 1.0F;
         public float handOffsetX = 0.0F;
         public float handOffsetY = 0.0F;

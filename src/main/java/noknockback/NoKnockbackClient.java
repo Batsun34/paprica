@@ -74,6 +74,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean speedEnabled = true;
     private static boolean noKnockbackEnabled = true;
     private static boolean playerEspEnabled = false;
+    private static boolean espVisualGlowEnabled = false;
     private static boolean playerArmorOverlayEnabled = false;
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
@@ -109,9 +110,13 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float heldItemVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static float distanceVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
     private static float distanceVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float espVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
+    private static float espVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
     private static float handOffsetX = 0.0F;
     private static float handOffsetY = 0.0F;
+    private static boolean handItemFlipEnabled = false;
+    private static HandItemOrientation handItemOrientation = HandItemOrientation.DEFAULT;
     private static int playerListOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static String menuLastTabId = "RAYS";
@@ -124,6 +129,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static VisualColorMode armorVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode distanceVisualColorMode = VisualColorMode.NICK;
+    private static VisualColorMode espVisualColorMode = VisualColorMode.NICK;
     private static int skyTopColor = DEFAULT_SKY_TOP_COLOR;
     private static int skyBottomColor = DEFAULT_SKY_BOTTOM_COLOR;
     private static KeyBinding toggleKey;
@@ -285,6 +291,27 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(offset, -1.5F, 1.5F);
         if (Math.abs(handOffsetY - clamped) < 0.0001F) return;
         handOffsetY = clamped;
+        saveConfigNow();
+    }
+
+    public static boolean isHandItemFlipEnabled() {
+        return handItemFlipEnabled;
+    }
+
+    public static void setHandItemFlipEnabled(boolean enabled) {
+        if (handItemFlipEnabled == enabled) return;
+        handItemFlipEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static HandItemOrientation getHandItemOrientation() {
+        return handItemOrientation;
+    }
+
+    public static void setHandItemOrientation(HandItemOrientation orientation) {
+        HandItemOrientation updated = orientation == null ? HandItemOrientation.DEFAULT : orientation;
+        if (handItemOrientation == updated) return;
+        handItemOrientation = updated;
         saveConfigNow();
     }
 
@@ -537,6 +564,49 @@ public class NoKnockbackClient implements ClientModInitializer {
     public static void setDistanceVisualGlowEnabled(boolean enabled) {
         if (distanceVisualGlowEnabled == enabled) return;
         distanceVisualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isEspVisualGlowEnabled() {
+        return espVisualGlowEnabled;
+    }
+
+    public static void setEspVisualGlowEnabled(boolean enabled) {
+        if (espVisualGlowEnabled == enabled) return;
+        espVisualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static VisualColorMode getEspVisualColorMode() {
+        return espVisualColorMode;
+    }
+
+    public static void setEspVisualColorMode(VisualColorMode mode) {
+        VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
+        if (espVisualColorMode == updated) return;
+        espVisualColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static float getEspVisualSaturationBoost() {
+        return espVisualSaturationBoost;
+    }
+
+    public static void setEspVisualSaturationBoost(float boost) {
+        float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
+        if (Math.abs(espVisualSaturationBoost - clamped) < 0.0001F) return;
+        espVisualSaturationBoost = clamped;
+        saveConfigNow();
+    }
+
+    public static float getEspVisualAnimationSpeed() {
+        return espVisualAnimationSpeed;
+    }
+
+    public static void setEspVisualAnimationSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
+        if (Math.abs(espVisualAnimationSpeed - clamped) < 0.0001F) return;
+        espVisualAnimationSpeed = clamped;
         saveConfigNow();
     }
 
@@ -837,11 +907,12 @@ public class NoKnockbackClient implements ClientModInitializer {
         int rgb = resolveVisualColor(
                 player,
                 0.0F,
-                rayVisualColorMode,
-                rayVisualSaturationBoost,
-                rayVisualAnimationSpeed
+                espVisualColorMode,
+                espVisualSaturationBoost,
+                espVisualAnimationSpeed
         );
-        return applyEmissive(rgb, 0.6F);
+        float emissive = espVisualGlowEnabled ? 1.0F : 0.6F;
+        return applyEmissive(rgb, emissive);
     }
 
     public static int getPlayerBaseColor(PlayerEntity player) {
@@ -1851,25 +1922,26 @@ public class NoKnockbackClient implements ClientModInitializer {
         return switch (colorMode) {
             case NICK -> rgbBase;
             case GRADIENT -> toGradientColor(rgbBase, seed, offset, saturationBoost, animationSpeed);
-            case RAINBOW -> toRainbowColor(seed, offset, animationSpeed);
+            case RAINBOW -> toRainbowColor(seed, offset, saturationBoost, animationSpeed);
         };
     }
 
     private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
         float baseHue = hsv[0];
-        float baseSat = Math.max(hsv[1], 0.35F);
-        float baseVal = Math.max(hsv[2], 0.35F);
-        float phase = wrapUnit(visualTime(animationSpeed) * 0.24F + seed * 0.041F + offset);
+        float baseSat = Math.max(hsv[1], 0.25F);
+        float baseVal = Math.max(hsv[2], 0.25F);
+        float phase = wrapUnit(visualTime(animationSpeed) * 0.35F + seed * 0.017F + offset);
         float wave = 0.5F + 0.5F * MathHelper.sin(phase * TWO_PI);
-        float saturation = MathHelper.clamp(baseSat * (0.78F + 0.32F * wave) * saturationBoost, 0.0F, 1.0F);
-        float value = MathHelper.clamp(baseVal * (0.68F + 0.46F * wave), 0.0F, 1.0F);
+        float saturation = MathHelper.clamp(baseSat * (0.75F + 0.5F * wave) * saturationBoost, 0.0F, 1.0F);
+        float value = MathHelper.clamp(baseVal * (0.55F + 0.65F * wave), 0.0F, 1.0F);
         return MathHelper.hsvToRgb(baseHue, saturation, value);
     }
 
-    private static int toRainbowColor(int seed, float offset, float animationSpeed) {
-        float hue = wrapUnit(visualTime(animationSpeed) * 0.28F + seed * 0.045F + offset);
-        return MathHelper.hsvToRgb(hue, 1.0F, 1.0F);
+    private static int toRainbowColor(int seed, float offset, float saturationBoost, float animationSpeed) {
+        float hue = wrapUnit(visualTime(animationSpeed) * 0.35F + seed * 0.032F + offset);
+        float saturation = MathHelper.clamp(0.85F * saturationBoost, 0.0F, 1.0F);
+        return MathHelper.hsvToRgb(hue, saturation, 1.0F);
     }
 
     private static float visualTime(float animationSpeed) {
@@ -1925,7 +1997,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         heldItemOverlayEnabled = config.heldItemOverlayEnabled;
         customSkyEnabled = config.customSkyEnabled;
         hideHandsWithItemEnabled = config.hideHandsWithItemEnabled;
+        handItemFlipEnabled = config.handItemFlipEnabled;
         rayVisualGlowEnabled = config.rayVisualGlowEnabled;
+        espVisualGlowEnabled = config.espVisualGlowEnabled;
         armorVisualGlowEnabled = config.armorVisualGlowEnabled;
         heldItemVisualGlowEnabled = config.heldItemVisualGlowEnabled;
         distanceVisualGlowEnabled = config.distanceVisualGlowEnabled;
@@ -1951,6 +2025,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         heldItemVisualAnimationSpeed = MathHelper.clamp(config.heldItemVisualAnimationSpeed, 0.2F, 4.0F);
         distanceVisualSaturationBoost = MathHelper.clamp(config.distanceVisualSaturationBoost, 1.0F, 2.5F);
         distanceVisualAnimationSpeed = MathHelper.clamp(config.distanceVisualAnimationSpeed, 0.2F, 4.0F);
+        espVisualSaturationBoost = MathHelper.clamp(config.espVisualSaturationBoost, 1.0F, 2.5F);
+        espVisualAnimationSpeed = MathHelper.clamp(config.espVisualAnimationSpeed, 0.2F, 4.0F);
         handFovScale = MathHelper.clamp(config.handFovScale, 0.5F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
@@ -1961,6 +2037,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         menuLastTabId = (config.menuLastTab == null || config.menuLastTab.isBlank()) ? "RAYS" : config.menuLastTab;
         menuScrollOffset = config.menuScrollOffset;
         rayOrigin = parseRayOrigin(config.rayOrigin);
+        handItemOrientation = parseHandItemOrientation(config.handItemOrientation);
         armorAnchorMode = parseOverlayAnchorMode(config.armorAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
         heldItemAnchorMode = parseOverlayAnchorMode(config.heldItemAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
         distanceAnchorMode = parseOverlayAnchorMode(config.distanceAnchorMode, OverlayAnchorMode.RAY_MIDDLE);
@@ -1968,6 +2045,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         armorVisualColorMode = parseVisualColorMode(config.armorVisualColorMode, VisualColorMode.NICK);
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
         distanceVisualColorMode = parseVisualColorMode(config.distanceVisualColorMode, VisualColorMode.NICK);
+        espVisualColorMode = parseVisualColorMode(config.espVisualColorMode, VisualColorMode.NICK);
     }
 
     private static void applyConfiguredKey(KeyBinding keyBinding, String translationKey) {
@@ -1988,6 +2066,18 @@ public class NoKnockbackClient implements ClientModInitializer {
             return RayOrigin.valueOf(rawValue.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
             return RayOrigin.BOTTOM;
+        }
+    }
+
+    private static HandItemOrientation parseHandItemOrientation(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return HandItemOrientation.DEFAULT;
+        }
+
+        try {
+            return HandItemOrientation.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return HandItemOrientation.DEFAULT;
         }
     }
 
@@ -2033,7 +2123,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.heldItemOverlayEnabled = heldItemOverlayEnabled;
         data.customSkyEnabled = customSkyEnabled;
         data.hideHandsWithItemEnabled = hideHandsWithItemEnabled;
+        data.handItemFlipEnabled = handItemFlipEnabled;
         data.rayVisualGlowEnabled = rayVisualGlowEnabled;
+        data.espVisualGlowEnabled = espVisualGlowEnabled;
         data.armorVisualGlowEnabled = armorVisualGlowEnabled;
         data.heldItemVisualGlowEnabled = heldItemVisualGlowEnabled;
         data.distanceVisualGlowEnabled = distanceVisualGlowEnabled;
@@ -2059,6 +2151,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.heldItemVisualAnimationSpeed = heldItemVisualAnimationSpeed;
         data.distanceVisualSaturationBoost = distanceVisualSaturationBoost;
         data.distanceVisualAnimationSpeed = distanceVisualAnimationSpeed;
+        data.espVisualSaturationBoost = espVisualSaturationBoost;
+        data.espVisualAnimationSpeed = espVisualAnimationSpeed;
         data.handFovScale = handFovScale;
         data.handOffsetX = handOffsetX;
         data.handOffsetY = handOffsetY;
@@ -2069,6 +2163,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.menuLastTab = menuLastTabId;
         data.menuScrollOffset = menuScrollOffset;
         data.rayOrigin = rayOrigin.name();
+        data.handItemOrientation = handItemOrientation.name();
         data.armorAnchorMode = armorAnchorMode.name();
         data.heldItemAnchorMode = heldItemAnchorMode.name();
         data.distanceAnchorMode = distanceAnchorMode.name();
@@ -2076,6 +2171,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.armorVisualColorMode = armorVisualColorMode.name();
         data.heldItemVisualColorMode = heldItemVisualColorMode.name();
         data.distanceVisualColorMode = distanceVisualColorMode.name();
+        data.espVisualColorMode = espVisualColorMode.name();
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -2108,6 +2204,12 @@ public class NoKnockbackClient implements ClientModInitializer {
     public enum RayOrigin {
         BOTTOM,
         CENTER
+    }
+
+    public enum HandItemOrientation {
+        DEFAULT,
+        LEFT,
+        RIGHT
     }
 
     public enum VisualColorMode {
