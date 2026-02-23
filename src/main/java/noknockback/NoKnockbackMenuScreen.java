@@ -946,7 +946,7 @@ public class NoKnockbackMenuScreen extends Screen {
         private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
         private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};
         private static final String[] TRAIL_COLOR_MODES = new String[]{"Nick", "Fixed", "Gradient", "Nick Gradient"};
-        private static final String[] AUTO_ATTACK_MODES = new String[]{"Circle", "Marked Only", "All Nearby"};
+        private static final String[] AUTO_ATTACK_MODES = new String[]{"Circle", "Circle + Mark", "Marked Only", "All Nearby"};
         private static final String[] CIRCLE_COLOR_MODES = new String[]{"Fixed", "Gradient", "Rainbow"};
 
         private final String id;

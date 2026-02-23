@@ -1523,7 +1523,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (targetHealthOverlayEnabled) {
             renderTargetHealthOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
         }
-        if (autoAttackEnabled && autoAttackMode == AutoAttackMode.CIRCLE) {
+        if (autoAttackEnabled && (autoAttackMode == AutoAttackMode.CIRCLE || autoAttackMode == AutoAttackMode.CIRCLE_MARK)) {
             renderAutoAttackCircle(drawContext, screenWidth, screenHeight);
         }
         if (!playerRaysEnabled) return;
@@ -1775,58 +1775,51 @@ public class NoKnockbackClient implements ClientModInitializer {
 
         float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
         Vec3d cameraPos = context.camera().getPos();
-        Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.55, 0.0);
+        Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.6, 0.0);
 
-        float height = Math.max(0.6F, target.getHeight() * 1.1F);
-        float width = Math.max(0.35F, target.getWidth() * 0.9F);
-        float radius = Math.max(0.25F, target.getWidth() * 0.75F);
-        float halfH = height * 0.5F;
-        float halfW = width * 0.5F;
-        float angle = visualTime(1.0F) * 45.0F;
+        float size = Math.max(0.6F, target.getHeight() * 0.5F);
+        float radius = Math.max(0.5F, target.getWidth() * 1.2F);
+        float angle = visualTime(1.0F) * 90.0F;
 
         int color = 0xFF000000 | applyEmissive(0x4CB1FF, 1.0F);
+        VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getDebugQuads());
 
+        renderMarkBillboard(context, cameraPos, targetPos, angle, radius, size, color, consumer);
+        renderMarkBillboard(context, cameraPos, targetPos, angle + 180.0F, radius, size, color, consumer);
+    }
+
+    private static void renderMarkBillboard(
+            WorldRenderContext context,
+            Vec3d cameraPos,
+            Vec3d targetPos,
+            float orbitAngle,
+            float radius,
+            float size,
+            int color,
+            VertexConsumer consumer
+    ) {
+        float half = size * 0.5F;
         context.matrixStack().push();
         context.matrixStack().translate(targetPos.x - cameraPos.x, targetPos.y - cameraPos.y, targetPos.z - cameraPos.z);
-        context.matrixStack().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(angle));
+        context.matrixStack().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(orbitAngle));
+        context.matrixStack().translate(radius, 0.0F, 0.0F);
+        context.matrixStack().multiply(context.camera().getRotation());
 
-        VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getDebugQuads());
         Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
-
         addQuad(consumer, matrix,
-                new Vec3d(-halfW, -halfH, radius),
-                new Vec3d(halfW, -halfH, radius),
-                new Vec3d(halfW, halfH, radius),
-                new Vec3d(-halfW, halfH, radius),
+                new Vec3d(-half, -half, 0.0),
+                new Vec3d(half, -half, 0.0),
+                new Vec3d(half, half, 0.0),
+                new Vec3d(-half, half, 0.0),
                 color
         );
         addQuad(consumer, matrix,
-                new Vec3d(-halfW, halfH, radius),
-                new Vec3d(halfW, halfH, radius),
-                new Vec3d(halfW, -halfH, radius),
-                new Vec3d(-halfW, -halfH, radius),
+                new Vec3d(-half, half, 0.0),
+                new Vec3d(half, half, 0.0),
+                new Vec3d(half, -half, 0.0),
+                new Vec3d(-half, -half, 0.0),
                 color
         );
-
-        context.matrixStack().push();
-        context.matrixStack().multiply(RotationAxis.POSITIVE_Y.rotationDegrees(90.0F));
-        matrix = context.matrixStack().peek().getPositionMatrix();
-        addQuad(consumer, matrix,
-                new Vec3d(-halfW, -halfH, radius),
-                new Vec3d(halfW, -halfH, radius),
-                new Vec3d(halfW, halfH, radius),
-                new Vec3d(-halfW, halfH, radius),
-                color
-        );
-        addQuad(consumer, matrix,
-                new Vec3d(-halfW, halfH, radius),
-                new Vec3d(halfW, halfH, radius),
-                new Vec3d(halfW, -halfH, radius),
-                new Vec3d(-halfW, -halfH, radius),
-                color
-        );
-        context.matrixStack().pop();
-
         context.matrixStack().pop();
     }
 
@@ -1900,6 +1893,13 @@ public class NoKnockbackClient implements ClientModInitializer {
     ) {
         return switch (autoAttackMode) {
             case MARK_ONLY -> findMarkedPlayer(client);
+            case CIRCLE_MARK -> {
+                PlayerEntity marked = findMarkedPlayer(client);
+                if (marked == null) {
+                    yield null;
+                }
+                yield isPlayerInCircle(marked, camera, tickDelta, fov, width, height, autoAttackCircleRadius) ? marked : null;
+            }
             case ALL_NEARBY -> findNearestPlayer(client, getAttackReach(client.player), autoAttackRequireLineOfSight);
             case CIRCLE -> findTargetInCircle(client, camera, tickDelta, fov, width, height, autoAttackCircleRadius);
         };
@@ -1937,6 +1937,24 @@ public class NoKnockbackClient implements ClientModInitializer {
             }
         }
         return best;
+    }
+
+    private static boolean isPlayerInCircle(
+            PlayerEntity target,
+            Camera camera,
+            float tickDelta,
+            float fov,
+            int width,
+            int height,
+            float radius
+    ) {
+        if (target == null || target.isRemoved()) return false;
+        Vector3f projected = new Vector3f();
+        Vec3d pos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+        if (!projectToScreen(pos, camera, width, height, fov, projected)) return false;
+        float dx = projected.x - width * 0.5F;
+        float dy = projected.y - height * 0.5F;
+        return dx * dx + dy * dy <= radius * radius;
     }
 
     private static PlayerEntity findNearestPlayer(MinecraftClient client, double maxDistance, boolean requireSight) {
@@ -3232,6 +3250,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     public enum AutoAttackMode {
         CIRCLE,
+        CIRCLE_MARK,
         MARK_ONLY,
         ALL_NEARBY
     }
