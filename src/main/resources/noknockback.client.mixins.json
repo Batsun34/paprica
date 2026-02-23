@@ -4,6 +4,7 @@
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"DimensionEffectsMixin",
+		"DimensionEffectsFogMixin",
 		"ExampleClientMixin",
 		"GameRendererAccessor",
 		"HeldItemRendererMixin",
