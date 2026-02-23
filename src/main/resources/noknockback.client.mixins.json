@@ -3,6 +3,7 @@
 	"package": "noknockback.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"ClientWorldMixin",
 		"DimensionEffectsMixin",
 		"DimensionEffectsFogMixin",
 		"ExampleClientMixin",
