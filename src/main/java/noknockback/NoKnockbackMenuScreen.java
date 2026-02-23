@@ -50,8 +50,6 @@ public class NoKnockbackMenuScreen extends Screen {
     @Nullable
     private ButtonWidget playerEspToggleButton;
     @Nullable
-    private ButtonWidget playerArmorOverlayToggleButton;
-    @Nullable
     private ButtonWidget playerRaysToggleButton;
     @Nullable
     private ButtonWidget playerListToggleButton;
@@ -136,11 +134,7 @@ public class NoKnockbackMenuScreen extends Screen {
         });
         y += ROW_HEIGHT + ROW_GAP;
 
-        this.playerArmorOverlayToggleButton = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setPlayerArmorOverlayEnabled(!NoKnockbackClient.isPlayerArmorOverlayEnabled());
-            this.refreshLabels();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
-        y += ROW_HEIGHT + SECTION_GAP;
+        y += SECTION_GAP;
 
         this.sectionTitles.add(new SectionTitle("Rays", y));
         y += 12;
@@ -346,6 +340,11 @@ public class NoKnockbackMenuScreen extends Screen {
         y += ROW_HEIGHT + SECTION_GAP;
 
         this.contentBottom = y;
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("Visual Settings"), button -> {
+            if (this.client != null) {
+                this.client.setScreen(new NoKnockbackVisualSettingsScreen(this));
+            }
+        }).dimensions(left, this.height - ROW_HEIGHT - 6, 130, ROW_HEIGHT).build());
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> this.close())
                 .dimensions(left + PANEL_WIDTH - 100, this.height - ROW_HEIGHT - 6, 100, ROW_HEIGHT).build());
 
@@ -474,10 +473,6 @@ public class NoKnockbackMenuScreen extends Screen {
             this.playerEspToggleButton.setMessage(this.toggleText("Player ESP", NoKnockbackClient.isPlayerEspEnabled()));
         }
 
-        if (this.playerArmorOverlayToggleButton != null) {
-            this.playerArmorOverlayToggleButton.setMessage(this.toggleText("Armor Through Walls", NoKnockbackClient.isPlayerArmorOverlayEnabled()));
-        }
-
         if (this.playerRaysToggleButton != null) {
             this.playerRaysToggleButton.setMessage(this.toggleText("Player Rays", NoKnockbackClient.isPlayerRaysEnabled()));
         }
@@ -505,6 +500,7 @@ public class NoKnockbackMenuScreen extends Screen {
 
         if (this.rayDistanceTextSizeSlider != null) {
             this.rayDistanceTextSizeSlider.sync(NoKnockbackClient.getRayLabelTextScale());
+            this.rayDistanceTextSizeSlider.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
 
         if (this.targetHealthToggleButton != null) {

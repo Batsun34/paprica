@@ -60,6 +60,9 @@ public final class NoKnockbackConfig {
         sanitized.playerListEnabled = data.playerListEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
+        sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
+        sanitized.heldItemOverlayEnabled = data.heldItemOverlayEnabled;
+        sanitized.visualGlowEnabled = data.visualGlowEnabled;
         sanitized.rayThickness = MathHelper.clamp(data.rayThickness, 0.5F, 8.0F);
         sanitized.outlineThickness = MathHelper.clamp(data.outlineThickness, 0.5F, 6.0F);
         sanitized.rayBottomStartHeight = MathHelper.clamp(data.rayBottomStartHeight, 0.0F, 300.0F);
@@ -71,6 +74,9 @@ public final class NoKnockbackConfig {
         sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
         sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
         sanitized.rayOrigin = sanitizeRayOrigin(data.rayOrigin);
+        sanitized.visualColorMode = sanitizeVisualColorMode(data.visualColorMode);
+        sanitized.visualSaturationBoost = MathHelper.clamp(data.visualSaturationBoost, 1.0F, 2.5F);
+        sanitized.visualAnimationSpeed = MathHelper.clamp(data.visualAnimationSpeed, 0.2F, 4.0F);
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
         sanitized.playerEspKey = sanitizeKey(data.playerEspKey, "key.keyboard.h");
@@ -106,6 +112,18 @@ public final class NoKnockbackConfig {
         }
     }
 
+    private static String sanitizeVisualColorMode(String value) {
+        if (value == null) {
+            return NoKnockbackClient.VisualColorMode.VIVID.name();
+        }
+
+        try {
+            return NoKnockbackClient.VisualColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return NoKnockbackClient.VisualColorMode.VIVID.name();
+        }
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean playerEspEnabled = false;
@@ -114,6 +132,9 @@ public final class NoKnockbackConfig {
         public boolean playerListEnabled = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
+        public boolean distanceDisplayEnabled = true;
+        public boolean heldItemOverlayEnabled = false;
+        public boolean visualGlowEnabled = false;
         public float rayThickness = 2.0F;
         public float outlineThickness = 1.0F;
         public float rayBottomStartHeight = 2.0F;
@@ -125,6 +146,9 @@ public final class NoKnockbackConfig {
         public int playerListOffsetX = 6;
         public int playerListOffsetY = 6;
         public String rayOrigin = NoKnockbackClient.RayOrigin.BOTTOM.name();
+        public String visualColorMode = NoKnockbackClient.VisualColorMode.VIVID.name();
+        public float visualSaturationBoost = 1.35F;
+        public float visualAnimationSpeed = 1.0F;
 
         public String speedToggleKey = "key.keyboard.v";
         public String playerEspKey = "key.keyboard.h";

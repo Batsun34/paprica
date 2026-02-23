@@ -63,6 +63,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_YELLOW = 0xFFFFE44A;
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
+    private static final float TWO_PI = (float) (Math.PI * 2.0);
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("noknockback", "hud_overlay");
 
     private static boolean speedEnabled = true;
@@ -72,6 +73,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean playerListEnabled = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
+    private static boolean distanceDisplayEnabled = true;
+    private static boolean heldItemOverlayEnabled = false;
+    private static boolean visualGlowEnabled = false;
     private static float rayThickness = 2.0F;
     private static float outlineThickness = 1.0F;
     private static float rayBottomStartHeight = 2.0F;
@@ -80,9 +84,12 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float playerListTextScale = DEFAULT_PLAYER_LIST_TEXT_SCALE;
     private static int playerListMaxHeight = DEFAULT_PLAYER_LIST_MAX_HEIGHT;
     private static float playerListAlphaMultiplier = DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER;
+    private static float visualSaturationBoost = 1.35F;
+    private static float visualAnimationSpeed = 1.0F;
     private static int playerListOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
+    private static VisualColorMode visualColorMode = VisualColorMode.VIVID;
     private static KeyBinding toggleKey;
     private static KeyBinding togglePlayerEspKey;
     private static KeyBinding togglePlayerRaysKey;
@@ -158,6 +165,69 @@ public class NoKnockbackClient implements ClientModInitializer {
     public static void setTargetHealthDynamicColorEnabled(boolean enabled) {
         if (targetHealthDynamicColorEnabled == enabled) return;
         targetHealthDynamicColorEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isDistanceDisplayEnabled() {
+        return distanceDisplayEnabled;
+    }
+
+    public static void setDistanceDisplayEnabled(boolean enabled) {
+        if (distanceDisplayEnabled == enabled) return;
+        distanceDisplayEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isHeldItemOverlayEnabled() {
+        return heldItemOverlayEnabled;
+    }
+
+    public static void setHeldItemOverlayEnabled(boolean enabled) {
+        if (heldItemOverlayEnabled == enabled) return;
+        heldItemOverlayEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isVisualGlowEnabled() {
+        return visualGlowEnabled;
+    }
+
+    public static void setVisualGlowEnabled(boolean enabled) {
+        if (visualGlowEnabled == enabled) return;
+        visualGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static VisualColorMode getVisualColorMode() {
+        return visualColorMode;
+    }
+
+    public static void setVisualColorMode(VisualColorMode mode) {
+        VisualColorMode updated = mode == null ? VisualColorMode.VIVID : mode;
+        if (visualColorMode == updated) return;
+        visualColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static float getVisualSaturationBoost() {
+        return visualSaturationBoost;
+    }
+
+    public static void setVisualSaturationBoost(float boost) {
+        float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
+        if (Math.abs(visualSaturationBoost - clamped) < 0.0001F) return;
+        visualSaturationBoost = clamped;
+        saveConfigNow();
+    }
+
+    public static float getVisualAnimationSpeed() {
+        return visualAnimationSpeed;
+    }
+
+    public static void setVisualAnimationSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
+        if (Math.abs(visualAnimationSpeed - clamped) < 0.0001F) return;
+        visualAnimationSpeed = clamped;
         saveConfigNow();
     }
 
@@ -307,6 +377,18 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static int getPlayerHighlightColor(PlayerEntity player) {
+        if (player == null) {
+            return 0xFFFFFF;
+        }
+
+        return resolveVisualColor(player, 0.0F);
+    }
+
+    public static int getPlayerBaseColor(PlayerEntity player) {
+        if (player == null) {
+            return 0xFFFFFF;
+        }
+
         TextColor textColor = player.getDisplayName().getStyle().getColor();
         return textColor != null ? textColor.getRgb() : player.getTeamColorValue();
     }
@@ -482,7 +564,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
         float renderFov = fov;
 
-        if (playerArmorOverlayEnabled) {
+        if (playerArmorOverlayEnabled || heldItemOverlayEnabled) {
             renderPlayerArmorOverlay(drawContext, client, localPlayer, camera, tickDelta, renderFov, screenWidth, screenHeight);
         }
         if (targetHealthOverlayEnabled) {
@@ -507,17 +589,34 @@ public class NoKnockbackClient implements ClientModInitializer {
                 Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
                 if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
 
-                int color = 0xFF000000 | getPlayerHighlightColor(target);
-                drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, color);
+                int startColor = 0xFF000000 | resolveVisualColor(target, 0.08F);
+                int endColor = 0xFF000000 | resolveVisualColor(target, 0.42F);
+                if (visualGlowEnabled) {
+                    drawThickRay(
+                            matrix,
+                            lineConsumer,
+                            startX,
+                            startY,
+                            projected.x,
+                            projected.y,
+                            rayThickness * 2.6F,
+                            withAlpha(startColor, 0.38F),
+                            withAlpha(endColor, 0.38F)
+                    );
+                }
+                drawThickRay(matrix, lineConsumer, startX, startY, projected.x, projected.y, rayThickness, startColor, endColor);
 
-                int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
-                labels.add(createRayDistanceLabel(
-                        Integer.toString(Math.max(0, meters)) + "m",
-                        startX,
-                        startY,
-                        projected.x,
-                        projected.y
-                ));
+                if (distanceDisplayEnabled) {
+                    int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
+                    labels.add(createRayDistanceLabel(
+                            Integer.toString(Math.max(0, meters)) + "m",
+                            startX,
+                            startY,
+                            projected.x,
+                            projected.y,
+                            endColor
+                    ));
+                }
             }
         });
 
@@ -532,7 +631,8 @@ public class NoKnockbackClient implements ClientModInitializer {
             float x2,
             float y2,
             float thickness,
-            int color
+            int startColor,
+            int endColor
     ) {
         float dx = x2 - x1;
         float dy = y2 - y1;
@@ -543,10 +643,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         float nx = -dy / len * half;
         float ny = dx / len * half;
 
-        consumer.vertex(matrix, x1 - nx, y1 - ny, 0.0F).color(color);
-        consumer.vertex(matrix, x1 + nx, y1 + ny, 0.0F).color(color);
-        consumer.vertex(matrix, x2 + nx, y2 + ny, 0.0F).color(color);
-        consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(color);
+        consumer.vertex(matrix, x1 - nx, y1 - ny, 0.0F).color(startColor);
+        consumer.vertex(matrix, x1 + nx, y1 + ny, 0.0F).color(startColor);
+        consumer.vertex(matrix, x2 + nx, y2 + ny, 0.0F).color(endColor);
+        consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(endColor);
     }
 
     private static RayDistanceLabel createRayDistanceLabel(
@@ -554,7 +654,8 @@ public class NoKnockbackClient implements ClientModInitializer {
             float startX,
             float startY,
             float endX,
-            float endY
+            float endY,
+            int color
     ) {
         float dx = endX - startX;
         float dy = endY - startY;
@@ -569,7 +670,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             labelY += ny * RAY_LABEL_PERP_OFFSET;
         }
 
-        return new RayDistanceLabel(text, labelX, labelY);
+        return new RayDistanceLabel(text, labelX, labelY, color);
     }
 
     private static void renderRayDistanceLabels(
@@ -593,6 +694,15 @@ public class NoKnockbackClient implements ClientModInitializer {
             x = MathHelper.clamp(x, margin, Math.max(margin, screenWidth - scaledWidth - margin));
             y = MathHelper.clamp(y, margin, Math.max(margin, screenHeight - scaledHeight - margin));
 
+            if (visualGlowEnabled) {
+                drawContext.fill(
+                        x - 4,
+                        y - 3,
+                        x + scaledWidth + 4,
+                        y + scaledHeight + 3,
+                        withAlpha(label.color(), 0.35F)
+                );
+            }
             drawContext.fill(
                     x - 2,
                     y - 1,
@@ -604,7 +714,8 @@ public class NoKnockbackClient implements ClientModInitializer {
             drawContext.getMatrices().push();
             drawContext.getMatrices().translate(x, y, 0.0F);
             drawContext.getMatrices().scale(rayLabelTextScale, rayLabelTextScale, 1.0F);
-            drawContext.drawTextWithShadow(client.textRenderer, label.text(), 0, 0, RAY_LABEL_TEXT_COLOR);
+            int textColor = withAlpha(label.color(), 0.95F);
+            drawContext.drawTextWithShadow(client.textRenderer, label.text(), 0, 0, textColor);
             drawContext.getMatrices().pop();
         }
     }
@@ -629,24 +740,42 @@ public class NoKnockbackClient implements ClientModInitializer {
             Vec3d overlayPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() + 0.35, 0.0);
             if (!projectToIndicator(overlayPos, camera, screenWidth, screenHeight, fovDegrees, projected)) continue;
 
-            List<ItemStack> armorStacks = new ArrayList<>(4);
-            ItemStack head = target.getEquippedStack(EquipmentSlot.HEAD);
-            ItemStack chest = target.getEquippedStack(EquipmentSlot.CHEST);
-            ItemStack legs = target.getEquippedStack(EquipmentSlot.LEGS);
-            ItemStack feet = target.getEquippedStack(EquipmentSlot.FEET);
-            if (!head.isEmpty()) armorStacks.add(head);
-            if (!chest.isEmpty()) armorStacks.add(chest);
-            if (!legs.isEmpty()) armorStacks.add(legs);
-            if (!feet.isEmpty()) armorStacks.add(feet);
-            if (armorStacks.isEmpty()) continue;
+            List<ItemStack> displayStacks = new ArrayList<>(6);
+            if (playerArmorOverlayEnabled) {
+                ItemStack head = target.getEquippedStack(EquipmentSlot.HEAD);
+                ItemStack chest = target.getEquippedStack(EquipmentSlot.CHEST);
+                ItemStack legs = target.getEquippedStack(EquipmentSlot.LEGS);
+                ItemStack feet = target.getEquippedStack(EquipmentSlot.FEET);
+                if (!head.isEmpty()) displayStacks.add(head);
+                if (!chest.isEmpty()) displayStacks.add(chest);
+                if (!legs.isEmpty()) displayStacks.add(legs);
+                if (!feet.isEmpty()) displayStacks.add(feet);
+            }
+            if (heldItemOverlayEnabled) {
+                ItemStack mainHand = target.getMainHandStack();
+                ItemStack offHand = target.getOffHandStack();
+                if (!mainHand.isEmpty()) displayStacks.add(mainHand);
+                if (!offHand.isEmpty()) displayStacks.add(offHand);
+            }
+            if (displayStacks.isEmpty()) continue;
 
-            int count = armorStacks.size();
+            int accentColor = 0xFF000000 | resolveVisualColor(target, 0.24F);
+            int count = displayStacks.size();
             int totalWidth = count * iconSize + (count - 1) * ARMOR_OVERLAY_ICON_SPACING;
             int startX = Math.round(projected.x) - totalWidth / 2;
             int startY = Math.round(projected.y) - iconSize - 6;
             startX = MathHelper.clamp(startX, 1, Math.max(1, screenWidth - totalWidth - 1));
             startY = MathHelper.clamp(startY, 1, Math.max(1, screenHeight - iconSize - 1));
 
+            if (visualGlowEnabled) {
+                drawContext.fill(
+                        startX - 3,
+                        startY - 3,
+                        startX + totalWidth + 3,
+                        startY + iconSize + 3,
+                        withAlpha(accentColor, 0.35F)
+                );
+            }
             drawContext.fill(startX - 1, startY - 1, startX + totalWidth + 1, startY + iconSize + 1, 0x5A000000);
 
             for (int i = 0; i < count; i++) {
@@ -655,8 +784,30 @@ public class NoKnockbackClient implements ClientModInitializer {
                 drawContext.getMatrices().push();
                 drawContext.getMatrices().translate(iconX, iconY, 0.0F);
                 drawContext.getMatrices().scale(ARMOR_OVERLAY_ICON_SCALE, ARMOR_OVERLAY_ICON_SCALE, 1.0F);
-                drawContext.drawItem(armorStacks.get(i), 0, 0);
+                drawContext.drawItem(displayStacks.get(i), 0, 0);
                 drawContext.getMatrices().pop();
+            }
+
+            if (distanceDisplayEnabled && client.textRenderer != null) {
+                int meters = Math.max(0, Math.round((float) localPlayer.getPos().distanceTo(target.getPos())));
+                String distanceText = meters + "m";
+                int textWidth = client.textRenderer.getWidth(distanceText);
+                int textX = MathHelper.clamp(
+                        startX + totalWidth / 2 - textWidth / 2,
+                        2,
+                        Math.max(2, screenWidth - textWidth - 2)
+                );
+                int textY = MathHelper.clamp(
+                        startY - client.textRenderer.fontHeight - 3,
+                        2,
+                        Math.max(2, screenHeight - client.textRenderer.fontHeight - 2)
+                );
+
+                if (visualGlowEnabled) {
+                    drawContext.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + client.textRenderer.fontHeight + 2, withAlpha(accentColor, 0.32F));
+                }
+                drawContext.fill(textX - 2, textY - 1, textX + textWidth + 2, textY + client.textRenderer.fontHeight + 1, 0x65000000);
+                drawContext.drawTextWithShadow(client.textRenderer, distanceText, textX, textY, withAlpha(accentColor, 0.95F));
             }
         }
     }
@@ -695,6 +846,10 @@ public class NoKnockbackClient implements ClientModInitializer {
             textX = MathHelper.clamp(textX, 2, Math.max(2, screenWidth - scaledWidth - 2));
             textY = MathHelper.clamp(textY, 2, Math.max(2, screenHeight - scaledHeight - 2));
 
+            if (visualGlowEnabled) {
+                int accentColor = 0xFF000000 | resolveVisualColor(target, 0.56F);
+                drawContext.fill(textX - 4, textY - 3, textX + scaledWidth + 4, textY + scaledHeight + 3, withAlpha(accentColor, 0.33F));
+            }
             drawContext.fill(textX - 2, textY - 1, textX + scaledWidth + 2, textY + scaledHeight + 1, TARGET_HEALTH_BG_COLOR);
             drawContext.getMatrices().push();
             drawContext.getMatrices().translate(textX, textY, 0.0F);
@@ -724,10 +879,11 @@ public class NoKnockbackClient implements ClientModInitializer {
         for (PlayerEntity target : client.world.getPlayers()) {
             if (target == localPlayer || target.isRemoved()) continue;
 
-            int color = getPlayerHighlightColor(target) & 0xFFFFFF;
+            int color = getPlayerGroupingColor(target) & 0xFFFFFF;
             double distance = localPlayer.getPos().distanceTo(target.getPos());
             String name = target.getName().getString();
-            groups.computeIfAbsent(color, ignored -> new ArrayList<>()).add(new PlayerDistanceEntry(name, distance));
+            int displayColor = 0xFF000000 | resolveVisualColor(target, 0.18F);
+            groups.computeIfAbsent(color, ignored -> new ArrayList<>()).add(new PlayerDistanceEntry(name, distance, displayColor));
         }
 
         if (groups.isEmpty()) return;
@@ -742,9 +898,12 @@ public class NoKnockbackClient implements ClientModInitializer {
             entries.sort(Comparator.comparingDouble(PlayerDistanceEntry::distance));
 
             for (PlayerDistanceEntry entry : entries) {
+                String lineText = distanceDisplayEnabled
+                        ? entry.name() + " - " + (int) Math.round(entry.distance()) + " m"
+                        : entry.name();
                 lines.add(new PlayerListLine(
-                        entry.name() + " - " + (int) Math.round(entry.distance()) + " m",
-                        0xFF000000 | color
+                        lineText,
+                        entry.displayColor()
                 ));
             }
         }
@@ -775,6 +934,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         int x2 = x1 + panelWidth;
         int y2 = y1 + panelHeight;
 
+        if (visualGlowEnabled && !lines.isEmpty()) {
+            int glowColor = withAlpha(lines.get(0).color(), 0.32F * playerListAlphaMultiplier);
+            drawContext.fill(x1 - 4, y1 - 4, x2 + 4, y2 + 4, glowColor);
+        }
         drawContext.fill(x1 - 1, y1 - 1, x2 + 1, y2 + 1, withAlpha(PLAYER_LIST_BORDER_COLOR, playerListAlphaMultiplier));
         drawContext.fill(x1, y1, x2, y2, withAlpha(PLAYER_LIST_BG_COLOR, playerListAlphaMultiplier));
 
@@ -782,6 +945,15 @@ public class NoKnockbackClient implements ClientModInitializer {
         int textY = y1 + PLAYER_LIST_PADDING;
         for (PlayerListLine line : lines) {
             int textColor = withAlpha(line.color(), playerListAlphaMultiplier);
+            if (visualGlowEnabled) {
+                drawContext.fill(
+                        textX - 2,
+                        textY - 1,
+                        textX + Math.max(2, Math.round(client.textRenderer.getWidth(line.text()) * playerListTextScale)) + 2,
+                        textY + textLineHeight - 1,
+                        withAlpha(line.color(), 0.18F * playerListAlphaMultiplier)
+                );
+            }
             drawContext.getMatrices().push();
             drawContext.getMatrices().translate(textX, textY, 0.0F);
             drawContext.getMatrices().scale(playerListTextScale, playerListTextScale, 1.0F);
@@ -897,6 +1069,90 @@ public class NoKnockbackClient implements ClientModInitializer {
         return (adjustedAlpha << 24) | (color & 0x00FFFFFF);
     }
 
+    private static int getPlayerGroupingColor(PlayerEntity player) {
+        int baseColor = getPlayerBaseColor(player);
+        if (visualColorMode == VisualColorMode.NICK) {
+            return baseColor;
+        }
+
+        return toVividColor(baseColor);
+    }
+
+    private static int resolveVisualColor(PlayerEntity player, float offset) {
+        return resolveVisualColor(getPlayerBaseColor(player), player.getId(), offset);
+    }
+
+    private static int resolveVisualColor(int baseColor, int seed, float offset) {
+        int rgbBase = baseColor & 0x00FFFFFF;
+        return switch (visualColorMode) {
+            case NICK -> rgbBase;
+            case VIVID -> toVividColor(rgbBase);
+            case GRADIENT -> toGradientColor(rgbBase, seed, offset);
+            case RAINBOW -> toRainbowColor(seed, offset);
+        };
+    }
+
+    private static int toVividColor(int rgbColor) {
+        float[] hsv = rgbToHsv(rgbColor);
+        float saturation = MathHelper.clamp(Math.max(hsv[1], 0.45F) * visualSaturationBoost, 0.0F, 1.0F);
+        float value = MathHelper.clamp(Math.max(hsv[2], 0.72F) * 1.08F, 0.0F, 1.0F);
+        return MathHelper.hsvToRgb(hsv[0], saturation, value);
+    }
+
+    private static int toGradientColor(int rgbColor, int seed, float offset) {
+        float[] hsv = rgbToHsv(rgbColor);
+        float phase = wrapUnit(visualTime() * 0.18F + seed * 0.037F + offset);
+        float wave = 0.5F + 0.5F * MathHelper.sin(phase * TWO_PI);
+        float hueShift = MathHelper.lerp(wave, -0.14F, 0.14F);
+        float hue = wrapUnit(hsv[0] + hueShift);
+        float saturation = MathHelper.clamp(Math.max(hsv[1], 0.55F) * visualSaturationBoost, 0.0F, 1.0F);
+        float value = MathHelper.clamp(Math.max(hsv[2], 0.8F) * 1.1F, 0.0F, 1.0F);
+        return MathHelper.hsvToRgb(hue, saturation, value);
+    }
+
+    private static int toRainbowColor(int seed, float offset) {
+        float hue = wrapUnit(visualTime() * 0.22F + seed * 0.041F + offset);
+        return MathHelper.hsvToRgb(hue, 0.92F, 1.0F);
+    }
+
+    private static float visualTime() {
+        return (System.currentTimeMillis() / 1000.0F) * visualAnimationSpeed;
+    }
+
+    private static float wrapUnit(float value) {
+        float wrapped = value % 1.0F;
+        return wrapped < 0.0F ? wrapped + 1.0F : wrapped;
+    }
+
+    private static float[] rgbToHsv(int rgbColor) {
+        float r = ((rgbColor >>> 16) & 0xFF) / 255.0F;
+        float g = ((rgbColor >>> 8) & 0xFF) / 255.0F;
+        float b = (rgbColor & 0xFF) / 255.0F;
+
+        float max = Math.max(r, Math.max(g, b));
+        float min = Math.min(r, Math.min(g, b));
+        float delta = max - min;
+
+        float hue;
+        if (delta < 0.00001F) {
+            hue = 0.0F;
+        } else if (max == r) {
+            hue = ((g - b) / delta) % 6.0F;
+        } else if (max == g) {
+            hue = ((b - r) / delta) + 2.0F;
+        } else {
+            hue = ((r - g) / delta) + 4.0F;
+        }
+
+        hue /= 6.0F;
+        if (hue < 0.0F) {
+            hue += 1.0F;
+        }
+
+        float saturation = max <= 0.0F ? 0.0F : (delta / max);
+        return new float[]{hue, saturation, max};
+    }
+
     private static void applyLoadedConfig(NoKnockbackConfig.Data config) {
         if (config == null) return;
 
@@ -907,6 +1163,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerListEnabled = config.playerListEnabled;
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
+        distanceDisplayEnabled = config.distanceDisplayEnabled;
+        heldItemOverlayEnabled = config.heldItemOverlayEnabled;
+        visualGlowEnabled = config.visualGlowEnabled;
         rayThickness = MathHelper.clamp(config.rayThickness, 0.5F, 8.0F);
         outlineThickness = MathHelper.clamp(config.outlineThickness, 0.5F, 6.0F);
         rayBottomStartHeight = MathHelper.clamp(config.rayBottomStartHeight, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
@@ -915,9 +1174,12 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerListTextScale = MathHelper.clamp(config.playerListTextScale, 0.1F, 2.0F);
         playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
         playerListAlphaMultiplier = MathHelper.clamp(config.playerListAlpha, 0.1F, 1.0F);
+        visualSaturationBoost = MathHelper.clamp(config.visualSaturationBoost, 1.0F, 2.5F);
+        visualAnimationSpeed = MathHelper.clamp(config.visualAnimationSpeed, 0.2F, 4.0F);
         playerListOffsetX = MathHelper.clamp(config.playerListOffsetX, 0, MAX_PLAYER_LIST_OFFSET);
         playerListOffsetY = MathHelper.clamp(config.playerListOffsetY, 0, MAX_PLAYER_LIST_OFFSET);
         rayOrigin = parseRayOrigin(config.rayOrigin);
+        visualColorMode = parseVisualColorMode(config.visualColorMode);
     }
 
     private static void applyConfiguredKey(KeyBinding keyBinding, String translationKey) {
@@ -941,6 +1203,18 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
     }
 
+    private static VisualColorMode parseVisualColorMode(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return VisualColorMode.VIVID;
+        }
+
+        try {
+            return VisualColorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return VisualColorMode.VIVID;
+        }
+    }
+
     private static NoKnockbackConfig.Data captureConfig() {
         NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
         data.speedEnabled = speedEnabled;
@@ -950,6 +1224,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerListEnabled = playerListEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
+        data.distanceDisplayEnabled = distanceDisplayEnabled;
+        data.heldItemOverlayEnabled = heldItemOverlayEnabled;
+        data.visualGlowEnabled = visualGlowEnabled;
         data.rayThickness = rayThickness;
         data.outlineThickness = outlineThickness;
         data.rayBottomStartHeight = rayBottomStartHeight;
@@ -958,9 +1235,12 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerListTextScale = playerListTextScale;
         data.playerListMaxHeight = playerListMaxHeight;
         data.playerListAlpha = playerListAlphaMultiplier;
+        data.visualSaturationBoost = visualSaturationBoost;
+        data.visualAnimationSpeed = visualAnimationSpeed;
         data.playerListOffsetX = playerListOffsetX;
         data.playerListOffsetY = playerListOffsetY;
         data.rayOrigin = rayOrigin.name();
+        data.visualColorMode = visualColorMode.name();
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -981,17 +1261,24 @@ public class NoKnockbackClient implements ClientModInitializer {
         return data;
     }
 
-    private record PlayerDistanceEntry(String name, double distance) {
+    private record PlayerDistanceEntry(String name, double distance, int displayColor) {
     }
 
     private record PlayerListLine(String text, int color) {
     }
 
-    private record RayDistanceLabel(String text, float x, float y) {
+    private record RayDistanceLabel(String text, float x, float y, int color) {
     }
 
     public enum RayOrigin {
         BOTTOM,
         CENTER
+    }
+
+    public enum VisualColorMode {
+        NICK,
+        VIVID,
+        GRADIENT,
+        RAINBOW
     }
 }
