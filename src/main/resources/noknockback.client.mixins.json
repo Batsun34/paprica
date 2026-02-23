@@ -9,7 +9,7 @@
 		"ExampleClientMixin",
 		"GameRendererAccessor",
 		"HeldItemRendererMixin",
-		"PostEffectPassMixin",
+		"WorldRendererOutlineScaleMixin",
 		"WorldRendererMixin"
 	],
 	"injectors": {

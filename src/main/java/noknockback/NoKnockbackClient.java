@@ -1928,24 +1928,44 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
+        float baseSat = Math.max(hsv[1], 0.2F);
+        float baseVal = Math.max(hsv[2], 0.35F);
+        float time = visualTime(animationSpeed);
+        float phase = (time * 1.15F) + seed * 0.07F + offset * 1.6F;
+        float wave = 0.5F + 0.5F * MathHelper.sin(phase);
+        float wave2 = 0.5F + 0.5F * MathHelper.sin(phase + 2.094F);
+
         float baseHue = hsv[0];
-        float baseSat = Math.max(hsv[1], 0.25F);
-        float baseVal = Math.max(hsv[2], 0.25F);
-        float phase = wrapUnit(visualTime(animationSpeed) * 0.35F + seed * 0.017F + offset);
-        float wave = 0.5F + 0.5F * MathHelper.sin(phase * TWO_PI);
-        float saturation = MathHelper.clamp(baseSat * (0.75F + 0.5F * wave) * saturationBoost, 0.0F, 1.0F);
-        float value = MathHelper.clamp(baseVal * (0.55F + 0.65F * wave), 0.0F, 1.0F);
-        return MathHelper.hsvToRgb(baseHue, saturation, value);
+        if (hsv[1] < 0.08F) {
+            baseHue = wrapUnit((seed * 0.03F) + time * 0.12F);
+        }
+        float hue = wrapUnit(baseHue + (wave - 0.5F) * 0.12F);
+        float saturation = MathHelper.clamp((baseSat * (0.7F + 0.6F * wave)) * saturationBoost, 0.0F, 1.0F);
+        float value = MathHelper.clamp(baseVal * (0.6F + 0.6F * wave2), 0.0F, 1.0F);
+        return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
     private static int toRainbowColor(int seed, float offset, float saturationBoost, float animationSpeed) {
-        float hue = wrapUnit(visualTime(animationSpeed) * 0.35F + seed * 0.032F + offset);
-        float saturation = MathHelper.clamp(0.85F * saturationBoost, 0.0F, 1.0F);
-        return MathHelper.hsvToRgb(hue, saturation, 1.0F);
+        float time = visualTime(animationSpeed);
+        float phase = time * 1.4F + seed * 0.11F + offset * 2.0F;
+        float r = 0.5F + 0.5F * MathHelper.sin(phase);
+        float g = 0.5F + 0.5F * MathHelper.sin(phase + 2.094F);
+        float b = 0.5F + 0.5F * MathHelper.sin(phase + 4.188F);
+        float gray = (r + g + b) / 3.0F;
+        float sat = MathHelper.clamp(saturationBoost, 0.5F, 2.5F);
+        r = MathHelper.clamp(gray + (r - gray) * sat, 0.0F, 1.0F);
+        g = MathHelper.clamp(gray + (g - gray) * sat, 0.0F, 1.0F);
+        b = MathHelper.clamp(gray + (b - gray) * sat, 0.0F, 1.0F);
+        return ((int) (r * 255.0F) << 16) | ((int) (g * 255.0F) << 8) | (int) (b * 255.0F);
     }
 
     private static float visualTime(float animationSpeed) {
-        return (System.currentTimeMillis() / 1000.0F) * animationSpeed;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.world != null && client.getRenderTickCounter() != null) {
+            float tickDelta = client.getRenderTickCounter().getTickDelta(false);
+            return (client.world.getTime() + tickDelta) * 0.05F * animationSpeed;
+        }
+        return (System.nanoTime() / 1_000_000_000.0F) * animationSpeed;
     }
 
     private static float wrapUnit(float value) {
