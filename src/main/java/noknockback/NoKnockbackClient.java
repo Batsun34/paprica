@@ -1540,7 +1540,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             case NICK -> baseColor;
             case FIXED -> trailFixedColor;
             case GRADIENT -> toRainbowColor(player.getId(), 0.15F, 1.2F, trailGradientSpeed);
-            case NICK_GRADIENT -> toGradientColor(baseColor, player.getId(), 0.55F, DEFAULT_STYLE_SATURATION, trailGradientSpeed);
+            case NICK_GRADIENT -> toNickGradientColor(baseColor, player.getId(), 0.55F, DEFAULT_STYLE_SATURATION, trailGradientSpeed);
         };
         return withAlpha(0xFF000000 | applyEmissive(rgb, 0.8F), trailAlpha);
     }
@@ -2270,7 +2270,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         return switch (colorMode) {
             case NICK -> rgbBase;
             case GRADIENT -> toGradientColor(seedBaseColor(saltedSeed), saltedSeed, offset, saturationBoost, animationSpeed);
-            case NICK_GRADIENT -> toGradientColor(rgbBase, saltedSeed, offset, saturationBoost, animationSpeed);
+            case NICK_GRADIENT -> toNickGradientColor(rgbBase, saltedSeed, offset, saturationBoost, animationSpeed);
             case RAINBOW -> toRainbowColor(saltedSeed, offset, saturationBoost, animationSpeed);
         };
     }
@@ -2301,6 +2301,26 @@ public class NoKnockbackClient implements ClientModInitializer {
         float brightVal = MathHelper.clamp(valBase * 1.25F, 0.2F, 1.0F);
         float value = MathHelper.lerp(wave, darkVal, brightVal);
 
+        return MathHelper.hsvToRgb(hue, saturation, value);
+    }
+
+    private static int toNickGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
+        float[] hsv = rgbToHsv(rgbColor);
+        float baseHue = hsv[0];
+        float baseSat = hsv[1];
+        float baseVal = hsv[2];
+        float time = visualTime(animationSpeed);
+        float seedUnit = seedToUnit(seed);
+
+        float t = wrapUnit(time * 0.16F + offset * 1.1F + seedUnit * 0.2F);
+        float wave = 0.5F + 0.5F * MathHelper.sin(TWO_PI * t);
+
+        float hue = wrapUnit(baseHue + (wave - 0.5F) * 0.05F);
+        float satBase = MathHelper.clamp(baseSat * saturationBoost, 0.2F, 1.0F);
+        float saturation = MathHelper.clamp(satBase * (0.85F + 0.25F * wave), 0.2F, 1.0F);
+
+        float valBase = MathHelper.clamp(baseVal, 0.35F, 1.0F);
+        float value = MathHelper.clamp(valBase * (0.75F + 0.35F * wave), 0.2F, 1.0F);
         return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
