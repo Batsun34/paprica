@@ -182,7 +182,8 @@ public class NoKnockbackMenuScreen extends Screen {
 
         boolean handled = false;
         HitTarget hitTarget = null;
-        for (HitTarget target : this.hitTargets) {
+        for (int i = this.hitTargets.size() - 1; i >= 0; i--) {
+            HitTarget target = this.hitTargets.get(i);
             if (target.rect.contains(mouseX, mouseY)) {
                 hitTarget = target;
                 break;
