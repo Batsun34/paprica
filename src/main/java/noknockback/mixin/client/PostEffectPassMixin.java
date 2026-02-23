@@ -25,6 +25,10 @@ import java.util.Map;
 public class PostEffectPassMixin {
 	@Shadow
 	@Final
+	private String id;
+
+	@Shadow
+	@Final
 	@Mutable
 	private List<PostEffectPipeline.Uniform> uniforms;
 
@@ -44,6 +48,12 @@ public class PostEffectPassMixin {
 			Matrix4f projectionMatrix,
 			CallbackInfo ci
 	) {
+		if (!NoKnockbackClient.isPlayerEspEnabled()) {
+			return;
+		}
+		if (this.id == null || !this.id.endsWith("entity_outline_box_blur")) {
+			return;
+		}
 		if (Float.isNaN(this.noknockback$baseBlurX) || Float.isNaN(this.noknockback$baseBlurY)) {
 			for (PostEffectPipeline.Uniform uniform : this.uniforms) {
 				if ("BlurDir".equals(uniform.name()) && uniform.values().size() >= 2) {

@@ -1945,43 +1945,53 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
+        float baseHue = hsv[0];
         float baseSat = hsv[1];
         float baseVal = hsv[2];
         float time = visualTime(animationSpeed);
-        float seedPhase = seed * 0.0007F;
-        float wave = 0.5F + 0.5F * MathHelper.sin(time * 1.1F + seedPhase);
-        float wave2 = 0.5F + 0.5F * MathHelper.sin(time * 1.1F + seedPhase + 2.094F);
+        float seedUnit = seedToUnit(seed);
 
-        float baseHue = hsv[0];
         if (baseSat < 0.12F) {
-            baseHue = wrapUnit(seed * 0.0013F + time * 0.06F);
-            baseSat = Math.max(baseSat, 0.45F);
-            baseVal = Math.max(baseVal, 0.75F);
+            baseHue = wrapUnit(seedUnit * 0.7F + time * 0.08F);
+            baseSat = 0.55F;
+            baseVal = Math.max(baseVal, 0.7F);
         }
 
-        float hueShift = (offset - 0.5F) * 0.55F;
-        float hue = wrapUnit(baseHue + hueShift + (wave - 0.5F) * 0.18F);
-        float saturation = MathHelper.clamp((0.65F + 0.35F * wave) * Math.max(baseSat, 0.45F) * saturationBoost, 0.15F, 1.0F);
-        float value = MathHelper.clamp((0.7F + 0.3F * wave2) * Math.max(baseVal, 0.65F), 0.2F, 1.0F);
+        float t = wrapUnit(time * 0.18F + offset * 1.15F + seedUnit);
+        float wave = 0.5F + 0.5F * MathHelper.sin(TWO_PI * t);
+
+        float hue = wrapUnit(baseHue + (wave - 0.5F) * 0.18F + (seedUnit - 0.5F) * 0.08F);
+        float satBase = MathHelper.clamp(baseSat * saturationBoost, 0.25F, 1.0F);
+        float saturation = MathHelper.clamp(satBase * (0.75F + 0.5F * wave), 0.2F, 1.0F);
+
+        float valBase = MathHelper.clamp(baseVal, 0.35F, 1.0F);
+        float darkVal = MathHelper.clamp(valBase * 0.55F, 0.2F, 1.0F);
+        float brightVal = MathHelper.clamp(valBase * 1.25F, 0.2F, 1.0F);
+        float value = MathHelper.lerp(wave, darkVal, brightVal);
+
         return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
     private static int toRainbowColor(int seed, float offset, float saturationBoost, float animationSpeed) {
         float time = visualTime(animationSpeed);
-        float hue = wrapUnit(time * 0.08F + seed * 0.0011F + offset * 0.35F);
-        float saturation = MathHelper.clamp(0.85F * saturationBoost, 0.25F, 1.0F);
-        float value = 1.0F;
-        return MathHelper.hsvToRgb(hue, saturation, value);
+        float seedUnit = seedToUnit(seed);
+        float hue = wrapUnit(time * 0.22F + offset * 1.2F + seedUnit * 0.8F);
+        float saturation = MathHelper.clamp(0.85F * saturationBoost, 0.65F, 1.0F);
+        return MathHelper.hsvToRgb(hue, saturation, 1.0F);
     }
 
     private static float visualTime(float animationSpeed) {
-        float time = (System.nanoTime() / 1_000_000_000.0F);
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.world != null && client.getRenderTickCounter() != null) {
+        if (client != null && client.getRenderTickCounter() != null) {
             float tickDelta = client.getRenderTickCounter().getTickDelta(false);
-            time += (client.world.getTime() + tickDelta) * 0.02F;
+            if (client.player != null) {
+                return (client.player.age + tickDelta) * 0.05F * animationSpeed;
+            }
+            if (client.world != null) {
+                return (client.world.getTime() + tickDelta) * 0.05F * animationSpeed;
+            }
         }
-        return time * animationSpeed;
+        return (System.nanoTime() / 1_000_000_000.0F) * animationSpeed;
     }
 
     private static void bumpVisualRevision() {
@@ -1991,6 +2001,16 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float wrapUnit(float value) {
         float wrapped = value % 1.0F;
         return wrapped < 0.0F ? wrapped + 1.0F : wrapped;
+    }
+
+    private static float seedToUnit(int seed) {
+        int hash = seed;
+        hash ^= (hash >>> 16);
+        hash *= 0x7FEB352D;
+        hash ^= (hash >>> 15);
+        hash *= 0x846CA68B;
+        hash ^= (hash >>> 16);
+        return (hash & 0xFFFF) / 65535.0F;
     }
 
     private static float[] rgbToHsv(int rgbColor) {
