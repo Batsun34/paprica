@@ -112,6 +112,7 @@ public class NoKnockbackMenuScreen extends Screen {
 
     @Override
     public void removed() {
+        storeMenuState();
         if (this.client != null && this.previousBlurValue != null) {
             this.client.options.getMenuBackgroundBlurriness().setValue(this.previousBlurValue);
         }
