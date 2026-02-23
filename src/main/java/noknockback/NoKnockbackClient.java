@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.rendering.v1.HudLayerRegistrationCallback;
 import net.fabricmc.fabric.api.client.rendering.v1.IdentifiedLayer;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
@@ -56,10 +57,9 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int PLAYER_LIST_BORDER_COLOR = 0x43FFFFFF;
     private static final float MAX_BOTTOM_RAY_START_HEIGHT = 300.0F;
     private static final float RAY_LABEL_POSITION_FACTOR = 0.62F;
-    private static final float RAY_LABEL_PERP_OFFSET = 9.0F;
     private static final int RAY_LABEL_BG_COLOR = 0x6A000000;
-    private static final int RAY_LABEL_TEXT_COLOR = 0xF0FFFFFF;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
+    private static final int OVERLAY_GROUP_GAP = 4;
     private static final int TARGET_HEALTH_BG_COLOR = 0x7A000000;
     private static final int TARGET_HEALTH_COLOR_LIME = 0xFF8DFF39;
     private static final int TARGET_HEALTH_COLOR_YELLOW = 0xFFFFE44A;
@@ -69,6 +69,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
 
     private static boolean speedEnabled = true;
+    private static boolean noKnockbackEnabled = true;
     private static boolean playerEspEnabled = false;
     private static boolean playerArmorOverlayEnabled = false;
     private static boolean playerRaysEnabled = false;
@@ -87,6 +88,10 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float distanceTextScale = DEFAULT_RAY_LABEL_TEXT_SCALE;
     private static float armorOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
     private static float heldItemOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
+    private static float rayAlpha = 1.0F;
+    private static float armorAlpha = 1.0F;
+    private static float heldItemAlpha = 1.0F;
+    private static float distanceAlpha = 1.0F;
     private static float targetHealthTextScale = DEFAULT_TARGET_HEALTH_TEXT_SCALE;
     private static float playerListTextScale = DEFAULT_PLAYER_LIST_TEXT_SCALE;
     private static int playerListMaxHeight = DEFAULT_PLAYER_LIST_MAX_HEIGHT;
@@ -110,6 +115,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.VIVID;
     private static VisualColorMode distanceVisualColorMode = VisualColorMode.VIVID;
     private static KeyBinding toggleKey;
+    private static KeyBinding toggleNoKnockbackKey;
     private static KeyBinding togglePlayerEspKey;
     private static KeyBinding togglePlayerRaysKey;
     private static KeyBinding togglePlayerListKey;
@@ -125,9 +131,19 @@ public class NoKnockbackClient implements ClientModInitializer {
         return speedEnabled;
     }
 
+    public static boolean isNoKnockbackEnabled() {
+        return noKnockbackEnabled;
+    }
+
     public static void setSpeedEnabled(boolean enabled) {
         if (speedEnabled == enabled) return;
         speedEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static void setNoKnockbackEnabled(boolean enabled) {
+        if (noKnockbackEnabled == enabled) return;
+        noKnockbackEnabled = enabled;
         saveConfigNow();
     }
 
@@ -259,6 +275,50 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(scale, 0.35F, 2.5F);
         if (Math.abs(heldItemOverlayScale - clamped) < 0.0001F) return;
         heldItemOverlayScale = clamped;
+        saveConfigNow();
+    }
+
+    public static float getRayAlpha() {
+        return rayAlpha;
+    }
+
+    public static void setRayAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(rayAlpha - clamped) < 0.0001F) return;
+        rayAlpha = clamped;
+        saveConfigNow();
+    }
+
+    public static float getArmorAlpha() {
+        return armorAlpha;
+    }
+
+    public static void setArmorAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(armorAlpha - clamped) < 0.0001F) return;
+        armorAlpha = clamped;
+        saveConfigNow();
+    }
+
+    public static float getHeldItemAlpha() {
+        return heldItemAlpha;
+    }
+
+    public static void setHeldItemAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(heldItemAlpha - clamped) < 0.0001F) return;
+        heldItemAlpha = clamped;
+        saveConfigNow();
+    }
+
+    public static float getDistanceAlpha() {
+        return distanceAlpha;
+    }
+
+    public static void setDistanceAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(distanceAlpha - clamped) < 0.0001F) return;
+        distanceAlpha = clamped;
         saveConfigNow();
     }
 
@@ -567,6 +627,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         return toggleKey;
     }
 
+    public static KeyBinding getNoKnockbackKeyBinding() {
+        return toggleNoKnockbackKey;
+    }
+
     public static KeyBinding getPlayerEspKeyBinding() {
         return togglePlayerEspKey;
     }
@@ -622,6 +686,13 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.paprika"
         ));
 
+        toggleNoKnockbackKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.no_knockback",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_N,
+                "category.paprika"
+        ));
+
         togglePlayerEspKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.paprika.player_esp",
                 InputUtil.Type.KEYSYM,
@@ -651,6 +722,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         ));
 
         applyConfiguredKey(toggleKey, loadedConfig.speedToggleKey);
+        applyConfiguredKey(toggleNoKnockbackKey, loadedConfig.noKnockbackKey);
         applyConfiguredKey(togglePlayerEspKey, loadedConfig.playerEspKey);
         applyConfiguredKey(togglePlayerRaysKey, loadedConfig.playerRaysKey);
         applyConfiguredKey(togglePlayerListKey, loadedConfig.playerListKey);
@@ -681,7 +753,15 @@ public class NoKnockbackClient implements ClientModInitializer {
         while (toggleKey.wasPressed()) {
             setSpeedEnabled(!speedEnabled);
             player.sendMessage(
-                    Text.literal("[Paprika] Speed: " + (speedEnabled ? "ON" : "OFF")),
+                    Text.literal("[Paprika] Sneak Movement Speed: " + (speedEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        while (toggleNoKnockbackKey.wasPressed()) {
+            setNoKnockbackEnabled(!noKnockbackEnabled);
+            player.sendMessage(
+                    Text.literal("[Paprika] No Knockback: " + (noKnockbackEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -713,7 +793,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         Vec3d velocity = player.getVelocity();
 
         // ===== KNOCKBACK =====
-        if (player.hurtTime > 0) {
+        if (noKnockbackEnabled && player.hurtTime > 0) {
             player.setVelocity(
                     lastVelocity.x,
                     velocity.y,
@@ -785,7 +865,7 @@ public class NoKnockbackClient implements ClientModInitializer {
                 ? screenHeight * 0.5F
                 : MathHelper.clamp(screenHeight - 1.0F - rayBottomStartHeight, 1.0F, screenHeight - 1.0F);
 
-        if (playerArmorOverlayEnabled || heldItemOverlayEnabled || (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.ABOVE_PLAYER)) {
+        if (playerArmorOverlayEnabled || heldItemOverlayEnabled || distanceDisplayEnabled) {
             renderPlayerArmorOverlay(
                     drawContext,
                     client,
@@ -805,7 +885,6 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (!playerRaysEnabled) return;
 
         Vector3f projected = new Vector3f();
-        List<RayDistanceLabel> labels = new ArrayList<>();
 
         drawContext.draw(vertexConsumers -> {
             VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
@@ -840,33 +919,23 @@ public class NoKnockbackClient implements ClientModInitializer {
                             projected.x,
                             projected.y,
                             rayThickness * 2.6F,
-                            withAlpha(startColor, 0.38F),
-                            withAlpha(endColor, 0.38F)
+                            withAlpha(startColor, 0.38F * rayAlpha),
+                            withAlpha(endColor, 0.38F * rayAlpha)
                     );
                 }
-                drawThickRay(matrix, lineConsumer, rayStartX, rayStartY, projected.x, projected.y, rayThickness, startColor, endColor);
-
-                if (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.RAY_MIDDLE) {
-                    int meters = (int) Math.round(localPlayer.getPos().distanceTo(target.getPos()));
-                    labels.add(createRayDistanceLabel(
-                            Integer.toString(Math.max(0, meters)) + "m",
-                            rayStartX,
-                            rayStartY,
-                            projected.x,
-                            projected.y,
-                            0xFF000000 | resolveVisualColor(
-                                    target,
-                                    0.18F,
-                                    distanceVisualColorMode,
-                                    distanceVisualSaturationBoost,
-                                    distanceVisualAnimationSpeed
-                            )
-                    ));
-                }
+                drawThickRay(
+                        matrix,
+                        lineConsumer,
+                        rayStartX,
+                        rayStartY,
+                        projected.x,
+                        projected.y,
+                        rayThickness,
+                        withAlpha(startColor, rayAlpha),
+                        withAlpha(endColor, rayAlpha)
+                );
             }
         });
-
-        renderRayDistanceLabels(drawContext, client, labels, screenWidth, screenHeight);
     }
 
     private static void drawThickRay(
@@ -895,76 +964,6 @@ public class NoKnockbackClient implements ClientModInitializer {
         consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(endColor);
     }
 
-    private static RayDistanceLabel createRayDistanceLabel(
-            String text,
-            float startX,
-            float startY,
-            float endX,
-            float endY,
-            int color
-    ) {
-        float dx = endX - startX;
-        float dy = endY - startY;
-        float len = MathHelper.sqrt(dx * dx + dy * dy);
-
-        float labelX = startX + dx * RAY_LABEL_POSITION_FACTOR;
-        float labelY = startY + dy * RAY_LABEL_POSITION_FACTOR;
-        if (len > 0.0001F) {
-            float nx = -dy / len;
-            float ny = dx / len;
-            labelX += nx * RAY_LABEL_PERP_OFFSET;
-            labelY += ny * RAY_LABEL_PERP_OFFSET;
-        }
-
-        return new RayDistanceLabel(text, labelX, labelY, color);
-    }
-
-    private static void renderRayDistanceLabels(
-            DrawContext drawContext,
-            MinecraftClient client,
-            List<RayDistanceLabel> labels,
-            int screenWidth,
-            int screenHeight
-    ) {
-        if (labels.isEmpty() || client.textRenderer == null) return;
-
-        int margin = 2;
-        int fontHeight = client.textRenderer.fontHeight;
-        for (RayDistanceLabel label : labels) {
-            int rawWidth = client.textRenderer.getWidth(label.text());
-            int scaledWidth = Math.max(1, Math.round(rawWidth * distanceTextScale));
-            int scaledHeight = Math.max(1, Math.round(fontHeight * distanceTextScale));
-
-            int x = Math.round(label.x()) - scaledWidth / 2;
-            int y = Math.round(label.y()) - scaledHeight / 2;
-            x = MathHelper.clamp(x, margin, Math.max(margin, screenWidth - scaledWidth - margin));
-            y = MathHelper.clamp(y, margin, Math.max(margin, screenHeight - scaledHeight - margin));
-
-            if (distanceVisualGlowEnabled) {
-                drawContext.fill(
-                        x - 4,
-                        y - 3,
-                        x + scaledWidth + 4,
-                        y + scaledHeight + 3,
-                        withAlpha(label.color(), 0.35F)
-                );
-            }
-            drawContext.fill(
-                    x - 2,
-                    y - 1,
-                    x + scaledWidth + 2,
-                    y + scaledHeight + 1,
-                    RAY_LABEL_BG_COLOR
-            );
-
-            drawContext.getMatrices().push();
-            drawContext.getMatrices().translate(x, y, 0.0F);
-            drawContext.getMatrices().scale(distanceTextScale, distanceTextScale, 1.0F);
-            int textColor = withAlpha(label.color(), 0.95F);
-            drawContext.drawTextWithShadow(client.textRenderer, label.text(), 0, 0, textColor);
-            drawContext.getMatrices().pop();
-        }
-    }
 
     private static void renderPlayerArmorOverlay(
             DrawContext drawContext,
@@ -994,130 +993,135 @@ public class NoKnockbackClient implements ClientModInitializer {
                 aboveProjected.set(centerProjected);
             }
 
+            List<ItemStack> armorStacks = null;
+            boolean hasArmor = false;
             if (playerArmorOverlayEnabled) {
-                List<ItemStack> armorStacks = new ArrayList<>(4);
+                List<ItemStack> stacks = new ArrayList<>(4);
                 ItemStack head = target.getEquippedStack(EquipmentSlot.HEAD);
                 ItemStack chest = target.getEquippedStack(EquipmentSlot.CHEST);
                 ItemStack legs = target.getEquippedStack(EquipmentSlot.LEGS);
                 ItemStack feet = target.getEquippedStack(EquipmentSlot.FEET);
-                if (!head.isEmpty()) armorStacks.add(head);
-                if (!chest.isEmpty()) armorStacks.add(chest);
-                if (!legs.isEmpty()) armorStacks.add(legs);
-                if (!feet.isEmpty()) armorStacks.add(feet);
-
-                if (!armorStacks.isEmpty()) {
-                    resolveOverlayAnchor(armorAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
-                    int accentColor = 0xFF000000 | resolveVisualColor(
-                            target,
-                            0.24F,
-                            armorVisualColorMode,
-                            armorVisualSaturationBoost,
-                            armorVisualAnimationSpeed
-                    );
-                    renderItemRow(
-                            drawContext,
-                            armorStacks,
-                            armorOverlayScale,
-                            anchor,
-                            screenWidth,
-                            screenHeight,
-                            accentColor,
-                            armorVisualGlowEnabled,
-                            -4,
-                            true
-                    );
+                if (!head.isEmpty()) stacks.add(head);
+                if (!chest.isEmpty()) stacks.add(chest);
+                if (!legs.isEmpty()) stacks.add(legs);
+                if (!feet.isEmpty()) stacks.add(feet);
+                if (!stacks.isEmpty()) {
+                    armorStacks = stacks;
+                    hasArmor = true;
                 }
             }
 
+            List<ItemStack> heldStacks = null;
+            boolean hasHeld = false;
             if (heldItemOverlayEnabled) {
-                List<ItemStack> heldStacks = new ArrayList<>(2);
+                List<ItemStack> stacks = new ArrayList<>(2);
                 ItemStack mainHand = target.getMainHandStack();
                 ItemStack offHand = target.getOffHandStack();
-                if (!mainHand.isEmpty()) heldStacks.add(mainHand);
-                if (!offHand.isEmpty()) heldStacks.add(offHand);
-
-                if (!heldStacks.isEmpty()) {
-                    resolveOverlayAnchor(heldItemAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
-                    int accentColor = 0xFF000000 | resolveVisualColor(
-                            target,
-                            0.34F,
-                            heldItemVisualColorMode,
-                            heldItemVisualSaturationBoost,
-                            heldItemVisualAnimationSpeed
-                    );
-                    renderItemRow(
-                            drawContext,
-                            heldStacks,
-                            heldItemOverlayScale,
-                            anchor,
-                            screenWidth,
-                            screenHeight,
-                            accentColor,
-                            heldItemVisualGlowEnabled,
-                            4,
-                            false
-                    );
+                if (!mainHand.isEmpty()) stacks.add(mainHand);
+                if (!offHand.isEmpty()) stacks.add(offHand);
+                if (!stacks.isEmpty()) {
+                    heldStacks = stacks;
+                    hasHeld = true;
                 }
             }
 
-            if (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.ABOVE_PLAYER && client.textRenderer != null) {
-                resolveOverlayAnchor(distanceAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
+            boolean hasDistance = distanceDisplayEnabled && client.textRenderer != null;
+            String distanceText = null;
+            if (hasDistance) {
                 int meters = Math.max(0, Math.round((float) localPlayer.getPos().distanceTo(target.getPos())));
-                String distanceText = meters + "m";
-                int accentColor = 0xFF000000 | resolveVisualColor(
+                distanceText = meters + "m";
+            }
+
+            boolean rayArmor = hasArmor && armorAnchorMode == OverlayAnchorMode.RAY_MIDDLE;
+            boolean aboveArmor = hasArmor && armorAnchorMode == OverlayAnchorMode.ABOVE_PLAYER;
+            boolean rayHeld = hasHeld && heldItemAnchorMode == OverlayAnchorMode.RAY_MIDDLE;
+            boolean aboveHeld = hasHeld && heldItemAnchorMode == OverlayAnchorMode.ABOVE_PLAYER;
+            boolean rayDistance = hasDistance && distanceAnchorMode == OverlayAnchorMode.RAY_MIDDLE;
+            boolean aboveDistance = hasDistance && distanceAnchorMode == OverlayAnchorMode.ABOVE_PLAYER;
+
+            int armorColor = 0;
+            if (rayArmor || aboveArmor) {
+                armorColor = 0xFF000000 | resolveVisualColor(
+                        target,
+                        0.24F,
+                        armorVisualColorMode,
+                        armorVisualSaturationBoost,
+                        armorVisualAnimationSpeed
+                );
+            }
+            int heldColor = 0;
+            if (rayHeld || aboveHeld) {
+                heldColor = 0xFF000000 | resolveVisualColor(
+                        target,
+                        0.34F,
+                        heldItemVisualColorMode,
+                        heldItemVisualSaturationBoost,
+                        heldItemVisualAnimationSpeed
+                );
+            }
+            int distanceColor = 0;
+            if (rayDistance || aboveDistance) {
+                distanceColor = 0xFF000000 | resolveVisualColor(
                         target,
                         0.18F,
                         distanceVisualColorMode,
                         distanceVisualSaturationBoost,
                         distanceVisualAnimationSpeed
                 );
-                int textWidth = Math.max(1, Math.round(client.textRenderer.getWidth(distanceText) * distanceTextScale));
-                int textHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * distanceTextScale));
-                int textX = MathHelper.clamp(
-                        Math.round(anchor.x) - textWidth / 2,
-                        2,
-                        Math.max(2, screenWidth - textWidth - 2)
-                );
-                int textY = MathHelper.clamp(
-                        Math.round(anchor.y) - textHeight - 8,
-                        2,
-                        Math.max(2, screenHeight - textHeight - 2)
-                );
+            }
 
-                if (distanceVisualGlowEnabled) {
-                    drawContext.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + textHeight + 2, withAlpha(accentColor, 0.32F));
-                }
-                drawContext.fill(textX - 2, textY - 1, textX + textWidth + 2, textY + textHeight + 1, 0x65000000);
-                drawContext.getMatrices().push();
-                drawContext.getMatrices().translate(textX, textY, 0.0F);
-                drawContext.getMatrices().scale(distanceTextScale, distanceTextScale, 1.0F);
-                drawContext.drawTextWithShadow(client.textRenderer, distanceText, 0, 0, withAlpha(accentColor, 0.95F));
-                drawContext.getMatrices().pop();
-            } else if (distanceDisplayEnabled && distanceAnchorMode == OverlayAnchorMode.RAY_MIDDLE && !playerRaysEnabled && client.textRenderer != null) {
-                resolveOverlayAnchor(distanceAnchorMode, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
-                int meters = Math.max(0, Math.round((float) localPlayer.getPos().distanceTo(target.getPos())));
-                String distanceText = meters + "m";
-                int accentColor = 0xFF000000 | resolveVisualColor(
-                        target,
-                        0.18F,
-                        distanceVisualColorMode,
-                        distanceVisualSaturationBoost,
-                        distanceVisualAnimationSpeed
+            if (rayArmor || rayHeld || rayDistance) {
+                resolveOverlayAnchor(OverlayAnchorMode.RAY_MIDDLE, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
+                renderOverlayGroup(
+                        drawContext,
+                        client,
+                        anchor,
+                        screenWidth,
+                        screenHeight,
+                        rayArmor ? armorStacks : null,
+                        armorOverlayScale,
+                        armorColor,
+                        armorVisualGlowEnabled,
+                        armorAlpha,
+                        rayHeld ? heldStacks : null,
+                        heldItemOverlayScale,
+                        heldColor,
+                        heldItemVisualGlowEnabled,
+                        heldItemAlpha,
+                        rayDistance ? distanceText : null,
+                        distanceTextScale,
+                        distanceColor,
+                        distanceVisualGlowEnabled,
+                        distanceAlpha,
+                        false
                 );
-                int textWidth = Math.max(1, Math.round(client.textRenderer.getWidth(distanceText) * distanceTextScale));
-                int textHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * distanceTextScale));
-                int textX = MathHelper.clamp(Math.round(anchor.x) - textWidth / 2, 2, Math.max(2, screenWidth - textWidth - 2));
-                int textY = MathHelper.clamp(Math.round(anchor.y) - textHeight / 2, 2, Math.max(2, screenHeight - textHeight - 2));
+            }
 
-                if (distanceVisualGlowEnabled) {
-                    drawContext.fill(textX - 3, textY - 2, textX + textWidth + 3, textY + textHeight + 2, withAlpha(accentColor, 0.32F));
-                }
-                drawContext.fill(textX - 2, textY - 1, textX + textWidth + 2, textY + textHeight + 1, 0x65000000);
-                drawContext.getMatrices().push();
-                drawContext.getMatrices().translate(textX, textY, 0.0F);
-                drawContext.getMatrices().scale(distanceTextScale, distanceTextScale, 1.0F);
-                drawContext.drawTextWithShadow(client.textRenderer, distanceText, 0, 0, withAlpha(accentColor, 0.95F));
-                drawContext.getMatrices().pop();
+            if (aboveArmor || aboveHeld || aboveDistance) {
+                resolveOverlayAnchor(OverlayAnchorMode.ABOVE_PLAYER, rayStartX, rayStartY, centerProjected, aboveProjected, anchor);
+                renderOverlayGroup(
+                        drawContext,
+                        client,
+                        anchor,
+                        screenWidth,
+                        screenHeight,
+                        aboveArmor ? armorStacks : null,
+                        armorOverlayScale,
+                        armorColor,
+                        armorVisualGlowEnabled,
+                        armorAlpha,
+                        aboveHeld ? heldStacks : null,
+                        heldItemOverlayScale,
+                        heldColor,
+                        heldItemVisualGlowEnabled,
+                        heldItemAlpha,
+                        aboveDistance ? distanceText : null,
+                        distanceTextScale,
+                        distanceColor,
+                        distanceVisualGlowEnabled,
+                        distanceAlpha,
+                        true
+                );
             }
         }
     }
@@ -1142,33 +1146,147 @@ public class NoKnockbackClient implements ClientModInitializer {
         );
     }
 
-    private static void renderItemRow(
+    private static void renderOverlayGroup(
             DrawContext drawContext,
-            List<ItemStack> stacks,
-            float itemScale,
+            MinecraftClient client,
             Vector3f anchor,
             int screenWidth,
             int screenHeight,
+            List<ItemStack> armorStacks,
+            float armorScale,
+            int armorColor,
+            boolean armorGlow,
+            float armorAlpha,
+            List<ItemStack> heldStacks,
+            float heldScale,
+            int heldColor,
+            boolean heldGlow,
+            float heldAlpha,
+            String distanceText,
+            float distanceScale,
+            int distanceColor,
+            boolean distanceGlow,
+            float distanceAlpha,
+            boolean anchorAbove
+    ) {
+        boolean showDistance = distanceText != null && client.textRenderer != null;
+        boolean showArmor = armorStacks != null && !armorStacks.isEmpty();
+        boolean showHeld = heldStacks != null && !heldStacks.isEmpty();
+        int blocks = 0;
+        if (showDistance) blocks++;
+        if (showArmor) blocks++;
+        if (showHeld) blocks++;
+        if (blocks == 0) return;
+
+        int distanceWidth = showDistance ? Math.max(1, Math.round(client.textRenderer.getWidth(distanceText) * distanceScale)) : 0;
+        int distanceHeight = showDistance ? Math.max(1, Math.round(client.textRenderer.fontHeight * distanceScale)) : 0;
+        int armorWidth = showArmor ? getItemRowWidth(armorStacks, armorScale) : 0;
+        int armorHeight = showArmor ? getItemRowHeight(armorScale) : 0;
+        int heldWidth = showHeld ? getItemRowWidth(heldStacks, heldScale) : 0;
+        int heldHeight = showHeld ? getItemRowHeight(heldScale) : 0;
+
+        int groupWidth = Math.max(1, Math.max(distanceWidth, Math.max(armorWidth, heldWidth)));
+        int groupHeight = distanceHeight + armorHeight + heldHeight + (blocks - 1) * OVERLAY_GROUP_GAP;
+
+        int rawX = Math.round(anchor.x) - groupWidth / 2;
+        int rawY = anchorAbove ? Math.round(anchor.y) - groupHeight : Math.round(anchor.y) - groupHeight / 2;
+        int maxX = Math.max(2, screenWidth - groupWidth - 2);
+        int maxY = Math.max(2, screenHeight - groupHeight - 2);
+        int startX = MathHelper.clamp(rawX, 2, maxX);
+        int startY = MathHelper.clamp(rawY, 2, maxY);
+
+        int currentY = startY;
+        if (showDistance) {
+            int textX = startX + (groupWidth - distanceWidth) / 2;
+            renderDistanceTextAt(
+                    drawContext,
+                    client,
+                    distanceText,
+                    distanceScale,
+                    textX,
+                    currentY,
+                    distanceColor,
+                    distanceGlow,
+                    distanceAlpha
+            );
+            currentY += distanceHeight + OVERLAY_GROUP_GAP;
+        }
+        if (showArmor) {
+            int rowX = startX + (groupWidth - armorWidth) / 2;
+            renderItemRowAt(
+                    drawContext,
+                    armorStacks,
+                    armorScale,
+                    rowX,
+                    currentY,
+                    armorColor,
+                    armorGlow,
+                    armorAlpha
+            );
+            currentY += armorHeight + OVERLAY_GROUP_GAP;
+        }
+        if (showHeld) {
+            int rowX = startX + (groupWidth - heldWidth) / 2;
+            renderItemRowAt(
+                    drawContext,
+                    heldStacks,
+                    heldScale,
+                    rowX,
+                    currentY,
+                    heldColor,
+                    heldGlow,
+                    heldAlpha
+            );
+        }
+    }
+
+    private static int getItemRowWidth(List<ItemStack> stacks, float itemScale) {
+        int iconSize = getItemRowHeight(itemScale);
+        int count = stacks.size();
+        return count * iconSize + (count - 1) * ARMOR_OVERLAY_ICON_SPACING;
+    }
+
+    private static int getItemRowHeight(float itemScale) {
+        return Math.max(6, Math.round(16.0F * MathHelper.clamp(itemScale, 0.35F, 2.5F)));
+    }
+
+    private static void renderItemRowAt(
+            DrawContext drawContext,
+            List<ItemStack> stacks,
+            float itemScale,
+            int startX,
+            int startY,
             int accentColor,
             boolean glowEnabled,
-            int yOffset,
-            boolean aboveAnchor
+            float alpha
     ) {
         if (stacks.isEmpty()) return;
 
-        int iconSize = Math.max(6, Math.round(16.0F * MathHelper.clamp(itemScale, 0.35F, 2.5F)));
+        float clampedAlpha = MathHelper.clamp(alpha, 0.0F, 1.0F);
+        int iconSize = getItemRowHeight(itemScale);
         int count = stacks.size();
         int totalWidth = count * iconSize + (count - 1) * ARMOR_OVERLAY_ICON_SPACING;
-        int startX = Math.round(anchor.x) - totalWidth / 2;
-        int startY = aboveAnchor ? Math.round(anchor.y) - iconSize + yOffset : Math.round(anchor.y) + yOffset;
-        startX = MathHelper.clamp(startX, 1, Math.max(1, screenWidth - totalWidth - 1));
-        startY = MathHelper.clamp(startY, 1, Math.max(1, screenHeight - iconSize - 1));
+        int endX = startX + totalWidth;
+        int endY = startY + iconSize;
 
         if (glowEnabled) {
-            drawContext.fill(startX - 3, startY - 3, startX + totalWidth + 3, startY + iconSize + 3, withAlpha(accentColor, 0.35F));
+            drawContext.fill(
+                    startX - 3,
+                    startY - 3,
+                    endX + 3,
+                    endY + 3,
+                    withAlpha(accentColor, 0.35F * clampedAlpha)
+            );
         }
-        drawContext.fill(startX - 1, startY - 1, startX + totalWidth + 1, startY + iconSize + 1, 0x5A000000);
+        drawContext.fill(
+                startX - 1,
+                startY - 1,
+                endX + 1,
+                endY + 1,
+                withAlpha(0x5A000000, clampedAlpha)
+        );
 
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, clampedAlpha);
         for (int i = 0; i < count; i++) {
             int iconX = startX + i * (iconSize + ARMOR_OVERLAY_ICON_SPACING);
             int iconY = startY;
@@ -1178,6 +1296,53 @@ public class NoKnockbackClient implements ClientModInitializer {
             drawContext.drawItem(stacks.get(i), 0, 0);
             drawContext.getMatrices().pop();
         }
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+    }
+
+    private static void renderDistanceTextAt(
+            DrawContext drawContext,
+            MinecraftClient client,
+            String distanceText,
+            float distanceScale,
+            int textX,
+            int textY,
+            int accentColor,
+            boolean glowEnabled,
+            float alpha
+    ) {
+        if (client.textRenderer == null) return;
+
+        float clampedAlpha = MathHelper.clamp(alpha, 0.0F, 1.0F);
+        int textWidth = Math.max(1, Math.round(client.textRenderer.getWidth(distanceText) * distanceScale));
+        int textHeight = Math.max(1, Math.round(client.textRenderer.fontHeight * distanceScale));
+
+        if (glowEnabled) {
+            drawContext.fill(
+                    textX - 3,
+                    textY - 2,
+                    textX + textWidth + 3,
+                    textY + textHeight + 2,
+                    withAlpha(accentColor, 0.32F * clampedAlpha)
+            );
+        }
+        drawContext.fill(
+                textX - 2,
+                textY - 1,
+                textX + textWidth + 2,
+                textY + textHeight + 1,
+                withAlpha(RAY_LABEL_BG_COLOR, clampedAlpha)
+        );
+        drawContext.getMatrices().push();
+        drawContext.getMatrices().translate(textX, textY, 0.0F);
+        drawContext.getMatrices().scale(distanceScale, distanceScale, 1.0F);
+        drawContext.drawTextWithShadow(
+                client.textRenderer,
+                distanceText,
+                0,
+                0,
+                withAlpha(accentColor, 0.95F * clampedAlpha)
+        );
+        drawContext.getMatrices().pop();
     }
 
     private static void renderTargetHealthOverlay(
@@ -1547,6 +1712,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (config == null) return;
 
         speedEnabled = config.speedEnabled;
+        noKnockbackEnabled = config.noKnockbackEnabled;
         playerEspEnabled = config.playerEspEnabled;
         playerArmorOverlayEnabled = config.playerArmorOverlayEnabled;
         playerRaysEnabled = config.playerRaysEnabled;
@@ -1565,6 +1731,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         distanceTextScale = MathHelper.clamp(config.rayDistanceTextScale, 0.5F, 2.0F);
         armorOverlayScale = MathHelper.clamp(config.armorOverlayScale, 0.35F, 2.5F);
         heldItemOverlayScale = MathHelper.clamp(config.heldItemOverlayScale, 0.35F, 2.5F);
+        rayAlpha = MathHelper.clamp(config.rayAlpha, 0.1F, 1.0F);
+        armorAlpha = MathHelper.clamp(config.armorAlpha, 0.1F, 1.0F);
+        heldItemAlpha = MathHelper.clamp(config.heldItemAlpha, 0.1F, 1.0F);
+        distanceAlpha = MathHelper.clamp(config.distanceAlpha, 0.1F, 1.0F);
         targetHealthTextScale = MathHelper.clamp(config.targetHealthTextScale, 0.5F, 2.0F);
         playerListTextScale = MathHelper.clamp(config.playerListTextScale, 0.1F, 2.0F);
         playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
@@ -1637,6 +1807,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static NoKnockbackConfig.Data captureConfig() {
         NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
         data.speedEnabled = speedEnabled;
+        data.noKnockbackEnabled = noKnockbackEnabled;
         data.playerEspEnabled = playerEspEnabled;
         data.playerArmorOverlayEnabled = playerArmorOverlayEnabled;
         data.playerRaysEnabled = playerRaysEnabled;
@@ -1655,6 +1826,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.rayDistanceTextScale = distanceTextScale;
         data.armorOverlayScale = armorOverlayScale;
         data.heldItemOverlayScale = heldItemOverlayScale;
+        data.rayAlpha = rayAlpha;
+        data.armorAlpha = armorAlpha;
+        data.heldItemAlpha = heldItemAlpha;
+        data.distanceAlpha = distanceAlpha;
         data.targetHealthTextScale = targetHealthTextScale;
         data.playerListTextScale = playerListTextScale;
         data.playerListMaxHeight = playerListMaxHeight;
@@ -1681,6 +1856,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
         }
+        if (toggleNoKnockbackKey != null) {
+            data.noKnockbackKey = toggleNoKnockbackKey.getBoundKeyTranslationKey();
+        }
         if (togglePlayerEspKey != null) {
             data.playerEspKey = togglePlayerEspKey.getBoundKeyTranslationKey();
         }
@@ -1701,9 +1879,6 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     private record PlayerListLine(String text, int color) {
-    }
-
-    private record RayDistanceLabel(String text, float x, float y, int color) {
     }
 
     public enum RayOrigin {

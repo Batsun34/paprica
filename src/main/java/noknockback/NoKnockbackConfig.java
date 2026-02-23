@@ -64,6 +64,7 @@ public final class NoKnockbackConfig {
 
         Data sanitized = new Data();
         sanitized.speedEnabled = data.speedEnabled;
+        sanitized.noKnockbackEnabled = data.noKnockbackEnabled;
         sanitized.playerEspEnabled = data.playerEspEnabled;
         sanitized.playerArmorOverlayEnabled = data.playerArmorOverlayEnabled;
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
@@ -82,6 +83,10 @@ public final class NoKnockbackConfig {
         sanitized.rayDistanceTextScale = MathHelper.clamp(data.rayDistanceTextScale, 0.5F, 2.0F);
         sanitized.armorOverlayScale = MathHelper.clamp(data.armorOverlayScale, 0.35F, 2.5F);
         sanitized.heldItemOverlayScale = MathHelper.clamp(data.heldItemOverlayScale, 0.35F, 2.5F);
+        sanitized.rayAlpha = MathHelper.clamp(data.rayAlpha, 0.1F, 1.0F);
+        sanitized.armorAlpha = MathHelper.clamp(data.armorAlpha, 0.1F, 1.0F);
+        sanitized.heldItemAlpha = MathHelper.clamp(data.heldItemAlpha, 0.1F, 1.0F);
+        sanitized.distanceAlpha = MathHelper.clamp(data.distanceAlpha, 0.1F, 1.0F);
         sanitized.targetHealthTextScale = MathHelper.clamp(data.targetHealthTextScale, 0.5F, 2.0F);
         sanitized.playerListTextScale = MathHelper.clamp(data.playerListTextScale, 0.1F, 2.0F);
         sanitized.playerListMaxHeight = MathHelper.clamp(data.playerListMaxHeight, 40, 4096);
@@ -106,6 +111,7 @@ public final class NoKnockbackConfig {
         sanitized.distanceVisualAnimationSpeed = MathHelper.clamp(data.distanceVisualAnimationSpeed, 0.2F, 4.0F);
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
+        sanitized.noKnockbackKey = sanitizeKey(data.noKnockbackKey, "key.keyboard.n");
         sanitized.playerEspKey = sanitizeKey(data.playerEspKey, "key.keyboard.h");
         sanitized.playerRaysKey = sanitizeKey(data.playerRaysKey, "key.keyboard.j");
         sanitized.playerListKey = sanitizeKey(data.playerListKey, "key.keyboard.k");
@@ -165,6 +171,7 @@ public final class NoKnockbackConfig {
 
     public static final class Data {
         public boolean speedEnabled = true;
+        public boolean noKnockbackEnabled = true;
         public boolean playerEspEnabled = false;
         public boolean playerArmorOverlayEnabled = false;
         public boolean playerRaysEnabled = false;
@@ -183,6 +190,10 @@ public final class NoKnockbackConfig {
         public float rayDistanceTextScale = 0.75F;
         public float armorOverlayScale = 0.75F;
         public float heldItemOverlayScale = 0.75F;
+        public float rayAlpha = 1.0F;
+        public float armorAlpha = 1.0F;
+        public float heldItemAlpha = 1.0F;
+        public float distanceAlpha = 1.0F;
         public float targetHealthTextScale = 1.0F;
         public float playerListTextScale = 0.8F;
         public int playerListMaxHeight = 280;
@@ -207,6 +218,7 @@ public final class NoKnockbackConfig {
         public float distanceVisualAnimationSpeed = 1.0F;
 
         public String speedToggleKey = "key.keyboard.v";
+        public String noKnockbackKey = "key.keyboard.n";
         public String playerEspKey = "key.keyboard.h";
         public String playerRaysKey = "key.keyboard.j";
         public String playerListKey = "key.keyboard.k";

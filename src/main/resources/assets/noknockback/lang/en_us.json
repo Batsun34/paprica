@@ -1,13 +1,15 @@
 {
   "category.paprika": "Paprika",
-  "key.paprika.toggle": "Toggle Speed",
+  "key.paprika.toggle": "Toggle Sneak Movement Speed",
+  "key.paprika.no_knockback": "Toggle No Knockback",
   "key.paprika.player_esp": "Toggle Player ESP",
   "key.paprika.player_rays": "Toggle Player Rays",
   "key.paprika.player_list": "Toggle Player List",
   "key.paprika.menu": "Open Paprika Menu",
 
   "category.noknockback": "Paprika",
-  "key.noknockback.toggle": "Toggle Speed",
+  "key.noknockback.toggle": "Toggle Sneak Movement Speed",
+  "key.noknockback.no_knockback": "Toggle No Knockback",
   "key.noknockback.player_esp": "Toggle Player ESP",
   "key.noknockback.player_rays": "Toggle Player Rays",
   "key.noknockback.player_list": "Toggle Player List",

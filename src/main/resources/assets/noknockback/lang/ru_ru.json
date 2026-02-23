@@ -1,13 +1,15 @@
 ﻿{
   "category.paprika": "Paprika",
-  "key.paprika.toggle": "Переключить скорость",
+  "key.paprika.toggle": "Переключить скорость движения в шифте",
+  "key.paprika.no_knockback": "Переключить антиоткидывание",
   "key.paprika.player_esp": "Переключить ESP игроков",
   "key.paprika.player_rays": "Переключить лучи игроков",
   "key.paprika.player_list": "Переключить список игроков",
   "key.paprika.menu": "Открыть меню Paprika",
 
   "category.noknockback": "Paprika",
-  "key.noknockback.toggle": "Переключить скорость",
+  "key.noknockback.toggle": "Переключить скорость движения в шифте",
+  "key.noknockback.no_knockback": "Переключить антиоткидывание",
   "key.noknockback.player_esp": "Переключить ESP игроков",
   "key.noknockback.player_rays": "Переключить лучи игроков",
   "key.noknockback.player_list": "Переключить список игроков",

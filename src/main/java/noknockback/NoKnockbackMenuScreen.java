@@ -85,6 +85,10 @@ public class NoKnockbackMenuScreen extends Screen {
     private SliderDrag sliderDrag;
     @Nullable
     private Integer previousBlurValue;
+    @Nullable
+    private Control openDropdown;
+    @Nullable
+    private Rect openDropdownRect;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
@@ -158,6 +162,7 @@ public class NoKnockbackMenuScreen extends Screen {
                 if (this.selectedModule != entry.module) {
                     this.selectedModule = entry.module;
                     this.scrollOffset = 0.0;
+                    this.openDropdown = null;
                 }
                 return true;
             }
@@ -167,34 +172,58 @@ public class NoKnockbackMenuScreen extends Screen {
             return super.mouseClicked(mouseX, mouseY, button);
         }
 
+        boolean handled = false;
+        HitTarget hitTarget = null;
         for (HitTarget target : this.hitTargets) {
             if (target.rect.contains(mouseX, mouseY)) {
-                switch (target.type) {
-                    case TOGGLE -> {
-                        boolean current = target.control.toggleGetter.getAsBoolean();
-                        target.control.toggleSetter.accept(!current);
-                        return true;
+                hitTarget = target;
+                break;
+            }
+        }
+
+        if (hitTarget != null) {
+            switch (hitTarget.type) {
+                case TOGGLE -> {
+                    boolean current = hitTarget.control.toggleGetter.getAsBoolean();
+                    hitTarget.control.toggleSetter.accept(!current);
+                    handled = true;
+                }
+                case DROPDOWN -> {
+                    if (this.openDropdown == hitTarget.control) {
+                        this.openDropdown = null;
+                    } else {
+                        this.openDropdown = hitTarget.control;
                     }
-                    case CYCLE -> {
-                        int idx = target.control.cycleGetter.getAsInt();
-                        int next = (idx + 1) % target.control.cycleLabels.length;
-                        target.control.cycleSetter.accept(next);
-                        return true;
+                    handled = true;
+                }
+                case DROPDOWN_OPTION -> {
+                    hitTarget.control.cycleSetter.accept(hitTarget.optionIndex);
+                    this.openDropdown = null;
+                    handled = true;
+                }
+                case KEYBIND -> {
+                    if (hitTarget.control.keyBinding != null) {
+                        this.waitingForKey = hitTarget.control.keyBinding;
+                        this.ignoreNextMouseBind = true;
+                        this.openDropdown = null;
                     }
-                    case KEYBIND -> {
-                        if (target.control.keyBinding != null) {
-                            this.waitingForKey = target.control.keyBinding;
-                            this.ignoreNextMouseBind = true;
-                        }
-                        return true;
-                    }
-                    case SLIDER -> {
-                        this.sliderDrag = new SliderDrag(target.control, target.track);
-                        updateSlider(target.control, target.track, mouseX);
-                        return true;
-                    }
+                    handled = true;
+                }
+                case SLIDER -> {
+                    this.sliderDrag = new SliderDrag(hitTarget.control, hitTarget.track);
+                    updateSlider(hitTarget.control, hitTarget.track, mouseX);
+                    this.openDropdown = null;
+                    handled = true;
                 }
             }
+        }
+
+        if (!handled && this.openDropdown != null) {
+            this.openDropdown = null;
+        }
+
+        if (handled) {
+            return true;
         }
 
         return super.mouseClicked(mouseX, mouseY, button);
@@ -331,6 +360,7 @@ public class NoKnockbackMenuScreen extends Screen {
     }
     private void drawContent(DrawContext context, int mouseX, int mouseY) {
         this.hitTargets.clear();
+        this.openDropdownRect = null;
 
         int innerX = this.contentX + PADDING;
         int innerY = this.contentY + PADDING;
@@ -360,6 +390,12 @@ public class NoKnockbackMenuScreen extends Screen {
             } else {
                 col1Y += panelHeight + PANEL_GAP;
             }
+        }
+
+        if (this.openDropdown != null && this.openDropdownRect != null) {
+            drawDropdownOptions(context, this.openDropdown, this.openDropdownRect, mouseX, mouseY);
+        } else if (this.openDropdown != null) {
+            this.openDropdown = null;
         }
 
         context.disableScissor();
@@ -405,7 +441,7 @@ public class NoKnockbackMenuScreen extends Screen {
                 }
                 String label = enabled ? "ON" : "OFF";
                 context.drawCenteredTextWithShadow(this.textRenderer, label, rect.x + rect.width / 2, rect.y + 5, fg);
-                this.hitTargets.add(new HitTarget(HitType.TOGGLE, rect, control, rect));
+                this.hitTargets.add(new HitTarget(HitType.TOGGLE, rect, control, rect, -1));
             }
             case KEYBIND -> {
                 int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
@@ -419,7 +455,7 @@ public class NoKnockbackMenuScreen extends Screen {
                     keyLabel = "Press key";
                 }
                 context.drawCenteredTextWithShadow(this.textRenderer, keyLabel, rect.x + rect.width / 2, rect.y + 5, COLOR_TEXT);
-                this.hitTargets.add(new HitTarget(HitType.KEYBIND, rect, control, rect));
+                this.hitTargets.add(new HitTarget(HitType.KEYBIND, rect, control, rect, -1));
             }
             case CYCLE -> {
                 int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
@@ -430,8 +466,12 @@ public class NoKnockbackMenuScreen extends Screen {
                 int valueWidth = this.textRenderer.getWidth(value);
                 int valueX = rect.x + (rect.width - valueWidth) / 2;
                 context.drawTextWithShadow(this.textRenderer, value, valueX, rect.y + 5, COLOR_TEXT);
-                context.drawTextWithShadow(this.textRenderer, "v", rect.x + rect.width - 10, rect.y + 5, COLOR_TEXT_MUTED);
-                this.hitTargets.add(new HitTarget(HitType.CYCLE, rect, control, rect));
+                String arrow = this.openDropdown == control ? "^" : "v";
+                context.drawTextWithShadow(this.textRenderer, arrow, rect.x + rect.width - 10, rect.y + 5, COLOR_TEXT_MUTED);
+                this.hitTargets.add(new HitTarget(HitType.DROPDOWN, rect, control, rect, -1));
+                if (this.openDropdown == control) {
+                    this.openDropdownRect = rect;
+                }
             }
             case SLIDER -> {
                 double value = control.sliderGetter.getAsDouble();
@@ -458,7 +498,7 @@ public class NoKnockbackMenuScreen extends Screen {
                 if (hovered) {
                     context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_ROW_HOVER);
                 }
-                this.hitTargets.add(new HitTarget(HitType.SLIDER, rect, control, track));
+                this.hitTargets.add(new HitTarget(HitType.SLIDER, rect, control, track, -1));
             }
             case LABEL -> {
                 String value = control.labelValue.get();
@@ -466,6 +506,39 @@ public class NoKnockbackMenuScreen extends Screen {
                 int valueX = rect.x + rect.width - valueWidth - 4;
                 context.drawTextWithShadow(this.textRenderer, value, valueX, rect.y + 4, COLOR_TEXT_MUTED);
             }
+        }
+    }
+
+    private void drawDropdownOptions(DrawContext context, Control control, Rect baseRect, int mouseX, int mouseY) {
+        if (control.cycleLabels == null || control.cycleLabels.length == 0) return;
+
+        int optionHeight = ROW_HEIGHT;
+        int optionCount = control.cycleLabels.length;
+        int listX = baseRect.x;
+        int listY = baseRect.y + baseRect.height + 2;
+        int listWidth = baseRect.width;
+        int listHeight = optionHeight * optionCount;
+
+        context.fill(listX, listY, listX + listWidth, listY + listHeight, COLOR_CONTROL_BG);
+        drawOutline(context, listX, listY, listX + listWidth, listY + listHeight, COLOR_CONTROL_BORDER);
+
+        int selectedIndex = MathHelper.clamp(control.cycleGetter.getAsInt(), 0, optionCount - 1);
+        for (int i = 0; i < optionCount; i++) {
+            Rect optionRect = new Rect(listX, listY + i * optionHeight, listWidth, optionHeight);
+            boolean hovered = optionRect.contains(mouseX, mouseY);
+            boolean selected = i == selectedIndex;
+
+            if (selected) {
+                context.fill(optionRect.x, optionRect.y, optionRect.x + optionRect.width, optionRect.y + optionRect.height, COLOR_ACCENT_DARK);
+            } else if (hovered) {
+                context.fill(optionRect.x, optionRect.y, optionRect.x + optionRect.width, optionRect.y + optionRect.height, COLOR_ROW_HOVER);
+            }
+
+            int textX = optionRect.x + 6;
+            int textY = optionRect.y + 5;
+            int color = selected ? COLOR_TEXT : COLOR_TEXT_DIM;
+            context.drawTextWithShadow(this.textRenderer, control.cycleLabels[i], textX, textY, color);
+            this.hitTargets.add(new HitTarget(HitType.DROPDOWN_OPTION, optionRect, control, optionRect, i));
         }
     }
 
@@ -523,7 +596,11 @@ public class NoKnockbackMenuScreen extends Screen {
     private List<Panel> buildPanels(ModuleTab module) {
         List<Panel> panels = new ArrayList<>();
         switch (module) {
-            case SPEED -> panels.add(new Panel("Speed", 0, List.of(
+            case NO_KNOCKBACK -> panels.add(new Panel("No Knockback", 0, List.of(
+                    Control.toggle("Enabled", NoKnockbackClient::isNoKnockbackEnabled, NoKnockbackClient::setNoKnockbackEnabled),
+                    Control.keybind("Bind", NoKnockbackClient.getNoKnockbackKeyBinding())
+            )));
+            case SPEED -> panels.add(new Panel("Sneak Movement Speed", 0, List.of(
                     Control.toggle("Enabled", NoKnockbackClient::isSpeedEnabled, NoKnockbackClient::setSpeedEnabled),
                     Control.keybind("Bind", NoKnockbackClient.getSpeedToggleKeyBinding())
             )));
@@ -542,6 +619,7 @@ public class NoKnockbackMenuScreen extends Screen {
                         ),
                         Control.slider("Bottom Start Height", 0.0, 300.0, 1.0, NoKnockbackClient::getRayBottomStartHeight, value -> NoKnockbackClient.setRayBottomStartHeight((float) value)),
                         Control.slider("Ray Thickness", 0.5, 8.0, 0.1, NoKnockbackClient::getRayThickness, value -> NoKnockbackClient.setRayThickness((float) value)),
+                        Control.slider("Ray Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getRayAlpha, value -> NoKnockbackClient.setRayAlpha((float) value)),
                         Control.toggle("Ray Glow", NoKnockbackClient::isRayVisualGlowEnabled, NoKnockbackClient::setRayVisualGlowEnabled),
                         Control.cycle("Ray Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getRayVisualColorMode().ordinal(),
@@ -557,6 +635,7 @@ public class NoKnockbackMenuScreen extends Screen {
                                 idx -> NoKnockbackClient.setArmorAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
                         Control.slider("Armor Size", 0.35, 2.5, 0.1, NoKnockbackClient::getArmorOverlayScale, value -> NoKnockbackClient.setArmorOverlayScale((float) value)),
+                        Control.slider("Armor Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getArmorAlpha, value -> NoKnockbackClient.setArmorAlpha((float) value)),
                         Control.toggle("Armor Glow", NoKnockbackClient::isArmorVisualGlowEnabled, NoKnockbackClient::setArmorVisualGlowEnabled),
                         Control.cycle("Armor Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getArmorVisualColorMode().ordinal(),
@@ -572,6 +651,7 @@ public class NoKnockbackMenuScreen extends Screen {
                                 idx -> NoKnockbackClient.setHeldItemAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
                         Control.slider("Item Size", 0.35, 2.5, 0.1, NoKnockbackClient::getHeldItemOverlayScale, value -> NoKnockbackClient.setHeldItemOverlayScale((float) value)),
+                        Control.slider("Item Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getHeldItemAlpha, value -> NoKnockbackClient.setHeldItemAlpha((float) value)),
                         Control.toggle("Item Glow", NoKnockbackClient::isHeldItemVisualGlowEnabled, NoKnockbackClient::setHeldItemVisualGlowEnabled),
                         Control.cycle("Item Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getHeldItemVisualColorMode().ordinal(),
@@ -587,6 +667,7 @@ public class NoKnockbackMenuScreen extends Screen {
                                 idx -> NoKnockbackClient.setDistanceAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
                         Control.slider("Distance Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getDistanceTextScale, value -> NoKnockbackClient.setDistanceTextScale((float) value)),
+                        Control.slider("Distance Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getDistanceAlpha, value -> NoKnockbackClient.setDistanceAlpha((float) value)),
                         Control.toggle("Distance Glow", NoKnockbackClient::isDistanceVisualGlowEnabled, NoKnockbackClient::setDistanceVisualGlowEnabled),
                         Control.cycle("Distance Color Mode", Control.COLOR_MODES,
                                 () -> NoKnockbackClient.getDistanceVisualColorMode().ordinal(),
@@ -633,7 +714,8 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     private enum ModuleTab {
-        SPEED("Speed", ModuleGroup.MOVEMENT),
+        NO_KNOCKBACK("No Knockback", ModuleGroup.MOVEMENT),
+        SPEED("Sneak Movement Speed", ModuleGroup.MOVEMENT),
         ESP("Player ESP", ModuleGroup.VISUAL),
         RAYS("Rays", ModuleGroup.VISUAL),
         TARGET_HEALTH("Target Health", ModuleGroup.OVERLAY),
@@ -652,7 +734,8 @@ public class NoKnockbackMenuScreen extends Screen {
     private enum HitType {
         TOGGLE,
         KEYBIND,
-        CYCLE,
+        DROPDOWN,
+        DROPDOWN_OPTION,
         SLIDER
     }
 
@@ -677,7 +760,7 @@ public class NoKnockbackMenuScreen extends Screen {
     private record ModuleEntry(ModuleTab module, Rect rect) {
     }
 
-    private record HitTarget(HitType type, Rect rect, Control control, Rect track) {
+    private record HitTarget(HitType type, Rect rect, Control control, Rect track, int optionIndex) {
     }
 
     private record SliderDrag(Control control, Rect track) {
