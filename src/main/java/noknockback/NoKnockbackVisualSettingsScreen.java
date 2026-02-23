@@ -75,7 +75,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.rayColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
                 .initially(NoKnockbackClient.getRayVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Color Mode"), (button, value) -> {
                     NoKnockbackClient.setRayVisualColorMode(value);
@@ -104,7 +104,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.armorColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
                 .initially(NoKnockbackClient.getArmorVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Armor Color Mode"), (button, value) -> {
                     NoKnockbackClient.setArmorVisualColorMode(value);
@@ -133,7 +133,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.heldItemColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
                 .initially(NoKnockbackClient.getHeldItemVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Held Item Color Mode"), (button, value) -> {
                     NoKnockbackClient.setHeldItemVisualColorMode(value);
@@ -162,7 +162,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.distanceColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.VIVID, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
+                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
                 .initially(NoKnockbackClient.getDistanceVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Distance Color Mode"), (button, value) -> {
                     NoKnockbackClient.setDistanceVisualColorMode(value);
@@ -276,7 +276,6 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
     private Text colorModeText(NoKnockbackClient.VisualColorMode mode) {
         return switch (mode) {
             case NICK -> Text.literal("Nick");
-            case VIVID -> Text.literal("Vivid");
             case GRADIENT -> Text.literal("Gradient");
             case RAINBOW -> Text.literal("Rainbow");
         };

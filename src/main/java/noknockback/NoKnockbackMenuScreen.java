@@ -720,6 +720,23 @@ public class NoKnockbackMenuScreen extends Screen {
                         Control.slider("distance.anim_speed", "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getDistanceVisualAnimationSpeed, value -> NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value))
                 )));
             }
+            case VIEW -> {
+                panels.add(new Panel("Sky", 0, List.of(
+                        Control.toggle("sky.enabled", "Custom Sky", NoKnockbackClient::isCustomSkyEnabled, NoKnockbackClient::setCustomSkyEnabled),
+                        Control.slider("sky.top_r", "Top Red", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyTopRed, value -> NoKnockbackClient.setSkyTopRed((int) Math.round(value))),
+                        Control.slider("sky.top_g", "Top Green", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyTopGreen, value -> NoKnockbackClient.setSkyTopGreen((int) Math.round(value))),
+                        Control.slider("sky.top_b", "Top Blue", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyTopBlue, value -> NoKnockbackClient.setSkyTopBlue((int) Math.round(value))),
+                        Control.slider("sky.bottom_r", "Bottom Red", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyBottomRed, value -> NoKnockbackClient.setSkyBottomRed((int) Math.round(value))),
+                        Control.slider("sky.bottom_g", "Bottom Green", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyBottomGreen, value -> NoKnockbackClient.setSkyBottomGreen((int) Math.round(value))),
+                        Control.slider("sky.bottom_b", "Bottom Blue", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyBottomBlue, value -> NoKnockbackClient.setSkyBottomBlue((int) Math.round(value)))
+                )));
+                panels.add(new Panel("Hands", 1, List.of(
+                        Control.toggle("hands.hide", "Hide Hands With Item", NoKnockbackClient::isHideHandsWithItemEnabled, NoKnockbackClient::setHideHandsWithItemEnabled),
+                        Control.slider("hands.fov", "Hand FOV", 0.5, 1.6, 0.01, NoKnockbackClient::getHandFovScale, value -> NoKnockbackClient.setHandFovScale((float) value)),
+                        Control.slider("hands.offset_x", "Hand Offset X", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetX, value -> NoKnockbackClient.setHandOffsetX((float) value)),
+                        Control.slider("hands.offset_y", "Hand Offset Y", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetY, value -> NoKnockbackClient.setHandOffsetY((float) value))
+                )));
+            }
             case TARGET_HEALTH -> panels.add(new Panel("Target Health", 0, List.of(
                     Control.toggle("target_health.enabled", "Enabled", NoKnockbackClient::isTargetHealthOverlayEnabled, NoKnockbackClient::setTargetHealthOverlayEnabled),
                     Control.toggle("target_health.dynamic_color", "Dynamic Color", NoKnockbackClient::isTargetHealthDynamicColorEnabled, NoKnockbackClient::setTargetHealthDynamicColorEnabled),
@@ -761,6 +778,7 @@ public class NoKnockbackMenuScreen extends Screen {
         SPEED("Sneak Movement Speed", ModuleGroup.MOVEMENT),
         ESP("Player ESP", ModuleGroup.VISUAL),
         RAYS("Rays", ModuleGroup.VISUAL),
+        VIEW("View", ModuleGroup.VISUAL),
         TARGET_HEALTH("Target Health", ModuleGroup.OVERLAY),
         PLAYER_LIST("Player List", ModuleGroup.OVERLAY),
         MENU("Menu", ModuleGroup.SYSTEM);
@@ -829,7 +847,7 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     private static final class Control {
-        private static final String[] COLOR_MODES = new String[]{"Nick", "Vivid", "Gradient", "Rainbow"};
+        private static final String[] COLOR_MODES = new String[]{"Nick", "Gradient", "Rainbow"};
         private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
 
         private final String id;

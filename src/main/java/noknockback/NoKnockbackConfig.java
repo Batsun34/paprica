@@ -73,6 +73,8 @@ public final class NoKnockbackConfig {
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
         sanitized.heldItemOverlayEnabled = data.heldItemOverlayEnabled;
+        sanitized.customSkyEnabled = data.customSkyEnabled;
+        sanitized.hideHandsWithItemEnabled = data.hideHandsWithItemEnabled;
         sanitized.rayVisualGlowEnabled = data.rayVisualGlowEnabled;
         sanitized.armorVisualGlowEnabled = data.armorVisualGlowEnabled;
         sanitized.heldItemVisualGlowEnabled = data.heldItemVisualGlowEnabled;
@@ -97,10 +99,10 @@ public final class NoKnockbackConfig {
         sanitized.armorAnchorMode = sanitizeOverlayAnchorMode(data.armorAnchorMode, NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER);
         sanitized.heldItemAnchorMode = sanitizeOverlayAnchorMode(data.heldItemAnchorMode, NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER);
         sanitized.distanceAnchorMode = sanitizeOverlayAnchorMode(data.distanceAnchorMode, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE);
-        sanitized.rayVisualColorMode = sanitizeVisualColorMode(data.rayVisualColorMode, NoKnockbackClient.VisualColorMode.VIVID);
-        sanitized.armorVisualColorMode = sanitizeVisualColorMode(data.armorVisualColorMode, NoKnockbackClient.VisualColorMode.VIVID);
-        sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, NoKnockbackClient.VisualColorMode.VIVID);
-        sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, NoKnockbackClient.VisualColorMode.VIVID);
+        sanitized.rayVisualColorMode = sanitizeVisualColorMode(data.rayVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
+        sanitized.armorVisualColorMode = sanitizeVisualColorMode(data.armorVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
+        sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
+        sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
         sanitized.rayVisualSaturationBoost = MathHelper.clamp(data.rayVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.rayVisualAnimationSpeed = MathHelper.clamp(data.rayVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.armorVisualSaturationBoost = MathHelper.clamp(data.armorVisualSaturationBoost, 1.0F, 2.5F);
@@ -109,6 +111,11 @@ public final class NoKnockbackConfig {
         sanitized.heldItemVisualAnimationSpeed = MathHelper.clamp(data.heldItemVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.distanceVisualSaturationBoost = MathHelper.clamp(data.distanceVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.distanceVisualAnimationSpeed = MathHelper.clamp(data.distanceVisualAnimationSpeed, 0.2F, 4.0F);
+        sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
+        sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
+        sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
+        sanitized.skyTopColor = data.skyTopColor & 0xFFFFFF;
+        sanitized.skyBottomColor = data.skyBottomColor & 0xFFFFFF;
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
         sanitized.noKnockbackKey = sanitizeKey(data.noKnockbackKey, "key.keyboard.n");
@@ -151,7 +158,11 @@ public final class NoKnockbackConfig {
         }
 
         try {
-            return NoKnockbackClient.VisualColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            String normalized = value.toUpperCase(Locale.ROOT);
+            if ("VIVID".equals(normalized)) {
+                return NoKnockbackClient.VisualColorMode.NICK.name();
+            }
+            return NoKnockbackClient.VisualColorMode.valueOf(normalized).name();
         } catch (IllegalArgumentException ignored) {
             return fallback.name();
         }
@@ -180,6 +191,8 @@ public final class NoKnockbackConfig {
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
         public boolean heldItemOverlayEnabled = false;
+        public boolean customSkyEnabled = false;
+        public boolean hideHandsWithItemEnabled = false;
         public boolean rayVisualGlowEnabled = false;
         public boolean armorVisualGlowEnabled = false;
         public boolean heldItemVisualGlowEnabled = false;
@@ -204,10 +217,10 @@ public final class NoKnockbackConfig {
         public String armorAnchorMode = NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER.name();
         public String heldItemAnchorMode = NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER.name();
         public String distanceAnchorMode = NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE.name();
-        public String rayVisualColorMode = NoKnockbackClient.VisualColorMode.VIVID.name();
-        public String armorVisualColorMode = NoKnockbackClient.VisualColorMode.VIVID.name();
-        public String heldItemVisualColorMode = NoKnockbackClient.VisualColorMode.VIVID.name();
-        public String distanceVisualColorMode = NoKnockbackClient.VisualColorMode.VIVID.name();
+        public String rayVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
+        public String armorVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
+        public String heldItemVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
+        public String distanceVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
         public float rayVisualSaturationBoost = 1.35F;
         public float rayVisualAnimationSpeed = 1.0F;
         public float armorVisualSaturationBoost = 1.35F;
@@ -216,6 +229,11 @@ public final class NoKnockbackConfig {
         public float heldItemVisualAnimationSpeed = 1.0F;
         public float distanceVisualSaturationBoost = 1.35F;
         public float distanceVisualAnimationSpeed = 1.0F;
+        public float handFovScale = 1.0F;
+        public float handOffsetX = 0.0F;
+        public float handOffsetY = 0.0F;
+        public int skyTopColor = 0x78A7FF;
+        public int skyBottomColor = 0xA0C8FF;
 
         public String speedToggleKey = "key.keyboard.v";
         public String noKnockbackKey = "key.keyboard.n";

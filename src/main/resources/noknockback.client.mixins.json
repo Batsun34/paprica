@@ -3,8 +3,10 @@
 	"package": "noknockback.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"DimensionEffectsMixin",
 		"ExampleClientMixin",
 		"GameRendererAccessor",
+		"HeldItemRendererMixin",
 		"PostEffectPassMixin",
 		"WorldRendererMixin"
 	],
