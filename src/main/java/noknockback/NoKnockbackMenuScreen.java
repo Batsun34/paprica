@@ -20,17 +20,28 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.function.BooleanSupplier;
 
 public class NoKnockbackMenuScreen extends Screen {
-    private static final int PANEL_WIDTH = 460;
+    private static final int WINDOW_WIDTH = 940;
+    private static final int WINDOW_HEIGHT = 560;
+    private static final int HEADER_HEIGHT = 28;
+    private static final int SIDEBAR_WIDTH = 210;
+    private static final int CONTENT_PADDING = 10;
+    private static final int CONTENT_GAP = 12;
+    private static final int PANEL_WIDTH = WINDOW_WIDTH - SIDEBAR_WIDTH - CONTENT_GAP - CONTENT_PADDING * 2;
     private static final int ROW_HEIGHT = 20;
     private static final int ROW_GAP = 4;
-    private static final int SECTION_GAP = 8;
+    private static final int SECTION_GAP = 7;
     private static final int SCROLL_STEP = 20;
-    private static final int FOOTER_HEIGHT = 32;
     private static final int TITLE_COLOR = 0xFFFFEEDB;
     private static final int SUBTITLE_COLOR = 0xFFF0B98A;
+    private static final int WINDOW_BG_COLOR = 0xC6180D09;
+    private static final int WINDOW_BORDER_COLOR = 0xBCE08C53;
+    private static final int SIDEBAR_BG_COLOR = 0x8D241310;
+    private static final int HEADER_BG_COLOR = 0xD9341611;
+    private static final int SIDEBAR_GROUP_COLOR = 0xFFA37863;
+    private static final int SIDEBAR_ITEM_COLOR = 0xFFE7D0BF;
+    private static final int SIDEBAR_SELECTED_COLOR = 0xFFF2B17E;
     private static final int CARD_COLOR = 0x8A291816;
     private static final int CARD_HOVER_COLOR = 0xA240231F;
     private static final int CARD_DISABLED_COLOR = 0x58251917;
@@ -45,14 +56,24 @@ public class NoKnockbackMenuScreen extends Screen {
 
     private final Map<KeyBinding, ButtonWidget> keyButtons = new LinkedHashMap<>();
     private final List<WidgetAnchor> scrollAnchors = new ArrayList<>();
-    private final EnumMap<SectionId, Boolean> expandedSections = new EnumMap<>(SectionId.class);
-    private final EnumMap<SectionId, SectionHeader> sectionHeaders = new EnumMap<>(SectionId.class);
+    private final EnumMap<ModuleTab, ButtonWidget> moduleButtons = new EnumMap<>(ModuleTab.class);
+    private final List<GroupLabel> groupLabels = new ArrayList<>();
 
+    private int windowX;
+    private int windowY;
+    private int sidebarX;
+    private int sidebarY;
+    private int settingsX;
+    private int settingsWidth;
+    private int contentBottom;
     private int scrollTop;
     private int scrollBottom;
-    private int contentBottom;
     private int scrollOffset;
     private int maxScroll;
+    private ModuleTab selectedModule = ModuleTab.RAYS;
+
+    @Nullable
+    private ButtonWidget closeButton;
 
     @Nullable
     private ButtonWidget speedToggleButton;
@@ -149,78 +170,134 @@ public class NoKnockbackMenuScreen extends Screen {
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
         this.parent = parent;
-        for (SectionId sectionId : SectionId.values()) {
-            this.expandedSections.put(sectionId, false);
-        }
     }
 
     @Override
     protected void init() {
+        this.clearWidgetRefs();
         this.keyButtons.clear();
         this.scrollAnchors.clear();
-        this.sectionHeaders.clear();
+        this.moduleButtons.clear();
+        this.groupLabels.clear();
         this.waitingForKey = null;
         this.scrollOffset = 0;
 
-        int left = (this.width - PANEL_WIDTH) / 2;
-        this.scrollTop = 34;
-        this.scrollBottom = Math.max(this.scrollTop + 40, this.height - FOOTER_HEIGHT);
+        this.windowX = (this.width - WINDOW_WIDTH) / 2;
+        this.windowY = Math.max(8, (this.height - WINDOW_HEIGHT) / 2);
+        this.sidebarX = this.windowX + CONTENT_PADDING;
+        this.sidebarY = this.windowY + HEADER_HEIGHT + CONTENT_PADDING;
+        this.settingsX = this.windowX + SIDEBAR_WIDTH + CONTENT_GAP;
+        this.settingsWidth = PANEL_WIDTH;
+        this.scrollTop = this.windowY + HEADER_HEIGHT + CONTENT_PADDING + 22;
+        this.scrollBottom = this.windowY + WINDOW_HEIGHT - CONTENT_PADDING;
+
+        this.buildSidebar();
+
         int y = this.scrollTop;
-
-        y = this.addSectionHeader(left, y, SectionId.SPEED, "Speed", NoKnockbackClient::isSpeedEnabled);
-        if (this.isExpanded(SectionId.SPEED)) {
-            y = this.buildSpeedSection(left, y);
-            y += SECTION_GAP;
+        switch (this.selectedModule) {
+            case SPEED -> y = this.buildSpeedSection(this.settingsX, y);
+            case ESP -> y = this.buildEspSection(this.settingsX, y);
+            case RAYS -> y = this.buildRaysSection(this.settingsX, y);
+            case TARGET_HEALTH -> y = this.buildTargetHealthSection(this.settingsX, y);
+            case PLAYER_LIST -> y = this.buildPlayerListSection(this.settingsX, y);
+            case MENU -> y = this.buildMenuSection(this.settingsX, y);
         }
-
-        y = this.addSectionHeader(left, y, SectionId.ESP, "Player ESP", NoKnockbackClient::isPlayerEspEnabled);
-        if (this.isExpanded(SectionId.ESP)) {
-            y = this.buildEspSection(left, y);
-            y += SECTION_GAP;
-        }
-
-        y = this.addSectionHeader(left, y, SectionId.RAYS, "Rays", NoKnockbackClient::isPlayerRaysEnabled);
-        if (this.isExpanded(SectionId.RAYS)) {
-            y = this.buildRaysSection(left, y);
-            y += SECTION_GAP;
-        }
-
-        y = this.addSectionHeader(left, y, SectionId.TARGET_HEALTH, "Health Overlay", NoKnockbackClient::isTargetHealthOverlayEnabled);
-        if (this.isExpanded(SectionId.TARGET_HEALTH)) {
-            y = this.buildTargetHealthSection(left, y);
-            y += SECTION_GAP;
-        }
-
-        y = this.addSectionHeader(left, y, SectionId.PLAYER_LIST, "Player List", NoKnockbackClient::isPlayerListEnabled);
-        if (this.isExpanded(SectionId.PLAYER_LIST)) {
-            y = this.buildPlayerListSection(left, y);
-            y += SECTION_GAP;
-        }
-
-        y = this.addSectionHeader(left, y, SectionId.MENU, "Menu", () -> true);
-        if (this.isExpanded(SectionId.MENU)) {
-            y = this.buildMenuSection(left, y);
-            y += SECTION_GAP;
-        }
+        y += SECTION_GAP;
 
         this.contentBottom = y;
 
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> this.close())
-                .dimensions(left + PANEL_WIDTH - 100, this.height - ROW_HEIGHT - 6, 100, ROW_HEIGHT).build());
+        this.closeButton = this.addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> this.close())
+                .dimensions(this.windowX + WINDOW_WIDTH - 86, this.windowY + 6, 76, 16).build());
+        if (this.closeButton != null) {
+            this.closeButton.setAlpha(0.0F);
+        }
 
         this.recalculateScrollBounds();
         this.applyScroll();
         this.refreshLabels();
     }
 
-    private int addSectionHeader(int left, int y, SectionId sectionId, String title, @Nullable BooleanSupplier stateSupplier) {
-        ButtonWidget button = this.addScrollableWidget(ButtonWidget.builder(Text.empty(), widget -> {
-            this.expandedSections.put(sectionId, !this.isExpanded(sectionId));
-            this.clearAndInit();
-        }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
+    private void buildSidebar() {
+        int y = this.sidebarY + 20;
+        y = this.addSidebarGroup(y, "Movement");
+        y = this.addSidebarModuleButton(y, ModuleTab.SPEED);
+        y += 6;
 
-        this.sectionHeaders.put(sectionId, new SectionHeader(button, title, stateSupplier));
-        return y + ROW_HEIGHT + ROW_GAP;
+        y = this.addSidebarGroup(y, "Visual");
+        y = this.addSidebarModuleButton(y, ModuleTab.ESP);
+        y = this.addSidebarModuleButton(y, ModuleTab.RAYS);
+        y += 6;
+
+        y = this.addSidebarGroup(y, "Overlay");
+        y = this.addSidebarModuleButton(y, ModuleTab.TARGET_HEALTH);
+        y = this.addSidebarModuleButton(y, ModuleTab.PLAYER_LIST);
+        y += 6;
+
+        y = this.addSidebarGroup(y, "System");
+        this.addSidebarModuleButton(y, ModuleTab.MENU);
+    }
+
+    private int addSidebarGroup(int y, String title) {
+        this.groupLabels.add(new GroupLabel(title, this.sidebarX + 6, y));
+        return y + 13;
+    }
+
+    private int addSidebarModuleButton(int y, ModuleTab tab) {
+        int width = SIDEBAR_WIDTH - CONTENT_PADDING * 2;
+        ButtonWidget button = this.addDrawableChild(ButtonWidget.builder(Text.literal(tab.title), widget -> {
+            this.selectedModule = tab;
+            this.clearAndInit();
+        }).dimensions(this.sidebarX + 2, y, width, ROW_HEIGHT).build());
+        button.setAlpha(0.0F);
+        this.moduleButtons.put(tab, button);
+        return y + ROW_HEIGHT + 2;
+    }
+
+    private void clearWidgetRefs() {
+        this.closeButton = null;
+        this.speedToggleButton = null;
+        this.playerEspToggleButton = null;
+        this.playerRaysToggleButton = null;
+        this.playerArmorOverlayToggleButton = null;
+        this.distanceDisplayToggleButton = null;
+        this.heldItemOverlayToggleButton = null;
+        this.playerListToggleButton = null;
+        this.targetHealthToggleButton = null;
+        this.targetHealthColorToggleButton = null;
+        this.targetHealthBindPlaceholderButton = null;
+        this.menuAlwaysOnPlaceholderButton = null;
+        this.rayGlowButton = null;
+        this.armorGlowButton = null;
+        this.heldItemGlowButton = null;
+        this.distanceGlowButton = null;
+        this.rayOriginButton = null;
+        this.armorAnchorButton = null;
+        this.heldItemAnchorButton = null;
+        this.distanceAnchorButton = null;
+        this.rayColorModeButton = null;
+        this.armorColorModeButton = null;
+        this.heldItemColorModeButton = null;
+        this.distanceColorModeButton = null;
+        this.rayThicknessSlider = null;
+        this.outlineThicknessSlider = null;
+        this.rayBottomStartHeightSlider = null;
+        this.distanceTextSizeSlider = null;
+        this.armorSizeSlider = null;
+        this.heldItemSizeSlider = null;
+        this.targetHealthTextSizeSlider = null;
+        this.playerListXSlider = null;
+        this.playerListYSlider = null;
+        this.playerListScaleSlider = null;
+        this.playerListMaxHeightSlider = null;
+        this.playerListAlphaSlider = null;
+        this.raySaturationSlider = null;
+        this.armorSaturationSlider = null;
+        this.heldItemSaturationSlider = null;
+        this.distanceSaturationSlider = null;
+        this.raySpeedSlider = null;
+        this.armorSpeedSlider = null;
+        this.heldItemSpeedSlider = null;
+        this.distanceSpeedSlider = null;
     }
 
     private int buildSpeedSection(int left, int y) {
@@ -690,29 +767,45 @@ public class NoKnockbackMenuScreen extends Screen {
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        int left = (this.width - PANEL_WIDTH) / 2;
-        int panelTop = 6;
-        int panelBottom = this.height - 6;
+        if (this.client != null && this.client.world != null) {
+            this.applyBlur();
+        }
+
+        int windowRight = this.windowX + WINDOW_WIDTH;
+        int windowBottom = this.windowY + WINDOW_HEIGHT;
+        int sidebarRight = this.windowX + SIDEBAR_WIDTH;
 
         context.fill(0, 0, this.width, this.height, 0x92060301);
-        context.fill(left - 10, panelTop, left + PANEL_WIDTH + 10, panelBottom, 0xC6190D0A);
-        context.fill(left - 10, panelTop, left + PANEL_WIDTH + 10, panelTop + 24, 0xD7331711);
-        context.fill(left - 10, panelTop + 24, left + PANEL_WIDTH + 10, panelTop + 25, 0xC7E08C53);
+        context.fill(this.windowX, this.windowY, windowRight, windowBottom, WINDOW_BG_COLOR);
+        context.fill(this.windowX, this.windowY, windowRight, this.windowY + HEADER_HEIGHT, HEADER_BG_COLOR);
+        context.fill(this.windowX, this.windowY, windowRight, this.windowY + 1, WINDOW_BORDER_COLOR);
+        context.fill(this.windowX, windowBottom - 1, windowRight, windowBottom, WINDOW_BORDER_COLOR);
+        context.fill(this.windowX, this.windowY, this.windowX + 1, windowBottom, WINDOW_BORDER_COLOR);
+        context.fill(windowRight - 1, this.windowY, windowRight, windowBottom, WINDOW_BORDER_COLOR);
+
+        context.fill(this.windowX, this.windowY + HEADER_HEIGHT, sidebarRight, windowBottom, SIDEBAR_BG_COLOR);
+        context.fill(sidebarRight, this.windowY + HEADER_HEIGHT, sidebarRight + 1, windowBottom, 0x8DE08C53);
 
         super.render(context, mouseX, mouseY, delta);
         this.renderStyledRows(context, mouseX, mouseY);
+        this.renderSidebarButtons(context, mouseX, mouseY);
+        this.renderCloseButton(context, mouseX, mouseY);
 
-        context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 10, TITLE_COLOR);
-        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Paprika Overlay UI - sections, binds, full presets"), this.width / 2, 20, SUBTITLE_COLOR);
+        context.drawTextWithShadow(this.textRenderer, this.title, this.windowX + 10, this.windowY + 9, TITLE_COLOR);
+        context.drawTextWithShadow(this.textRenderer, Text.literal("module: " + this.selectedModule.title), this.settingsX, this.windowY + 9, SUBTITLE_COLOR);
 
-        this.renderScrollBar(context, left);
+        for (GroupLabel label : this.groupLabels) {
+            context.drawTextWithShadow(this.textRenderer, Text.literal(label.title()), label.x(), label.y(), SIDEBAR_GROUP_COLOR);
+        }
+
+        this.renderScrollBar(context, this.settingsX);
 
         if (this.waitingForKey != null) {
             context.drawCenteredTextWithShadow(
                     this.textRenderer,
                     Text.literal("Press any key (or mouse button), ESC to cancel"),
                     this.width / 2,
-                    this.height - 16,
+                    this.windowY + WINDOW_HEIGHT - 12,
                     0xFFFFFF99
             );
         }
@@ -749,7 +842,11 @@ public class NoKnockbackMenuScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-        if (this.maxScroll <= 0 || mouseY < this.scrollTop || mouseY > this.scrollBottom) {
+        if (this.maxScroll <= 0
+                || mouseY < this.scrollTop
+                || mouseY > this.scrollBottom
+                || mouseX < this.settingsX
+                || mouseX > this.settingsX + this.settingsWidth) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
 
@@ -815,10 +912,9 @@ public class NoKnockbackMenuScreen extends Screen {
             int x2 = x1 + widget.getWidth();
             int y2 = y1 + widget.getHeight();
             boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
-            boolean header = this.isSectionHeader(widget);
 
             int fill = widget.active
-                    ? (hovered ? (header ? 0xB75A2E22 : CARD_HOVER_COLOR) : (header ? 0xA346241B : CARD_COLOR))
+                    ? (hovered ? CARD_HOVER_COLOR : CARD_COLOR)
                     : CARD_DISABLED_COLOR;
             int textColor = widget.active ? CARD_TEXT_COLOR : CARD_TEXT_DISABLED_COLOR;
 
@@ -833,21 +929,63 @@ public class NoKnockbackMenuScreen extends Screen {
         }
     }
 
-    private boolean isSectionHeader(ClickableWidget widget) {
-        for (SectionHeader header : this.sectionHeaders.values()) {
-            if (header.button() == widget) {
-                return true;
-            }
+    private void renderSidebarButtons(DrawContext context, int mouseX, int mouseY) {
+        if (this.textRenderer == null) return;
+
+        for (Map.Entry<ModuleTab, ButtonWidget> entry : this.moduleButtons.entrySet()) {
+            ButtonWidget button = entry.getValue();
+            if (!button.visible) continue;
+
+            int x1 = button.getX();
+            int y1 = button.getY();
+            int x2 = x1 + button.getWidth();
+            int y2 = y1 + button.getHeight();
+            boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
+            boolean selected = entry.getKey() == this.selectedModule;
+
+            int fill = selected
+                    ? 0xA94D261C
+                    : (hovered ? 0x8D3A211A : 0x6A2A1814);
+            int border = selected ? 0xE0E08C53 : 0x88583A31;
+            int textColor = selected ? SIDEBAR_SELECTED_COLOR : SIDEBAR_ITEM_COLOR;
+
+            context.fill(x1, y1, x2, y2, fill);
+            context.fill(x1, y1, x2, y1 + 1, border);
+            context.fill(x1, y2 - 1, x2, y2, border);
+            context.fill(x1, y1, x1 + 1, y2, border);
+            context.fill(x2 - 1, y1, x2, y2, border);
+
+            int textY = y1 + (button.getHeight() - 8) / 2;
+            context.drawTextWithShadow(this.textRenderer, button.getMessage(), x1 + 8, textY, textColor);
         }
-        return false;
+    }
+
+    private void renderCloseButton(DrawContext context, int mouseX, int mouseY) {
+        if (this.closeButton == null || this.textRenderer == null || !this.closeButton.visible) return;
+
+        int x1 = this.closeButton.getX();
+        int y1 = this.closeButton.getY();
+        int x2 = x1 + this.closeButton.getWidth();
+        int y2 = y1 + this.closeButton.getHeight();
+        boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
+
+        int fill = hovered ? 0xA8502920 : 0x883C2119;
+        int border = hovered ? 0xFFE7AE79 : 0xB78C6045;
+        context.fill(x1, y1, x2, y2, fill);
+        context.fill(x1, y1, x2, y1 + 1, border);
+        context.fill(x1, y2 - 1, x2, y2, border);
+        context.fill(x1, y1, x1 + 1, y2, border);
+        context.fill(x2 - 1, y1, x2, y2, border);
+
+        int textY = y1 + (this.closeButton.getHeight() - 8) / 2;
+        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Close"), x1 + this.closeButton.getWidth() / 2, textY, CARD_TEXT_COLOR);
     }
 
     private void refreshLabels() {
-        for (Map.Entry<SectionId, SectionHeader> entry : this.sectionHeaders.entrySet()) {
-            SectionHeader header = entry.getValue();
-            boolean expanded = this.isExpanded(entry.getKey());
-            boolean enabledState = header.stateSupplier() == null || header.stateSupplier().getAsBoolean();
-            header.button().setMessage(this.sectionText(header.title(), expanded, enabledState));
+        for (Map.Entry<ModuleTab, ButtonWidget> entry : this.moduleButtons.entrySet()) {
+            ModuleTab tab = entry.getKey();
+            ButtonWidget button = entry.getValue();
+            button.setMessage(Text.literal(tab.title + "  [" + (this.moduleEnabled(tab) ? "ON" : "OFF") + "]"));
         }
 
         if (this.speedToggleButton != null) {
@@ -1046,12 +1184,15 @@ public class NoKnockbackMenuScreen extends Screen {
         return Text.literal(name + ": " + (enabled ? "ON" : "OFF"));
     }
 
-    private Text sectionText(String title, boolean expanded, boolean enabled) {
-        return Text.literal((expanded ? "v " : "> ") + title + " [" + (enabled ? "ON" : "OFF") + "]");
-    }
-
-    private boolean isExpanded(SectionId sectionId) {
-        return this.expandedSections.getOrDefault(sectionId, false);
+    private boolean moduleEnabled(ModuleTab module) {
+        return switch (module) {
+            case SPEED -> NoKnockbackClient.isSpeedEnabled();
+            case ESP -> NoKnockbackClient.isPlayerEspEnabled();
+            case RAYS -> NoKnockbackClient.isPlayerRaysEnabled();
+            case TARGET_HEALTH -> NoKnockbackClient.isTargetHealthOverlayEnabled();
+            case PLAYER_LIST -> NoKnockbackClient.isPlayerListEnabled();
+            case MENU -> true;
+        };
     }
 
     private Text rayOriginText(NoKnockbackClient.RayOrigin origin) {
@@ -1071,16 +1212,22 @@ public class NoKnockbackMenuScreen extends Screen {
         };
     }
 
-    private enum SectionId {
-        SPEED,
-        ESP,
-        RAYS,
-        TARGET_HEALTH,
-        PLAYER_LIST,
-        MENU
+    private enum ModuleTab {
+        SPEED("Speed"),
+        ESP("Player ESP"),
+        RAYS("Rays"),
+        TARGET_HEALTH("Health Overlay"),
+        PLAYER_LIST("Player List"),
+        MENU("Menu");
+
+        private final String title;
+
+        ModuleTab(String title) {
+            this.title = title;
+        }
     }
 
-    private record SectionHeader(ButtonWidget button, String title, @Nullable BooleanSupplier stateSupplier) {
+    private record GroupLabel(String title, int x, int y) {
     }
 
     private record WidgetAnchor(ClickableWidget widget, int baseY, boolean baseActive) {
