@@ -66,7 +66,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
-    private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("noknockback", "hud_overlay");
+    private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
 
     private static boolean speedEnabled = true;
     private static boolean playerEspEnabled = false;
@@ -616,38 +616,38 @@ public class NoKnockbackClient implements ClientModInitializer {
         applyLoadedConfig(loadedConfig);
 
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.noknockback.toggle",
+                "key.paprika.toggle",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_V,
-                "category.noknockback"
+                "category.paprika"
         ));
 
         togglePlayerEspKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.noknockback.player_esp",
+                "key.paprika.player_esp",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_H,
-                "category.noknockback"
+                "category.paprika"
         ));
 
         togglePlayerRaysKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.noknockback.player_rays",
+                "key.paprika.player_rays",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_J,
-                "category.noknockback"
+                "category.paprika"
         ));
 
         togglePlayerListKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.noknockback.player_list",
+                "key.paprika.player_list",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_K,
-                "category.noknockback"
+                "category.paprika"
         ));
 
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.noknockback.menu",
+                "key.paprika.menu",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_SHIFT,
-                "category.noknockback"
+                "category.paprika"
         ));
 
         applyConfiguredKey(toggleKey, loadedConfig.speedToggleKey);
@@ -681,7 +681,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         while (toggleKey.wasPressed()) {
             setSpeedEnabled(!speedEnabled);
             player.sendMessage(
-                    Text.literal("Speed: " + (speedEnabled ? "ON" : "OFF")),
+                    Text.literal("[Paprika] Speed: " + (speedEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -689,7 +689,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         while (togglePlayerEspKey.wasPressed()) {
             setPlayerEspEnabled(!playerEspEnabled);
             player.sendMessage(
-                    Text.literal("Player ESP: " + (playerEspEnabled ? "ON" : "OFF")),
+                    Text.literal("[Paprika] Player ESP: " + (playerEspEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -697,7 +697,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         while (togglePlayerRaysKey.wasPressed()) {
             setPlayerRaysEnabled(!playerRaysEnabled);
             player.sendMessage(
-                    Text.literal("Player Rays: " + (playerRaysEnabled ? "ON" : "OFF")),
+                    Text.literal("[Paprika] Player Rays: " + (playerRaysEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -705,7 +705,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         while (togglePlayerListKey.wasPressed()) {
             setPlayerListEnabled(!playerListEnabled);
             player.sendMessage(
-                    Text.literal("Player List: " + (playerListEnabled ? "ON" : "OFF")),
+                    Text.literal("[Paprika] Player List: " + (playerListEnabled ? "ON" : "OFF")),
                     true
             );
         }

@@ -59,7 +59,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
     private SettingSlider distanceSpeedSlider;
 
     public NoKnockbackVisualSettingsScreen(@Nullable Screen parent) {
-        super(Text.literal("Visual Settings"));
+        super(Text.literal("Paprika Visual Settings"));
         this.parent = parent;
     }
 

@@ -1,8 +1,15 @@
-{
-  "category.noknockback": "NoKnockback",
+﻿{
+  "category.paprika": "Paprika",
+  "key.paprika.toggle": "Переключить скорость",
+  "key.paprika.player_esp": "Переключить ESP игроков",
+  "key.paprika.player_rays": "Переключить лучи игроков",
+  "key.paprika.player_list": "Переключить список игроков",
+  "key.paprika.menu": "Открыть меню Paprika",
+
+  "category.noknockback": "Paprika",
   "key.noknockback.toggle": "Переключить скорость",
-  "key.noknockback.player_esp": "Переключить подсветку игроков",
+  "key.noknockback.player_esp": "Переключить ESP игроков",
   "key.noknockback.player_rays": "Переключить лучи игроков",
   "key.noknockback.player_list": "Переключить список игроков",
-  "key.noknockback.menu": "Открыть меню настроек"
+  "key.noknockback.menu": "Открыть меню Paprika"
 }

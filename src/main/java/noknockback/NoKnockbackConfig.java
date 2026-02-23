@@ -16,22 +16,32 @@ import java.util.Locale;
 
 public final class NoKnockbackConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("noknockback.json");
+    private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("paprika.json");
+    private static final Path LEGACY_CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("noknockback.json");
 
     private NoKnockbackConfig() {
     }
 
     public static Data load() {
         Data defaults = new Data();
+        Path sourcePath = CONFIG_PATH;
 
-        if (!Files.exists(CONFIG_PATH)) {
+        if (!Files.exists(CONFIG_PATH) && Files.exists(LEGACY_CONFIG_PATH)) {
+            sourcePath = LEGACY_CONFIG_PATH;
+        }
+
+        if (!Files.exists(sourcePath)) {
             save(defaults);
             return defaults;
         }
 
-        try (Reader reader = Files.newBufferedReader(CONFIG_PATH, StandardCharsets.UTF_8)) {
+        try (Reader reader = Files.newBufferedReader(sourcePath, StandardCharsets.UTF_8)) {
             Data loaded = GSON.fromJson(reader, Data.class);
-            return sanitize(loaded == null ? defaults : loaded);
+            Data sanitized = sanitize(loaded == null ? defaults : loaded);
+            if (!sourcePath.equals(CONFIG_PATH)) {
+                save(sanitized);
+            }
+            return sanitized;
         } catch (Exception ignored) {
             return defaults;
         }

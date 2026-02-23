@@ -1,5 +1,6 @@
 package noknockback;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -28,8 +29,14 @@ public class NoKnockbackMenuScreen extends Screen {
     private static final int SECTION_GAP = 8;
     private static final int SCROLL_STEP = 20;
     private static final int FOOTER_HEIGHT = 32;
-    private static final int TITLE_COLOR = 0xFFE7F0FF;
-    private static final int SUBTITLE_COLOR = 0xFF9BB2CF;
+    private static final int TITLE_COLOR = 0xFFFFEEDB;
+    private static final int SUBTITLE_COLOR = 0xFFF0B98A;
+    private static final int CARD_COLOR = 0x8A291816;
+    private static final int CARD_HOVER_COLOR = 0xA240231F;
+    private static final int CARD_DISABLED_COLOR = 0x58251917;
+    private static final int CARD_BORDER_COLOR = 0xAAE08C53;
+    private static final int CARD_TEXT_COLOR = 0xFFFCE6D2;
+    private static final int CARD_TEXT_DISABLED_COLOR = 0xFFB49C8B;
 
     @Nullable
     private final Screen parent;
@@ -140,7 +147,7 @@ public class NoKnockbackMenuScreen extends Screen {
     private SettingSlider distanceSpeedSlider;
 
     public NoKnockbackMenuScreen(@Nullable Screen parent) {
-        super(Text.literal("NoKnockback Overlay"));
+        super(Text.literal("Paprika"));
         this.parent = parent;
         for (SectionId sectionId : SectionId.values()) {
             this.expandedSections.put(sectionId, false);
@@ -687,14 +694,16 @@ public class NoKnockbackMenuScreen extends Screen {
         int panelTop = 6;
         int panelBottom = this.height - 6;
 
-        context.fill(0, 0, this.width, this.height, 0x86060A12);
-        context.fill(left - 8, panelTop, left + PANEL_WIDTH + 8, panelBottom, 0xC4141D2D);
-        context.fill(left - 8, panelTop, left + PANEL_WIDTH + 8, panelTop + 22, 0xD4203048);
+        context.fill(0, 0, this.width, this.height, 0x92060301);
+        context.fill(left - 10, panelTop, left + PANEL_WIDTH + 10, panelBottom, 0xC6190D0A);
+        context.fill(left - 10, panelTop, left + PANEL_WIDTH + 10, panelTop + 24, 0xD7331711);
+        context.fill(left - 10, panelTop + 24, left + PANEL_WIDTH + 10, panelTop + 25, 0xC7E08C53);
 
         super.render(context, mouseX, mouseY, delta);
+        this.renderStyledRows(context, mouseX, mouseY);
 
         context.drawCenteredTextWithShadow(this.textRenderer, this.title, this.width / 2, 10, TITLE_COLOR);
-        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Expandable function blocks (ON/OFF, bind, settings)"), this.width / 2, 20, SUBTITLE_COLOR);
+        context.drawCenteredTextWithShadow(this.textRenderer, Text.literal("Paprika Overlay UI - sections, binds, full presets"), this.width / 2, 20, SUBTITLE_COLOR);
 
         this.renderScrollBar(context, left);
 
@@ -787,8 +796,50 @@ public class NoKnockbackMenuScreen extends Screen {
 
     private <T extends ClickableWidget> T addScrollableWidget(T widget) {
         T added = this.addDrawableChild(widget);
+        if (added instanceof ButtonWidget || added instanceof CyclingButtonWidget<?>) {
+            added.setAlpha(0.0F);
+        }
         this.scrollAnchors.add(new WidgetAnchor(added, added.getY(), added.active));
         return added;
+    }
+
+    private void renderStyledRows(DrawContext context, int mouseX, int mouseY) {
+        if (this.textRenderer == null) return;
+
+        for (WidgetAnchor anchor : this.scrollAnchors) {
+            ClickableWidget widget = anchor.widget();
+            if (!widget.visible || widget instanceof SettingSlider) continue;
+
+            int x1 = widget.getX();
+            int y1 = widget.getY();
+            int x2 = x1 + widget.getWidth();
+            int y2 = y1 + widget.getHeight();
+            boolean hovered = mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2;
+            boolean header = this.isSectionHeader(widget);
+
+            int fill = widget.active
+                    ? (hovered ? (header ? 0xB75A2E22 : CARD_HOVER_COLOR) : (header ? 0xA346241B : CARD_COLOR))
+                    : CARD_DISABLED_COLOR;
+            int textColor = widget.active ? CARD_TEXT_COLOR : CARD_TEXT_DISABLED_COLOR;
+
+            context.fill(x1, y1, x2, y2, fill);
+            context.fill(x1, y1, x2, y1 + 1, CARD_BORDER_COLOR);
+            context.fill(x1, y2 - 1, x2, y2, CARD_BORDER_COLOR);
+            context.fill(x1, y1, x1 + 1, y2, CARD_BORDER_COLOR);
+            context.fill(x2 - 1, y1, x2, y2, CARD_BORDER_COLOR);
+
+            int textY = y1 + (widget.getHeight() - 8) / 2;
+            context.drawCenteredTextWithShadow(this.textRenderer, widget.getMessage(), x1 + widget.getWidth() / 2, textY, textColor);
+        }
+    }
+
+    private boolean isSectionHeader(ClickableWidget widget) {
+        for (SectionHeader header : this.sectionHeaders.values()) {
+            if (header.button() == widget) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void refreshLabels() {
@@ -816,41 +867,32 @@ public class NoKnockbackMenuScreen extends Screen {
         }
         if (this.targetHealthColorToggleButton != null) {
             this.targetHealthColorToggleButton.setMessage(this.toggleText("HP Dynamic Color", NoKnockbackClient.isTargetHealthDynamicColorEnabled()));
-            this.targetHealthColorToggleButton.active = NoKnockbackClient.isTargetHealthOverlayEnabled();
         }
 
         if (this.rayOriginButton != null) {
             this.rayOriginButton.setValue(NoKnockbackClient.getRayOrigin());
-            this.rayOriginButton.active = NoKnockbackClient.isPlayerRaysEnabled();
         }
         if (this.rayBottomStartHeightSlider != null) {
             this.rayBottomStartHeightSlider.sync(NoKnockbackClient.getRayBottomStartHeight());
-            this.rayBottomStartHeightSlider.active = NoKnockbackClient.isPlayerRaysEnabled() && NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM;
         }
         if (this.rayThicknessSlider != null) {
             this.rayThicknessSlider.sync(NoKnockbackClient.getRayThickness());
-            this.rayThicknessSlider.active = NoKnockbackClient.isPlayerRaysEnabled();
         }
         if (this.rayGlowButton != null) {
             this.rayGlowButton.setMessage(this.toggleText("Ray Glow", NoKnockbackClient.isRayVisualGlowEnabled()));
-            this.rayGlowButton.active = NoKnockbackClient.isPlayerRaysEnabled();
         }
         if (this.rayColorModeButton != null) {
             this.rayColorModeButton.setValue(NoKnockbackClient.getRayVisualColorMode());
-            this.rayColorModeButton.active = NoKnockbackClient.isPlayerRaysEnabled();
         }
         if (this.raySaturationSlider != null) {
             this.raySaturationSlider.sync(NoKnockbackClient.getRayVisualSaturationBoost());
-            this.raySaturationSlider.active = NoKnockbackClient.isPlayerRaysEnabled();
         }
         if (this.raySpeedSlider != null) {
             this.raySpeedSlider.sync(NoKnockbackClient.getRayVisualAnimationSpeed());
-            this.raySpeedSlider.active = NoKnockbackClient.isPlayerRaysEnabled();
         }
 
         if (this.outlineThicknessSlider != null) {
             this.outlineThicknessSlider.sync(NoKnockbackClient.getOutlineThickness());
-            this.outlineThicknessSlider.active = NoKnockbackClient.isPlayerEspEnabled();
         }
 
         if (this.playerArmorOverlayToggleButton != null) {
@@ -858,27 +900,21 @@ public class NoKnockbackMenuScreen extends Screen {
         }
         if (this.armorAnchorButton != null) {
             this.armorAnchorButton.setValue(NoKnockbackClient.getArmorAnchorMode());
-            this.armorAnchorButton.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
         }
         if (this.armorSizeSlider != null) {
             this.armorSizeSlider.sync(NoKnockbackClient.getArmorOverlayScale());
-            this.armorSizeSlider.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
         }
         if (this.armorGlowButton != null) {
             this.armorGlowButton.setMessage(this.toggleText("Armor Glow", NoKnockbackClient.isArmorVisualGlowEnabled()));
-            this.armorGlowButton.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
         }
         if (this.armorColorModeButton != null) {
             this.armorColorModeButton.setValue(NoKnockbackClient.getArmorVisualColorMode());
-            this.armorColorModeButton.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
         }
         if (this.armorSaturationSlider != null) {
             this.armorSaturationSlider.sync(NoKnockbackClient.getArmorVisualSaturationBoost());
-            this.armorSaturationSlider.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
         }
         if (this.armorSpeedSlider != null) {
             this.armorSpeedSlider.sync(NoKnockbackClient.getArmorVisualAnimationSpeed());
-            this.armorSpeedSlider.active = NoKnockbackClient.isPlayerArmorOverlayEnabled();
         }
 
         if (this.heldItemOverlayToggleButton != null) {
@@ -886,27 +922,21 @@ public class NoKnockbackMenuScreen extends Screen {
         }
         if (this.heldItemAnchorButton != null) {
             this.heldItemAnchorButton.setValue(NoKnockbackClient.getHeldItemAnchorMode());
-            this.heldItemAnchorButton.active = NoKnockbackClient.isHeldItemOverlayEnabled();
         }
         if (this.heldItemSizeSlider != null) {
             this.heldItemSizeSlider.sync(NoKnockbackClient.getHeldItemOverlayScale());
-            this.heldItemSizeSlider.active = NoKnockbackClient.isHeldItemOverlayEnabled();
         }
         if (this.heldItemGlowButton != null) {
             this.heldItemGlowButton.setMessage(this.toggleText("Held Item Glow", NoKnockbackClient.isHeldItemVisualGlowEnabled()));
-            this.heldItemGlowButton.active = NoKnockbackClient.isHeldItemOverlayEnabled();
         }
         if (this.heldItemColorModeButton != null) {
             this.heldItemColorModeButton.setValue(NoKnockbackClient.getHeldItemVisualColorMode());
-            this.heldItemColorModeButton.active = NoKnockbackClient.isHeldItemOverlayEnabled();
         }
         if (this.heldItemSaturationSlider != null) {
             this.heldItemSaturationSlider.sync(NoKnockbackClient.getHeldItemVisualSaturationBoost());
-            this.heldItemSaturationSlider.active = NoKnockbackClient.isHeldItemOverlayEnabled();
         }
         if (this.heldItemSpeedSlider != null) {
             this.heldItemSpeedSlider.sync(NoKnockbackClient.getHeldItemVisualAnimationSpeed());
-            this.heldItemSpeedSlider.active = NoKnockbackClient.isHeldItemOverlayEnabled();
         }
 
         if (this.distanceDisplayToggleButton != null) {
@@ -914,32 +944,25 @@ public class NoKnockbackMenuScreen extends Screen {
         }
         if (this.distanceAnchorButton != null) {
             this.distanceAnchorButton.setValue(NoKnockbackClient.getDistanceAnchorMode());
-            this.distanceAnchorButton.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
         if (this.distanceTextSizeSlider != null) {
             this.distanceTextSizeSlider.sync(NoKnockbackClient.getDistanceTextScale());
-            this.distanceTextSizeSlider.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
         if (this.distanceGlowButton != null) {
             this.distanceGlowButton.setMessage(this.toggleText("Distance Glow", NoKnockbackClient.isDistanceVisualGlowEnabled()));
-            this.distanceGlowButton.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
         if (this.distanceColorModeButton != null) {
             this.distanceColorModeButton.setValue(NoKnockbackClient.getDistanceVisualColorMode());
-            this.distanceColorModeButton.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
         if (this.distanceSaturationSlider != null) {
             this.distanceSaturationSlider.sync(NoKnockbackClient.getDistanceVisualSaturationBoost());
-            this.distanceSaturationSlider.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
         if (this.distanceSpeedSlider != null) {
             this.distanceSpeedSlider.sync(NoKnockbackClient.getDistanceVisualAnimationSpeed());
-            this.distanceSpeedSlider.active = NoKnockbackClient.isDistanceDisplayEnabled();
         }
 
         if (this.targetHealthTextSizeSlider != null) {
             this.targetHealthTextSizeSlider.sync(NoKnockbackClient.getTargetHealthTextScale());
-            this.targetHealthTextSizeSlider.active = NoKnockbackClient.isTargetHealthOverlayEnabled();
         }
         if (this.targetHealthBindPlaceholderButton != null) {
             this.targetHealthBindPlaceholderButton.setMessage(Text.literal("Bind: not assigned"));
@@ -948,23 +971,18 @@ public class NoKnockbackMenuScreen extends Screen {
 
         if (this.playerListXSlider != null) {
             this.playerListXSlider.sync(NoKnockbackClient.getPlayerListOffsetX());
-            this.playerListXSlider.active = NoKnockbackClient.isPlayerListEnabled();
         }
         if (this.playerListYSlider != null) {
             this.playerListYSlider.sync(NoKnockbackClient.getPlayerListOffsetY());
-            this.playerListYSlider.active = NoKnockbackClient.isPlayerListEnabled();
         }
         if (this.playerListScaleSlider != null) {
             this.playerListScaleSlider.sync(NoKnockbackClient.getPlayerListTextScale());
-            this.playerListScaleSlider.active = NoKnockbackClient.isPlayerListEnabled();
         }
         if (this.playerListMaxHeightSlider != null) {
             this.playerListMaxHeightSlider.sync(NoKnockbackClient.getPlayerListMaxHeight());
-            this.playerListMaxHeightSlider.active = NoKnockbackClient.isPlayerListEnabled();
         }
         if (this.playerListAlphaSlider != null) {
             this.playerListAlphaSlider.sync(NoKnockbackClient.getPlayerListAlphaMultiplier());
-            this.playerListAlphaSlider.active = NoKnockbackClient.isPlayerListEnabled();
         }
         if (this.menuAlwaysOnPlaceholderButton != null) {
             this.menuAlwaysOnPlaceholderButton.setMessage(Text.literal("Enabled: ON"));
@@ -1099,6 +1117,40 @@ public class NoKnockbackMenuScreen extends Screen {
             this.value = normalize(newValue, this.min, this.max);
             this.onValueChanged(newValue);
             this.updateMessage();
+        }
+
+        @Override
+        public void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
+            boolean hovered = this.isHovered();
+            int x1 = this.getX();
+            int y1 = this.getY();
+            int x2 = x1 + this.getWidth();
+            int y2 = y1 + this.getHeight();
+
+            int fill = this.active
+                    ? (hovered ? CARD_HOVER_COLOR : CARD_COLOR)
+                    : CARD_DISABLED_COLOR;
+            int textColor = this.active ? CARD_TEXT_COLOR : CARD_TEXT_DISABLED_COLOR;
+
+            context.fill(x1, y1, x2, y2, fill);
+            context.fill(x1, y1, x2, y1 + 1, CARD_BORDER_COLOR);
+            context.fill(x1, y2 - 1, x2, y2, CARD_BORDER_COLOR);
+            context.fill(x1, y1, x1 + 1, y2, CARD_BORDER_COLOR);
+            context.fill(x2 - 1, y1, x2, y2, CARD_BORDER_COLOR);
+
+            int trackX1 = x1 + 8;
+            int trackX2 = x2 - 8;
+            int trackY = y2 - 5;
+            context.fill(trackX1, trackY, trackX2, trackY + 2, 0xAAFFD8B5);
+
+            int knobX = trackX1 + (int) Math.round((trackX2 - trackX1 - 4) * this.value);
+            int knobColor = this.active ? 0xFFFFB26F : 0xFF7D5D46;
+            context.fill(knobX, y1 + 2, knobX + 4, y2 - 2, knobColor);
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.textRenderer != null) {
+                context.drawTextWithShadow(client.textRenderer, this.getMessage(), x1 + 6, y1 + (this.getHeight() - 8) / 2, textColor);
+            }
         }
 
         protected abstract void onValueChanged(double value);
