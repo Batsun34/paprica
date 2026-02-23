@@ -66,6 +66,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static final int PLAYER_LIST_BORDER_COLOR = 0x43FFFFFF;
     private static final float MAX_BOTTOM_RAY_START_HEIGHT = 300.0F;
     private static final float RAY_LABEL_POSITION_FACTOR = 0.62F;
+    private static final float RAY_START_CLEARANCE = 12.0F;
     private static final int RAY_LABEL_BG_COLOR = 0x6A000000;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int OVERLAY_GROUP_GAP = 4;
@@ -1333,6 +1334,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (!playerRaysEnabled) return;
 
         Vector3f projected = new Vector3f();
+        Vector3f rayStart = new Vector3f();
 
         drawContext.draw(vertexConsumers -> {
             VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());
@@ -1343,6 +1345,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
                 Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
                 if (!projectToIndicator(targetPos, camera, screenWidth, screenHeight, renderFov, projected)) continue;
+                if (!computeRayStart(rayStartX, rayStartY, projected.x, projected.y, rayStart)) continue;
 
                 int baseStart = resolveVisualColor(
                         target,
@@ -1366,8 +1369,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                     drawThickRay(
                             matrix,
                             lineConsumer,
-                            rayStartX,
-                            rayStartY,
+                            rayStart.x,
+                            rayStart.y,
                             projected.x,
                             projected.y,
                             rayThickness * 2.6F,
@@ -1378,8 +1381,8 @@ public class NoKnockbackClient implements ClientModInitializer {
                 drawThickRay(
                         matrix,
                         lineConsumer,
-                        rayStartX,
-                        rayStartY,
+                        rayStart.x,
+                        rayStart.y,
                         projected.x,
                         projected.y,
                         rayThickness,
@@ -1414,6 +1417,26 @@ public class NoKnockbackClient implements ClientModInitializer {
         consumer.vertex(matrix, x1 + nx, y1 + ny, 0.0F).color(startColor);
         consumer.vertex(matrix, x2 + nx, y2 + ny, 0.0F).color(endColor);
         consumer.vertex(matrix, x2 - nx, y2 - ny, 0.0F).color(endColor);
+    }
+
+    private static boolean computeRayStart(
+            float startX,
+            float startY,
+            float endX,
+            float endY,
+            Vector3f out
+    ) {
+        float dx = endX - startX;
+        float dy = endY - startY;
+        float len = MathHelper.sqrt(dx * dx + dy * dy);
+        if (len <= RAY_START_CLEARANCE) return false;
+        float inv = 1.0F / len;
+        out.set(
+                startX + dx * inv * RAY_START_CLEARANCE,
+                startY + dy * inv * RAY_START_CLEARANCE,
+                0.0F
+        );
+        return true;
     }
 
     private static void updatePlayerTrails(MinecraftClient client) {
