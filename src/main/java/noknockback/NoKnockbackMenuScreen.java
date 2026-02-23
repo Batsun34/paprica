@@ -757,6 +757,7 @@ public class NoKnockbackMenuScreen extends Screen {
                 panels.add(new Panel("Trails", 0, List.of(
                         Control.toggle("trails.enabled", "Enabled", NoKnockbackClient::isPlayerTrailsEnabled, NoKnockbackClient::setPlayerTrailsEnabled),
                         Control.keybind("trails.bind", "Bind", NoKnockbackClient.getPlayerTrailsKeyBinding()),
+                        Control.toggle("trails.include_self", "Include Self", NoKnockbackClient::isPlayerTrailsIncludeSelf, NoKnockbackClient::setPlayerTrailsIncludeSelf),
                         Control.cycle("trails.type", "Trail Type", Control.TRAIL_TYPES,
                                 () -> NoKnockbackClient.getTrailType().ordinal(),
                                 idx -> NoKnockbackClient.setTrailType(NoKnockbackClient.TrailType.values()[idx])
@@ -774,6 +775,7 @@ public class NoKnockbackMenuScreen extends Screen {
                                 () -> NoKnockbackClient.getTrailColorMode().ordinal(),
                                 idx -> NoKnockbackClient.setTrailColorMode(NoKnockbackClient.TrailColorMode.values()[idx])
                         ),
+                        Control.slider("trails.alpha", "Trail Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getTrailAlpha, value -> NoKnockbackClient.setTrailAlpha((float) value)),
                         Control.slider("trails.fixed_r", "Fixed Red", 0, 255, 1, NoKnockbackClient::getTrailFixedRed, value -> NoKnockbackClient.setTrailFixedRed((int) value)),
                         Control.slider("trails.fixed_g", "Fixed Green", 0, 255, 1, NoKnockbackClient::getTrailFixedGreen, value -> NoKnockbackClient.setTrailFixedGreen((int) value)),
                         Control.slider("trails.fixed_b", "Fixed Blue", 0, 255, 1, NoKnockbackClient::getTrailFixedBlue, value -> NoKnockbackClient.setTrailFixedBlue((int) value))

@@ -70,6 +70,7 @@ public final class NoKnockbackConfig {
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
         sanitized.playerTrailsEnabled = data.playerTrailsEnabled;
+        sanitized.playerTrailsIncludeSelf = data.playerTrailsIncludeSelf;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
@@ -121,6 +122,7 @@ public final class NoKnockbackConfig {
         sanitized.trailStripeHeight = MathHelper.clamp(data.trailStripeHeight, 0.2F, 4.0F);
         sanitized.trailLifetimeSeconds = MathHelper.clamp(data.trailLifetimeSeconds, 0.1F, 10.0F);
         sanitized.trailGradientSpeed = MathHelper.clamp(data.trailGradientSpeed, 0.1F, 5.0F);
+        sanitized.trailAlpha = MathHelper.clamp(data.trailAlpha, 0.1F, 1.0F);
         sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
@@ -253,6 +255,7 @@ public final class NoKnockbackConfig {
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
         public boolean playerTrailsEnabled = false;
+        public boolean playerTrailsIncludeSelf = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
@@ -304,6 +307,7 @@ public final class NoKnockbackConfig {
         public float trailStripeHeight = 1.4F;
         public float trailLifetimeSeconds = 2.5F;
         public float trailGradientSpeed = 1.0F;
+        public float trailAlpha = 1.0F;
         public float handFovScale = 1.0F;
         public float handOffsetX = 0.0F;
         public float handOffsetY = 0.0F;

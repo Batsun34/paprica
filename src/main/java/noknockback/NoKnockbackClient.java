@@ -90,6 +90,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
     private static boolean playerTrailsEnabled = false;
+    private static boolean playerTrailsIncludeSelf = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
@@ -127,6 +128,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float trailStripeHeight = 1.4F;
     private static float trailLifetimeSeconds = 2.5F;
     private static float trailGradientSpeed = 1.0F;
+    private static float trailAlpha = 1.0F;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
     private static float handOffsetX = 0.0F;
     private static float handOffsetY = 0.0F;
@@ -235,6 +237,16 @@ public class NoKnockbackClient implements ClientModInitializer {
             trailSegments.clear();
             trailStates.clear();
         }
+        saveConfigNow();
+    }
+
+    public static boolean isPlayerTrailsIncludeSelf() {
+        return playerTrailsIncludeSelf;
+    }
+
+    public static void setPlayerTrailsIncludeSelf(boolean enabled) {
+        if (playerTrailsIncludeSelf == enabled) return;
+        playerTrailsIncludeSelf = enabled;
         saveConfigNow();
     }
 
@@ -702,6 +714,17 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(seconds, 0.1F, 10.0F);
         if (Math.abs(trailLifetimeSeconds - clamped) < 0.0001F) return;
         trailLifetimeSeconds = clamped;
+        saveConfigNow();
+    }
+
+    public static float getTrailAlpha() {
+        return trailAlpha;
+    }
+
+    public static void setTrailAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(trailAlpha - clamped) < 0.0001F) return;
+        trailAlpha = clamped;
         saveConfigNow();
     }
 
@@ -1419,8 +1442,10 @@ public class NoKnockbackClient implements ClientModInitializer {
 
         Set<UUID> seen = new HashSet<>();
         PlayerEntity localPlayer = client.player;
+        boolean includeSelf = playerTrailsIncludeSelf;
         for (PlayerEntity target : client.world.getPlayers()) {
-            if (target == null || target == localPlayer || target.isRemoved()) continue;
+            if (target == null || target.isRemoved()) continue;
+            if (!includeSelf && target == localPlayer) continue;
             UUID uuid = target.getUuid();
             seen.add(uuid);
 
@@ -1468,10 +1493,9 @@ public class NoKnockbackClient implements ClientModInitializer {
                 if (backDir.lengthSquared() < 0.0001) {
                     backDir = new Vec3d(0.0, 0.0, 1.0);
                 }
-                Vec3d offset = backDir.normalize().multiply(trailOrigin == TrailOrigin.BACK ? 0.18 : 0.0);
                 Vec3d up = new Vec3d(0.0, trailStripeHeight, 0.0);
-                Vec3d s = start.add(offset);
-                Vec3d e = end.add(offset);
+                Vec3d s = start;
+                Vec3d e = end;
                 addQuad(consumer, matrix, s, e, e.add(up), s.add(up), color);
                 addQuad(consumer, matrix, s.add(up), e.add(up), e, s, color);
                 continue;
@@ -1507,13 +1531,15 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     private static Vec3d computeTrailOrigin(PlayerEntity player, Vec3d backDir) {
         Vec3d basePos = player.getPos();
+        Vec3d back = backDir.lengthSquared() < 0.0001 ? new Vec3d(0.0, 0.0, 1.0) : backDir.normalize();
+        double backOffset = player.getWidth() * 0.5 + 0.06;
         if (trailOrigin == TrailOrigin.HEAD) {
-            return basePos.add(0.0, player.getStandingEyeHeight(), 0.0);
+            return basePos.add(0.0, player.getStandingEyeHeight(), 0.0).add(back.multiply(backOffset));
         }
 
         double bodyHeight = player.getHeight() * 0.6;
         Vec3d spine = basePos.add(0.0, bodyHeight, 0.0);
-        return spine.add(backDir.normalize().multiply(0.25));
+        return spine.add(back.multiply(backOffset));
     }
 
     private static Vec3d computeTrailBackDirection(PlayerEntity player) {
@@ -1529,7 +1555,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             case GRADIENT -> toRainbowColor(player.getId(), 0.15F, 1.2F, trailGradientSpeed);
             case NICK_GRADIENT -> toGradientColor(baseColor, player.getId(), 0.55F, DEFAULT_STYLE_SATURATION, trailGradientSpeed);
         };
-        return 0xFF000000 | applyEmissive(rgb, 0.8F);
+        return withAlpha(0xFF000000 | applyEmissive(rgb, 0.8F), trailAlpha);
     }
 
     private static double currentTimeSeconds() {
@@ -2390,6 +2416,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
         playerTrailsEnabled = config.playerTrailsEnabled;
+        playerTrailsIncludeSelf = config.playerTrailsIncludeSelf;
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
@@ -2429,6 +2456,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         trailStripeHeight = MathHelper.clamp(config.trailStripeHeight, 0.2F, 4.0F);
         trailLifetimeSeconds = MathHelper.clamp(config.trailLifetimeSeconds, 0.1F, 10.0F);
         trailGradientSpeed = MathHelper.clamp(config.trailGradientSpeed, 0.1F, 5.0F);
+        trailAlpha = MathHelper.clamp(config.trailAlpha, 0.1F, 1.0F);
         handFovScale = MathHelper.clamp(config.handFovScale, 0.5F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
@@ -2560,6 +2588,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
         data.playerTrailsEnabled = playerTrailsEnabled;
+        data.playerTrailsIncludeSelf = playerTrailsIncludeSelf;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
@@ -2599,6 +2628,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.trailStripeHeight = trailStripeHeight;
         data.trailLifetimeSeconds = trailLifetimeSeconds;
         data.trailGradientSpeed = trailGradientSpeed;
+        data.trailAlpha = trailAlpha;
         data.handFovScale = handFovScale;
         data.handOffsetX = handOffsetX;
         data.handOffsetY = handOffsetY;
