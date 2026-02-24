@@ -2038,7 +2038,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     private static Vec3d computeTrailBackDirection(PlayerEntity player) {
         float yawRad = (float) Math.toRadians(player.getYaw());
-        return new Vec3d(-MathHelper.sin(yawRad), 0.0, MathHelper.cos(yawRad));
+        return new Vec3d(MathHelper.sin(yawRad), 0.0, -MathHelper.cos(yawRad));
     }
 
     private static int resolveTrailColor(PlayerEntity player) {
