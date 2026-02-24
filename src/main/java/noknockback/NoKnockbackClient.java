@@ -144,6 +144,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static float trailAlpha = 1.0F;
     private static float autoAttackRate = DEFAULT_AUTO_ATTACK_RATE;
     private static float autoAttackCircleRadius = DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS;
+    private static float autoAttackMaxDistance = 3.0F;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
     private static float handOffsetX = 0.0F;
     private static float handOffsetY = 0.0F;
@@ -780,6 +781,17 @@ public class NoKnockbackClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(rate, 1.0F, 20.0F);
         if (Math.abs(autoAttackRate - clamped) < 0.0001F) return;
         autoAttackRate = clamped;
+        saveConfigNow();
+    }
+
+    public static float getAutoAttackMaxDistance() {
+        return autoAttackMaxDistance;
+    }
+
+    public static void setAutoAttackMaxDistance(float distance) {
+        float clamped = MathHelper.clamp(distance, 3.0F, 20.0F);
+        if (Math.abs(autoAttackMaxDistance - clamped) < 0.0001F) return;
+        autoAttackMaxDistance = clamped;
         saveConfigNow();
     }
 
@@ -2007,7 +2019,8 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static double getAttackReach(PlayerEntity player) {
         if (player == null) return 3.0;
         double reach = player.getAttributeValue(EntityAttributes.ENTITY_INTERACTION_RANGE);
-        return reach > 0.0 ? reach : 3.0;
+        double base = reach > 0.0 ? reach : 3.0;
+        return Math.max(base, autoAttackMaxDistance);
     }
 
     private static Vec3d computeTrailOrigin(PlayerEntity player, Vec3d backDir) {
@@ -2978,6 +2991,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         trailAlpha = MathHelper.clamp(config.trailAlpha, 0.1F, 1.0F);
         autoAttackRate = MathHelper.clamp(config.autoAttackRate, 1.0F, 20.0F);
         autoAttackCircleRadius = MathHelper.clamp(config.autoAttackCircleRadius, 20.0F, 600.0F);
+        autoAttackMaxDistance = MathHelper.clamp(config.autoAttackMaxDistance, 3.0F, 20.0F);
         handFovScale = MathHelper.clamp(config.handFovScale, 0.5F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
@@ -3180,6 +3194,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         data.trailAlpha = trailAlpha;
         data.autoAttackRate = autoAttackRate;
         data.autoAttackCircleRadius = autoAttackCircleRadius;
+        data.autoAttackMaxDistance = autoAttackMaxDistance;
         data.handFovScale = handFovScale;
         data.handOffsetX = handOffsetX;
         data.handOffsetY = handOffsetY;

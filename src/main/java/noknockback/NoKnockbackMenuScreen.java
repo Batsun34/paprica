@@ -676,6 +676,7 @@ public class NoKnockbackMenuScreen extends Screen {
                                 idx -> NoKnockbackClient.setAutoAttackMode(NoKnockbackClient.AutoAttackMode.values()[idx])
                         ),
                         Control.slider("auto_attack.rate", "Hits Per Second", 1.0, 20.0, 0.5, NoKnockbackClient::getAutoAttackRate, value -> NoKnockbackClient.setAutoAttackRate((float) value)),
+                        Control.slider("auto_attack.reach", "Max Reach", 3.0, 20.0, 0.5, NoKnockbackClient::getAutoAttackMaxDistance, value -> NoKnockbackClient.setAutoAttackMaxDistance((float) value)),
                         Control.toggle("auto_attack.los", "Require Line of Sight", NoKnockbackClient::isAutoAttackRequireLineOfSight, NoKnockbackClient::setAutoAttackRequireLineOfSight)
                 )));
                 panels.add(new Panel("Mark", 0, List.of(

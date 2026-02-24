@@ -126,6 +126,7 @@ public final class NoKnockbackConfig {
         sanitized.trailAlpha = MathHelper.clamp(data.trailAlpha, 0.1F, 1.0F);
         sanitized.autoAttackRate = MathHelper.clamp(data.autoAttackRate, 1.0F, 20.0F);
         sanitized.autoAttackCircleRadius = MathHelper.clamp(data.autoAttackCircleRadius, 20.0F, 600.0F);
+        sanitized.autoAttackMaxDistance = MathHelper.clamp(data.autoAttackMaxDistance, 3.0F, 20.0F);
         sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
@@ -344,6 +345,7 @@ public final class NoKnockbackConfig {
         public float trailAlpha = 1.0F;
         public float autoAttackRate = 6.0F;
         public float autoAttackCircleRadius = 120.0F;
+        public float autoAttackMaxDistance = 3.0F;
         public float handFovScale = 1.0F;
         public float handOffsetX = 0.0F;
         public float handOffsetY = 0.0F;
