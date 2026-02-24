@@ -401,7 +401,7 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     public static void setHandFovScale(float scale) {
-        float clamped = MathHelper.clamp(scale, 0.5F, 1.6F);
+        float clamped = MathHelper.clamp(scale, -1.6F, 1.6F);
         if (Math.abs(handFovScale - clamped) < 0.0001F) return;
         handFovScale = clamped;
         saveConfigNow();
@@ -3131,7 +3131,7 @@ public class PaprikaClient implements ClientModInitializer {
         autoAttackRate = MathHelper.clamp(config.autoAttackRate, 1.0F, 20.0F);
         autoAttackCircleRadius = MathHelper.clamp(config.autoAttackCircleRadius, 20.0F, 600.0F);
         autoAttackMaxDistance = MathHelper.clamp(config.autoAttackMaxDistance, 3.0F, 20.0F);
-        handFovScale = MathHelper.clamp(config.handFovScale, 0.5F, 1.6F);
+        handFovScale = MathHelper.clamp(config.handFovScale, -1.6F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
         playerListOffsetX = MathHelper.clamp(config.playerListOffsetX, 0, MAX_PLAYER_LIST_OFFSET);

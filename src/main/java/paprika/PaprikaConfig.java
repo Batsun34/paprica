@@ -131,7 +131,7 @@ public final class PaprikaConfig {
         sanitized.autoAttackRate = MathHelper.clamp(data.autoAttackRate, 1.0F, 20.0F);
         sanitized.autoAttackCircleRadius = MathHelper.clamp(data.autoAttackCircleRadius, 20.0F, 600.0F);
         sanitized.autoAttackMaxDistance = MathHelper.clamp(data.autoAttackMaxDistance, 3.0F, 20.0F);
-        sanitized.handFovScale = MathHelper.clamp(data.handFovScale, 0.5F, 1.6F);
+        sanitized.handFovScale = MathHelper.clamp(data.handFovScale, -1.6F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
         sanitized.skyTopColor = data.skyTopColor & 0xFFFFFF;

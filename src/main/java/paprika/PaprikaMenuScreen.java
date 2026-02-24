@@ -817,7 +817,7 @@ public class PaprikaMenuScreen extends Screen {
                 )));
                 panels.add(new Panel("Hands", 1, List.of(
                         Control.toggle("hands.hide", "Hide Hands With Item", PaprikaClient::isHideHandsWithItemEnabled, PaprikaClient::setHideHandsWithItemEnabled),
-                        Control.slider("hands.fov", "Hand FOV", 0.5, 1.6, 0.01, PaprikaClient::getHandFovScale, value -> PaprikaClient.setHandFovScale((float) value)),
+                        Control.slider("hands.fov", "Hand FOV", -1.6, 1.6, 0.01, PaprikaClient::getHandFovScale, value -> PaprikaClient.setHandFovScale((float) value)),
                         Control.slider("hands.offset_x", "Hand Offset X", -1.5, 1.5, 0.01, PaprikaClient::getHandOffsetX, value -> PaprikaClient.setHandOffsetX((float) value)),
                         Control.slider("hands.offset_y", "Hand Offset Y", -1.5, 1.5, 0.01, PaprikaClient::getHandOffsetY, value -> PaprikaClient.setHandOffsetY((float) value)),
                         Control.toggle("hands.flip_item", "Flip Item", PaprikaClient::isHandItemFlipEnabled, PaprikaClient::setHandItemFlipEnabled),
