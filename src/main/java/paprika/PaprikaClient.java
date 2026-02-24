@@ -64,6 +64,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static final float DEFAULT_STYLE_ANIMATION_SPEED = 1.0F;
     private static final int DEFAULT_SKY_TOP_COLOR = 0x78A7FF;
     private static final int DEFAULT_SKY_BOTTOM_COLOR = 0xA0C8FF;
+    private static final int SKY_TOP_RAINBOW_SEED = 0x52E8D4;
+    private static final int SKY_BOTTOM_RAINBOW_SEED = 0xC32B9F;
     private static final float DEFAULT_HAND_FOV_SCALE = 1.0F;
     private static final float DEFAULT_AUTO_ATTACK_RATE = 6.0F;
     private static final float DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS = 120.0F;
@@ -111,6 +113,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean distanceDisplayEnabled = true;
     private static boolean heldItemOverlayEnabled = false;
     private static boolean customSkyEnabled = false;
+    private static boolean skyTopRainbowEnabled = false;
+    private static boolean skyBottomRainbowEnabled = false;
     private static boolean hideHandsWithItemEnabled = false;
     private static boolean rayVisualGlowEnabled = false;
     private static boolean armorVisualGlowEnabled = false;
@@ -362,6 +366,26 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static boolean isSkyTopRainbowEnabled() {
+        return skyTopRainbowEnabled;
+    }
+
+    public static void setSkyTopRainbowEnabled(boolean enabled) {
+        if (skyTopRainbowEnabled == enabled) return;
+        skyTopRainbowEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isSkyBottomRainbowEnabled() {
+        return skyBottomRainbowEnabled;
+    }
+
+    public static void setSkyBottomRainbowEnabled(boolean enabled) {
+        if (skyBottomRainbowEnabled == enabled) return;
+        skyBottomRainbowEnabled = enabled;
+        saveConfigNow();
+    }
+
     public static boolean isHideHandsWithItemEnabled() {
         return hideHandsWithItemEnabled;
     }
@@ -427,19 +451,25 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     public static int getSkyTopColor() {
+        if (customSkyEnabled && skyTopRainbowEnabled) {
+            return toRainbowColor(SKY_TOP_RAINBOW_SEED, 0.0F, 1.1F, 1.0F);
+        }
         return skyTopColor & 0xFFFFFF;
     }
 
     public static int getSkyBottomColor() {
+        if (customSkyEnabled && skyBottomRainbowEnabled) {
+            return toRainbowColor(SKY_BOTTOM_RAINBOW_SEED, 0.45F, 1.1F, 1.0F);
+        }
         return skyBottomColor & 0xFFFFFF;
     }
 
     public static Vec3d getSkyTopColorVec() {
-        return rgbToVec3(skyTopColor);
+        return rgbToVec3(getSkyTopColor());
     }
 
     public static Vec3d getSkyBottomColorVec() {
-        return rgbToVec3(skyBottomColor);
+        return rgbToVec3(getSkyBottomColor());
     }
 
     public static int getSkyTopRed() {
@@ -2932,15 +2962,15 @@ public class PaprikaClient implements ClientModInitializer {
         float time = visualTime(animationSpeed);
         float seedUnit = seedToUnit(seed);
 
-        float t = wrapUnit(time * 0.16F + offset * 1.1F + seedUnit * 0.2F);
+        float t = wrapUnit(time * 0.16F + offset * 1.1F + seedUnit * 0.25F);
         float wave = 0.5F + 0.5F * MathHelper.sin(TWO_PI * t);
 
-        float hue = wrapUnit(baseHue + (wave - 0.5F) * 0.05F);
+        float hue = wrapUnit(baseHue + (wave - 0.5F) * 0.08F + (seedUnit - 0.5F) * 0.02F);
         float satBase = MathHelper.clamp(baseSat * saturationBoost, 0.2F, 1.0F);
-        float saturation = MathHelper.clamp(satBase * (0.85F + 0.25F * wave), 0.2F, 1.0F);
+        float saturation = MathHelper.clamp(satBase * (0.8F + 0.35F * wave), 0.2F, 1.0F);
 
         float valBase = MathHelper.clamp(baseVal, 0.35F, 1.0F);
-        float value = MathHelper.clamp(valBase * (0.75F + 0.35F * wave), 0.2F, 1.0F);
+        float value = MathHelper.clamp(valBase * (0.7F + 0.45F * wave), 0.2F, 1.0F);
         return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
@@ -3060,6 +3090,8 @@ public class PaprikaClient implements ClientModInitializer {
         distanceDisplayEnabled = config.distanceDisplayEnabled;
         heldItemOverlayEnabled = config.heldItemOverlayEnabled;
         customSkyEnabled = config.customSkyEnabled;
+        skyTopRainbowEnabled = config.skyTopRainbowEnabled;
+        skyBottomRainbowEnabled = config.skyBottomRainbowEnabled;
         hideHandsWithItemEnabled = config.hideHandsWithItemEnabled;
         handItemFlipEnabled = config.handItemFlipEnabled;
         rayVisualGlowEnabled = config.rayVisualGlowEnabled;
@@ -3265,6 +3297,8 @@ public class PaprikaClient implements ClientModInitializer {
         data.distanceDisplayEnabled = distanceDisplayEnabled;
         data.heldItemOverlayEnabled = heldItemOverlayEnabled;
         data.customSkyEnabled = customSkyEnabled;
+        data.skyTopRainbowEnabled = skyTopRainbowEnabled;
+        data.skyBottomRainbowEnabled = skyBottomRainbowEnabled;
         data.hideHandsWithItemEnabled = hideHandsWithItemEnabled;
         data.handItemFlipEnabled = handItemFlipEnabled;
         data.rayVisualGlowEnabled = rayVisualGlowEnabled;

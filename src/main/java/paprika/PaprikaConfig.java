@@ -78,6 +78,8 @@ public final class PaprikaConfig {
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
         sanitized.heldItemOverlayEnabled = data.heldItemOverlayEnabled;
         sanitized.customSkyEnabled = data.customSkyEnabled;
+        sanitized.skyTopRainbowEnabled = data.skyTopRainbowEnabled;
+        sanitized.skyBottomRainbowEnabled = data.skyBottomRainbowEnabled;
         sanitized.hideHandsWithItemEnabled = data.hideHandsWithItemEnabled;
         sanitized.handItemFlipEnabled = data.handItemFlipEnabled;
         sanitized.rayVisualGlowEnabled = data.rayVisualGlowEnabled;
@@ -300,6 +302,8 @@ public final class PaprikaConfig {
         public boolean distanceDisplayEnabled = true;
         public boolean heldItemOverlayEnabled = false;
         public boolean customSkyEnabled = false;
+        public boolean skyTopRainbowEnabled = false;
+        public boolean skyBottomRainbowEnabled = false;
         public boolean hideHandsWithItemEnabled = false;
         public boolean handItemFlipEnabled = false;
         public boolean rayVisualGlowEnabled = false;

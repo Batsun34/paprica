@@ -806,6 +806,8 @@ public class PaprikaMenuScreen extends Screen {
             case VIEW -> {
                 panels.add(new Panel("Sky", 0, List.of(
                         Control.toggle("sky.enabled", "Custom Sky", PaprikaClient::isCustomSkyEnabled, PaprikaClient::setCustomSkyEnabled),
+                        Control.toggle("sky.top_rainbow", "Top Rainbow", PaprikaClient::isSkyTopRainbowEnabled, PaprikaClient::setSkyTopRainbowEnabled),
+                        Control.toggle("sky.bottom_rainbow", "Bottom Rainbow", PaprikaClient::isSkyBottomRainbowEnabled, PaprikaClient::setSkyBottomRainbowEnabled),
                         Control.slider("sky.top_r", "Top Red", 0.0, 255.0, 1.0, PaprikaClient::getSkyTopRed, value -> PaprikaClient.setSkyTopRed((int) Math.round(value))),
                         Control.slider("sky.top_g", "Top Green", 0.0, 255.0, 1.0, PaprikaClient::getSkyTopGreen, value -> PaprikaClient.setSkyTopGreen((int) Math.round(value))),
                         Control.slider("sky.top_b", "Top Blue", 0.0, 255.0, 1.0, PaprikaClient::getSkyTopBlue, value -> PaprikaClient.setSkyTopBlue((int) Math.round(value))),
