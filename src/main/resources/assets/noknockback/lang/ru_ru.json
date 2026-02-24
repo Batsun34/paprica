@@ -9,6 +9,7 @@
   "key.paprika.auto_attack": "Переключить автоудары",
   "key.paprika.mark_target": "Отметить цель",
   "key.paprika.unmark_target": "Снять метку",
+  "key.paprika.panic": "Паника",
   "key.paprika.menu": "Открыть меню Paprika",
 
   "category.noknockback": "Paprika",
@@ -21,5 +22,6 @@
   "key.noknockback.auto_attack": "Переключить автоудары",
   "key.noknockback.mark_target": "Отметить цель",
   "key.noknockback.unmark_target": "Снять метку",
+  "key.noknockback.panic": "Паника",
   "key.noknockback.menu": "Открыть меню Paprika"
 }

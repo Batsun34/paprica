@@ -839,7 +839,8 @@ public class NoKnockbackMenuScreen extends Screen {
             )));
             case MENU -> panels.add(new Panel("Menu", 0, List.of(
                     Control.label("menu.enabled", "Enabled", () -> "Always ON"),
-                    Control.keybind("menu.bind", "Menu Key", NoKnockbackClient.getOpenMenuKeyBinding())
+                    Control.keybind("menu.bind", "Menu Key", NoKnockbackClient.getOpenMenuKeyBinding()),
+                    Control.keybind("menu.panic", "Panic Key", NoKnockbackClient.getPanicKeyBinding())
             )));
         }
 

@@ -9,6 +9,7 @@
   "key.paprika.auto_attack": "Toggle Auto Attack",
   "key.paprika.mark_target": "Mark Target",
   "key.paprika.unmark_target": "Unmark Target",
+  "key.paprika.panic": "Panic",
   "key.paprika.menu": "Open Paprika Menu",
 
   "category.noknockback": "Paprika",
@@ -21,5 +22,6 @@
   "key.noknockback.auto_attack": "Toggle Auto Attack",
   "key.noknockback.mark_target": "Mark Target",
   "key.noknockback.unmark_target": "Unmark Target",
+  "key.noknockback.panic": "Panic",
   "key.noknockback.menu": "Open Paprika Menu"
 }

@@ -151,6 +151,7 @@ public final class NoKnockbackConfig {
         sanitized.autoAttackKey = sanitizeKey(data.autoAttackKey, "key.keyboard.r");
         sanitized.markTargetKey = sanitizeKey(data.markTargetKey, "key.keyboard.m");
         sanitized.unmarkTargetKey = sanitizeKey(data.unmarkTargetKey, "key.keyboard.u");
+        sanitized.panicKey = sanitizeKey(data.panicKey, "key.keyboard.p");
         sanitized.menuKey = sanitizeKey(data.menuKey, "key.keyboard.right.shift");
 
         return sanitized;
@@ -370,6 +371,7 @@ public final class NoKnockbackConfig {
         public String autoAttackKey = "key.keyboard.r";
         public String markTargetKey = "key.keyboard.m";
         public String unmarkTargetKey = "key.keyboard.u";
+        public String panicKey = "key.keyboard.p";
         public String menuKey = "key.keyboard.right.shift";
     }
 }

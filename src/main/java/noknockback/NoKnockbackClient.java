@@ -181,6 +181,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     private static KeyBinding toggleAutoAttackKey;
     private static KeyBinding markTargetKey;
     private static KeyBinding unmarkTargetKey;
+    private static KeyBinding panicKey;
     private static KeyBinding openMenuKey;
 
     private Vec3d lastVelocity = Vec3d.ZERO;
@@ -1217,6 +1218,10 @@ public class NoKnockbackClient implements ClientModInitializer {
         return unmarkTargetKey;
     }
 
+    public static KeyBinding getPanicKeyBinding() {
+        return panicKey;
+    }
+
     public static KeyBinding getOpenMenuKeyBinding() {
         return openMenuKey;
     }
@@ -1319,6 +1324,13 @@ public class NoKnockbackClient implements ClientModInitializer {
                 "category.paprika"
         ));
 
+        panicKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.panic",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_P,
+                "category.paprika"
+        ));
+
         openMenuKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.paprika.menu",
                 InputUtil.Type.KEYSYM,
@@ -1335,6 +1347,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         applyConfiguredKey(toggleAutoAttackKey, loadedConfig.autoAttackKey);
         applyConfiguredKey(markTargetKey, loadedConfig.markTargetKey);
         applyConfiguredKey(unmarkTargetKey, loadedConfig.unmarkTargetKey);
+        applyConfiguredKey(panicKey, loadedConfig.panicKey);
         applyConfiguredKey(openMenuKey, loadedConfig.menuKey);
         KeyBinding.updateKeysByCode();
         saveConfigNow();
@@ -1411,6 +1424,11 @@ public class NoKnockbackClient implements ClientModInitializer {
                     Text.literal("[Paprika] Player Trails: " + (playerTrailsEnabled ? "ON" : "OFF")),
                     true
             );
+        }
+
+        while (panicKey.wasPressed()) {
+            triggerPanic(client);
+            return;
         }
 
         while (toggleAutoAttackKey.wasPressed()) {
@@ -1864,6 +1882,54 @@ public class NoKnockbackClient implements ClientModInitializer {
         if (target == null) return false;
         markedPlayerName = target.getGameProfile().getName();
         return true;
+    }
+
+    private static void triggerPanic(MinecraftClient client) {
+        speedEnabled = false;
+        noKnockbackEnabled = false;
+        playerEspEnabled = false;
+        playerArmorOverlayEnabled = false;
+        playerRaysEnabled = false;
+        playerListEnabled = false;
+        playerTrailsEnabled = false;
+        autoAttackEnabled = false;
+        targetHealthOverlayEnabled = false;
+        distanceDisplayEnabled = false;
+        heldItemOverlayEnabled = false;
+        customSkyEnabled = false;
+        hideHandsWithItemEnabled = false;
+
+        trailSegments.clear();
+        trailStates.clear();
+        markedPlayerName = null;
+        lastAutoAttackTime = 0.0;
+
+        if (client != null) {
+            client.setScreen(null);
+        }
+
+        clearAllKeybinds();
+        saveConfigNow();
+    }
+
+    private static void clearAllKeybinds() {
+        clearKey(toggleKey);
+        clearKey(toggleNoKnockbackKey);
+        clearKey(togglePlayerEspKey);
+        clearKey(togglePlayerRaysKey);
+        clearKey(togglePlayerListKey);
+        clearKey(togglePlayerTrailsKey);
+        clearKey(toggleAutoAttackKey);
+        clearKey(markTargetKey);
+        clearKey(unmarkTargetKey);
+        clearKey(panicKey);
+        clearKey(openMenuKey);
+        KeyBinding.updateKeysByCode();
+    }
+
+    private static void clearKey(KeyBinding keyBinding) {
+        if (keyBinding == null) return;
+        keyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
     }
 
     private static void tryAutoAttack(MinecraftClient client) {
@@ -3248,6 +3314,9 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
         if (unmarkTargetKey != null) {
             data.unmarkTargetKey = unmarkTargetKey.getBoundKeyTranslationKey();
+        }
+        if (panicKey != null) {
+            data.panicKey = panicKey.getBoundKeyTranslationKey();
         }
         if (openMenuKey != null) {
             data.menuKey = openMenuKey.getBoundKeyTranslationKey();
