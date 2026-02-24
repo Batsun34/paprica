@@ -3,6 +3,8 @@
 	"package": "paprika.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
+		"ControlsListWidgetKeyBindingEntryAccessor",
+		"ControlsListWidgetMixin",
 		"ClientWorldMixin",
 		"DimensionEffectsMixin",
 		"DimensionEffectsFogMixin",

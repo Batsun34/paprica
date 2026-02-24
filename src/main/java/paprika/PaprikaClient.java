@@ -105,6 +105,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean trailSelfEnabled = true;
     private static boolean trailOthersEnabled = true;
     private static boolean autoAttackEnabled = false;
+    private static boolean panicActive = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
@@ -265,6 +266,10 @@ public class PaprikaClient implements ClientModInitializer {
             trailStates.clear();
         }
         saveConfigNow();
+    }
+
+    public static boolean isPanicActive() {
+        return panicActive;
     }
 
     public static boolean isTrailSelfEnabled() {
@@ -1912,6 +1917,7 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private static void triggerPanic(MinecraftClient client) {
+        panicActive = true;
         speedEnabled = false;
         noKnockbackEnabled = false;
         playerEspEnabled = false;
@@ -3038,6 +3044,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static void applyLoadedConfig(PaprikaConfig.Data config) {
         if (config == null) return;
 
+        panicActive = false;
         speedEnabled = config.speedEnabled;
         noKnockbackEnabled = config.noKnockbackEnabled;
         playerEspEnabled = config.playerEspEnabled;
