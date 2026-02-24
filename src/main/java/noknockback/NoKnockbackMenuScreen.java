@@ -80,7 +80,6 @@ public class NoKnockbackMenuScreen extends Screen {
 
     @Nullable
     private KeyBinding waitingForKey;
-    private boolean ignoreNextMouseBind;
     @Nullable
     private SliderDrag sliderDrag;
     @Nullable
@@ -155,10 +154,6 @@ public class NoKnockbackMenuScreen extends Screen {
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (this.waitingForKey != null) {
-            if (this.ignoreNextMouseBind) {
-                this.ignoreNextMouseBind = false;
-                return true;
-            }
             bindKey(this.waitingForKey, InputUtil.Type.MOUSE.createFromCode(button));
             this.waitingForKey = null;
             return true;
@@ -212,13 +207,12 @@ public class NoKnockbackMenuScreen extends Screen {
                     this.openDropdownId = null;
                     handled = true;
                 }
-                case KEYBIND -> {
-                    if (hitTarget.control.keyBinding != null) {
-                        this.waitingForKey = hitTarget.control.keyBinding;
-                        this.ignoreNextMouseBind = true;
-                        this.openDropdownId = null;
-                    }
-                    handled = true;
+                    case KEYBIND -> {
+                        if (hitTarget.control.keyBinding != null) {
+                            this.waitingForKey = hitTarget.control.keyBinding;
+                            this.openDropdownId = null;
+                        }
+                        handled = true;
                 }
                 case SLIDER -> {
                     this.sliderDrag = new SliderDrag(hitTarget.control, hitTarget.track);
