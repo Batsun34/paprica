@@ -102,6 +102,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
     private static boolean playerTrailsEnabled = false;
+    private static boolean trailSelfEnabled = true;
+    private static boolean trailOthersEnabled = true;
     private static boolean autoAttackEnabled = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
@@ -262,6 +264,26 @@ public class PaprikaClient implements ClientModInitializer {
             trailSegments.clear();
             trailStates.clear();
         }
+        saveConfigNow();
+    }
+
+    public static boolean isTrailSelfEnabled() {
+        return trailSelfEnabled;
+    }
+
+    public static void setTrailSelfEnabled(boolean enabled) {
+        if (trailSelfEnabled == enabled) return;
+        trailSelfEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isTrailOthersEnabled() {
+        return trailOthersEnabled;
+    }
+
+    public static void setTrailOthersEnabled(boolean enabled) {
+        if (trailOthersEnabled == enabled) return;
+        trailOthersEnabled = enabled;
         saveConfigNow();
     }
 
@@ -1723,6 +1745,11 @@ public class PaprikaClient implements ClientModInitializer {
         PlayerEntity localPlayer = client.player;
         for (PlayerEntity target : client.world.getPlayers()) {
             if (target == null || target.isRemoved()) continue;
+            if (target == localPlayer) {
+                if (!trailSelfEnabled) continue;
+            } else if (!trailOthersEnabled) {
+                continue;
+            }
             UUID uuid = target.getUuid();
             seen.add(uuid);
 
@@ -1898,6 +1925,11 @@ public class PaprikaClient implements ClientModInitializer {
         heldItemOverlayEnabled = false;
         customSkyEnabled = false;
         hideHandsWithItemEnabled = false;
+        handItemFlipEnabled = false;
+        handItemOrientation = HandItemOrientation.DEFAULT;
+        handFovScale = DEFAULT_HAND_FOV_SCALE;
+        handOffsetX = 0.0F;
+        handOffsetY = 0.0F;
 
         trailSegments.clear();
         trailStates.clear();
@@ -3013,6 +3045,8 @@ public class PaprikaClient implements ClientModInitializer {
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
         playerTrailsEnabled = config.playerTrailsEnabled;
+        trailSelfEnabled = config.trailSelfEnabled;
+        trailOthersEnabled = config.trailOthersEnabled;
         autoAttackEnabled = config.autoAttackEnabled;
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
@@ -3216,6 +3250,8 @@ public class PaprikaClient implements ClientModInitializer {
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
         data.playerTrailsEnabled = playerTrailsEnabled;
+        data.trailSelfEnabled = trailSelfEnabled;
+        data.trailOthersEnabled = trailOthersEnabled;
         data.autoAttackEnabled = autoAttackEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;

@@ -70,6 +70,8 @@ public final class PaprikaConfig {
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
         sanitized.playerTrailsEnabled = data.playerTrailsEnabled;
+        sanitized.trailSelfEnabled = data.trailSelfEnabled;
+        sanitized.trailOthersEnabled = data.trailOthersEnabled;
         sanitized.autoAttackEnabled = data.autoAttackEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
@@ -290,6 +292,8 @@ public final class PaprikaConfig {
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
         public boolean playerTrailsEnabled = false;
+        public boolean trailSelfEnabled = true;
+        public boolean trailOthersEnabled = true;
         public boolean autoAttackEnabled = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;

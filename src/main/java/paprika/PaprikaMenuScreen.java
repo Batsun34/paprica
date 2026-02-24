@@ -778,6 +778,8 @@ public class PaprikaMenuScreen extends Screen {
                 panels.add(new Panel("Trails", 0, List.of(
                         Control.toggle("trails.enabled", "Enabled", PaprikaClient::isPlayerTrailsEnabled, PaprikaClient::setPlayerTrailsEnabled),
                         Control.keybind("trails.bind", "Bind", PaprikaClient.getPlayerTrailsKeyBinding()),
+                        Control.toggle("trails.self", "Self Trails", PaprikaClient::isTrailSelfEnabled, PaprikaClient::setTrailSelfEnabled),
+                        Control.toggle("trails.others", "Other Trails", PaprikaClient::isTrailOthersEnabled, PaprikaClient::setTrailOthersEnabled),
                         Control.cycle("trails.type", "Trail Type", Control.TRAIL_TYPES,
                                 () -> PaprikaClient.getTrailType().ordinal(),
                                 idx -> PaprikaClient.setTrailType(PaprikaClient.TrailType.values()[idx])
