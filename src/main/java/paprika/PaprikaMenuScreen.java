@@ -1,5 +1,5 @@
 
-package noknockback;
+package paprika;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -22,7 +22,7 @@ import java.util.function.IntConsumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 
-public class NoKnockbackMenuScreen extends Screen {
+public class PaprikaMenuScreen extends Screen {
     private static final int WINDOW_WIDTH = 940;
     private static final int WINDOW_HEIGHT = 560;
     private static final int HEADER_HEIGHT = 32;
@@ -93,7 +93,7 @@ public class NoKnockbackMenuScreen extends Screen {
     @Nullable
     private Rect openDropdownListRect;
 
-    public NoKnockbackMenuScreen(@Nullable Screen parent) {
+    public PaprikaMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
         this.parent = parent;
         this.applySavedState();
@@ -258,7 +258,7 @@ public class NoKnockbackMenuScreen extends Screen {
             return true;
         }
         this.scrollOffset = MathHelper.clamp(this.scrollOffset + verticalAmount * SCROLL_STEP, -this.maxScroll, 0.0);
-        NoKnockbackClient.setMenuScrollOffset(this.scrollOffset);
+        PaprikaClient.setMenuScrollOffset(this.scrollOffset);
         return true;
     }
 
@@ -285,7 +285,7 @@ public class NoKnockbackMenuScreen extends Screen {
         if (keyBinding == null || key == null) return;
         keyBinding.setBoundKey(key);
         KeyBinding.updateKeysByCode();
-        NoKnockbackClient.saveConfigNow();
+        PaprikaClient.saveConfigNow();
     }
 
     private boolean isInsideContent(double mouseX, double mouseY) {
@@ -369,7 +369,7 @@ public class NoKnockbackMenuScreen extends Screen {
         this.openDropdownRect = null;
         this.openDropdownControl = null;
         this.openDropdownListRect = null;
-        NoKnockbackClient.setMenuLastTabId(this.selectedModule.name());
+        PaprikaClient.setMenuLastTabId(this.selectedModule.name());
 
         int innerX = this.contentX + PADDING;
         int innerY = this.contentY + PADDING;
@@ -429,7 +429,7 @@ public class NoKnockbackMenuScreen extends Screen {
     }
 
     private void applySavedState() {
-        String savedTab = NoKnockbackClient.getMenuLastTabId();
+        String savedTab = PaprikaClient.getMenuLastTabId();
         if (savedTab != null && !savedTab.isBlank()) {
             for (ModuleTab tab : ModuleTab.values()) {
                 if (tab.name().equalsIgnoreCase(savedTab)) {
@@ -438,13 +438,13 @@ public class NoKnockbackMenuScreen extends Screen {
                 }
             }
         }
-        this.scrollOffset = NoKnockbackClient.getMenuScrollOffset();
+        this.scrollOffset = PaprikaClient.getMenuScrollOffset();
     }
 
     private void storeMenuState() {
-        NoKnockbackClient.setMenuLastTabId(this.selectedModule.name());
-        NoKnockbackClient.setMenuScrollOffset(this.scrollOffset);
-        NoKnockbackClient.persistMenuState();
+        PaprikaClient.setMenuLastTabId(this.selectedModule.name());
+        PaprikaClient.setMenuScrollOffset(this.scrollOffset);
+        PaprikaClient.persistMenuState();
     }
 
     private void drawPanel(DrawContext context, Panel panel, int x, int y, int width, int mouseX, int mouseY) {
@@ -660,187 +660,187 @@ public class NoKnockbackMenuScreen extends Screen {
         List<Panel> panels = new ArrayList<>();
         switch (module) {
             case NO_KNOCKBACK -> panels.add(new Panel("No Knockback", 0, List.of(
-                    Control.toggle("no_knockback.enabled", "Enabled", NoKnockbackClient::isNoKnockbackEnabled, NoKnockbackClient::setNoKnockbackEnabled),
-                    Control.keybind("no_knockback.bind", "Bind", NoKnockbackClient.getNoKnockbackKeyBinding())
+                    Control.toggle("no_knockback.enabled", "Enabled", PaprikaClient::isNoKnockbackEnabled, PaprikaClient::setNoKnockbackEnabled),
+                    Control.keybind("no_knockback.bind", "Bind", PaprikaClient.getNoKnockbackKeyBinding())
             )));
             case SPEED -> panels.add(new Panel("Sneak Movement Speed", 0, List.of(
-                    Control.toggle("speed.enabled", "Enabled", NoKnockbackClient::isSpeedEnabled, NoKnockbackClient::setSpeedEnabled),
-                    Control.keybind("speed.bind", "Bind", NoKnockbackClient.getSpeedToggleKeyBinding())
+                    Control.toggle("speed.enabled", "Enabled", PaprikaClient::isSpeedEnabled, PaprikaClient::setSpeedEnabled),
+                    Control.keybind("speed.bind", "Bind", PaprikaClient.getSpeedToggleKeyBinding())
             )));
             case AUTO_ATTACK -> {
                 panels.add(new Panel("Auto Attack", 0, List.of(
-                        Control.toggle("auto_attack.enabled", "Enabled", NoKnockbackClient::isAutoAttackEnabled, NoKnockbackClient::setAutoAttackEnabled),
-                        Control.keybind("auto_attack.bind", "Bind", NoKnockbackClient.getAutoAttackKeyBinding()),
+                        Control.toggle("auto_attack.enabled", "Enabled", PaprikaClient::isAutoAttackEnabled, PaprikaClient::setAutoAttackEnabled),
+                        Control.keybind("auto_attack.bind", "Bind", PaprikaClient.getAutoAttackKeyBinding()),
                         Control.cycle("auto_attack.mode", "Attack Mode", Control.AUTO_ATTACK_MODES,
-                                () -> NoKnockbackClient.getAutoAttackMode().ordinal(),
-                                idx -> NoKnockbackClient.setAutoAttackMode(NoKnockbackClient.AutoAttackMode.values()[idx])
+                                () -> PaprikaClient.getAutoAttackMode().ordinal(),
+                                idx -> PaprikaClient.setAutoAttackMode(PaprikaClient.AutoAttackMode.values()[idx])
                         ),
-                        Control.slider("auto_attack.rate", "Hits Per Second", 1.0, 20.0, 0.5, NoKnockbackClient::getAutoAttackRate, value -> NoKnockbackClient.setAutoAttackRate((float) value)),
-                        Control.slider("auto_attack.reach", "Max Reach", 3.0, 20.0, 0.5, NoKnockbackClient::getAutoAttackMaxDistance, value -> NoKnockbackClient.setAutoAttackMaxDistance((float) value)),
-                        Control.toggle("auto_attack.los", "Require Line of Sight", NoKnockbackClient::isAutoAttackRequireLineOfSight, NoKnockbackClient::setAutoAttackRequireLineOfSight)
+                        Control.slider("auto_attack.rate", "Hits Per Second", 1.0, 20.0, 0.5, PaprikaClient::getAutoAttackRate, value -> PaprikaClient.setAutoAttackRate((float) value)),
+                        Control.slider("auto_attack.reach", "Max Reach", 3.0, 20.0, 0.5, PaprikaClient::getAutoAttackMaxDistance, value -> PaprikaClient.setAutoAttackMaxDistance((float) value)),
+                        Control.toggle("auto_attack.los", "Require Line of Sight", PaprikaClient::isAutoAttackRequireLineOfSight, PaprikaClient::setAutoAttackRequireLineOfSight)
                 )));
                 panels.add(new Panel("Mark", 0, List.of(
-                        Control.keybind("auto_attack.mark", "Mark Target", NoKnockbackClient.getMarkTargetKeyBinding()),
-                        Control.keybind("auto_attack.unmark", "Unmark Target", NoKnockbackClient.getUnmarkTargetKeyBinding())
+                        Control.keybind("auto_attack.mark", "Mark Target", PaprikaClient.getMarkTargetKeyBinding()),
+                        Control.keybind("auto_attack.unmark", "Unmark Target", PaprikaClient.getUnmarkTargetKeyBinding())
                 )));
                 panels.add(new Panel("Circle", 1, List.of(
-                        Control.slider("auto_attack.radius", "Circle Radius", 20.0, 600.0, 2.0, NoKnockbackClient::getAutoAttackCircleRadius, value -> NoKnockbackClient.setAutoAttackCircleRadius((float) value)),
+                        Control.slider("auto_attack.radius", "Circle Radius", 20.0, 600.0, 2.0, PaprikaClient::getAutoAttackCircleRadius, value -> PaprikaClient.setAutoAttackCircleRadius((float) value)),
                         Control.cycle("auto_attack.circle_color", "Circle Color", Control.CIRCLE_COLOR_MODES,
-                                () -> NoKnockbackClient.getAutoAttackCircleColorMode().ordinal(),
-                                idx -> NoKnockbackClient.setAutoAttackCircleColorMode(NoKnockbackClient.CircleColorMode.values()[idx])
+                                () -> PaprikaClient.getAutoAttackCircleColorMode().ordinal(),
+                                idx -> PaprikaClient.setAutoAttackCircleColorMode(PaprikaClient.CircleColorMode.values()[idx])
                         ),
-                        Control.slider("auto_attack.circle_r", "Circle Red", 0, 255, 1, NoKnockbackClient::getAutoAttackCircleRed, value -> NoKnockbackClient.setAutoAttackCircleRed((int) value)),
-                        Control.slider("auto_attack.circle_g", "Circle Green", 0, 255, 1, NoKnockbackClient::getAutoAttackCircleGreen, value -> NoKnockbackClient.setAutoAttackCircleGreen((int) value)),
-                        Control.slider("auto_attack.circle_b", "Circle Blue", 0, 255, 1, NoKnockbackClient::getAutoAttackCircleBlue, value -> NoKnockbackClient.setAutoAttackCircleBlue((int) value))
+                        Control.slider("auto_attack.circle_r", "Circle Red", 0, 255, 1, PaprikaClient::getAutoAttackCircleRed, value -> PaprikaClient.setAutoAttackCircleRed((int) value)),
+                        Control.slider("auto_attack.circle_g", "Circle Green", 0, 255, 1, PaprikaClient::getAutoAttackCircleGreen, value -> PaprikaClient.setAutoAttackCircleGreen((int) value)),
+                        Control.slider("auto_attack.circle_b", "Circle Blue", 0, 255, 1, PaprikaClient::getAutoAttackCircleBlue, value -> PaprikaClient.setAutoAttackCircleBlue((int) value))
                 )));
             }
             case ESP -> panels.add(new Panel("ESP", 0, List.of(
-                    Control.toggle("esp.enabled", "Enabled", NoKnockbackClient::isPlayerEspEnabled, NoKnockbackClient::setPlayerEspEnabled),
-                    Control.keybind("esp.bind", "Bind", NoKnockbackClient.getPlayerEspKeyBinding()),
-                    Control.slider("esp.outline_thickness", "Outline Thickness", 0.5, 6.0, 0.1, NoKnockbackClient::getOutlineThickness, value -> NoKnockbackClient.setOutlineThickness((float) value)),
-                    Control.toggle("esp.glow", "Glow", NoKnockbackClient::isEspVisualGlowEnabled, NoKnockbackClient::setEspVisualGlowEnabled),
+                    Control.toggle("esp.enabled", "Enabled", PaprikaClient::isPlayerEspEnabled, PaprikaClient::setPlayerEspEnabled),
+                    Control.keybind("esp.bind", "Bind", PaprikaClient.getPlayerEspKeyBinding()),
+                    Control.slider("esp.outline_thickness", "Outline Thickness", 0.5, 6.0, 0.1, PaprikaClient::getOutlineThickness, value -> PaprikaClient.setOutlineThickness((float) value)),
+                    Control.toggle("esp.glow", "Glow", PaprikaClient::isEspVisualGlowEnabled, PaprikaClient::setEspVisualGlowEnabled),
                     Control.cycle("esp.color_mode", "Color Mode", Control.COLOR_MODES,
-                            () -> NoKnockbackClient.getEspVisualColorMode().ordinal(),
-                            idx -> NoKnockbackClient.setEspVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                            () -> PaprikaClient.getEspVisualColorMode().ordinal(),
+                            idx -> PaprikaClient.setEspVisualColorMode(PaprikaClient.VisualColorMode.values()[idx])
                     ),
-                    Control.slider("esp.saturation", "Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getEspVisualSaturationBoost, value -> NoKnockbackClient.setEspVisualSaturationBoost((float) value)),
-                    Control.slider("esp.anim_speed", "Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getEspVisualAnimationSpeed, value -> NoKnockbackClient.setEspVisualAnimationSpeed((float) value))
+                    Control.slider("esp.saturation", "Saturation", 1.0, 2.5, 0.1, PaprikaClient::getEspVisualSaturationBoost, value -> PaprikaClient.setEspVisualSaturationBoost((float) value)),
+                    Control.slider("esp.anim_speed", "Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getEspVisualAnimationSpeed, value -> PaprikaClient.setEspVisualAnimationSpeed((float) value))
             )));
             case RAYS -> {
                 panels.add(new Panel("Rays", 0, List.of(
-                        Control.toggle("rays.enabled", "Enabled", NoKnockbackClient::isPlayerRaysEnabled, NoKnockbackClient::setPlayerRaysEnabled),
-                        Control.keybind("rays.bind", "Bind", NoKnockbackClient.getPlayerRaysKeyBinding()),
+                        Control.toggle("rays.enabled", "Enabled", PaprikaClient::isPlayerRaysEnabled, PaprikaClient::setPlayerRaysEnabled),
+                        Control.keybind("rays.bind", "Bind", PaprikaClient.getPlayerRaysKeyBinding()),
                         Control.cycle("rays.origin", "Ray Origin", new String[]{"Bottom", "Center"},
-                                () -> NoKnockbackClient.getRayOrigin() == NoKnockbackClient.RayOrigin.BOTTOM ? 0 : 1,
-                                idx -> NoKnockbackClient.setRayOrigin(idx == 0 ? NoKnockbackClient.RayOrigin.BOTTOM : NoKnockbackClient.RayOrigin.CENTER)
+                                () -> PaprikaClient.getRayOrigin() == PaprikaClient.RayOrigin.BOTTOM ? 0 : 1,
+                                idx -> PaprikaClient.setRayOrigin(idx == 0 ? PaprikaClient.RayOrigin.BOTTOM : PaprikaClient.RayOrigin.CENTER)
                         ),
-                        Control.slider("rays.bottom_height", "Bottom Start Height", 0.0, 300.0, 1.0, NoKnockbackClient::getRayBottomStartHeight, value -> NoKnockbackClient.setRayBottomStartHeight((float) value)),
-                        Control.slider("rays.thickness", "Ray Thickness", 0.5, 8.0, 0.1, NoKnockbackClient::getRayThickness, value -> NoKnockbackClient.setRayThickness((float) value)),
-                        Control.slider("rays.alpha", "Ray Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getRayAlpha, value -> NoKnockbackClient.setRayAlpha((float) value)),
-                        Control.toggle("rays.glow", "Ray Glow", NoKnockbackClient::isRayVisualGlowEnabled, NoKnockbackClient::setRayVisualGlowEnabled),
+                        Control.slider("rays.bottom_height", "Bottom Start Height", 0.0, 300.0, 1.0, PaprikaClient::getRayBottomStartHeight, value -> PaprikaClient.setRayBottomStartHeight((float) value)),
+                        Control.slider("rays.thickness", "Ray Thickness", 0.5, 8.0, 0.1, PaprikaClient::getRayThickness, value -> PaprikaClient.setRayThickness((float) value)),
+                        Control.slider("rays.alpha", "Ray Alpha", 0.1, 1.0, 0.05, PaprikaClient::getRayAlpha, value -> PaprikaClient.setRayAlpha((float) value)),
+                        Control.toggle("rays.glow", "Ray Glow", PaprikaClient::isRayVisualGlowEnabled, PaprikaClient::setRayVisualGlowEnabled),
                         Control.cycle("rays.color_mode", "Ray Color Mode", Control.COLOR_MODES,
-                                () -> NoKnockbackClient.getRayVisualColorMode().ordinal(),
-                                idx -> NoKnockbackClient.setRayVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                                () -> PaprikaClient.getRayVisualColorMode().ordinal(),
+                                idx -> PaprikaClient.setRayVisualColorMode(PaprikaClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("rays.saturation", "Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getRayVisualSaturationBoost, value -> NoKnockbackClient.setRayVisualSaturationBoost((float) value)),
-                        Control.slider("rays.anim_speed", "Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getRayVisualAnimationSpeed, value -> NoKnockbackClient.setRayVisualAnimationSpeed((float) value))
+                        Control.slider("rays.saturation", "Ray Saturation", 1.0, 2.5, 0.1, PaprikaClient::getRayVisualSaturationBoost, value -> PaprikaClient.setRayVisualSaturationBoost((float) value)),
+                        Control.slider("rays.anim_speed", "Ray Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getRayVisualAnimationSpeed, value -> PaprikaClient.setRayVisualAnimationSpeed((float) value))
                 )));
                 panels.add(new Panel("Armor", 0, List.of(
-                        Control.toggle("armor.enabled", "Armor Enabled", NoKnockbackClient::isPlayerArmorOverlayEnabled, NoKnockbackClient::setPlayerArmorOverlayEnabled),
+                        Control.toggle("armor.enabled", "Armor Enabled", PaprikaClient::isPlayerArmorOverlayEnabled, PaprikaClient::setPlayerArmorOverlayEnabled),
                         Control.cycle("armor.position", "Armor Position", Control.ANCHOR_MODES,
-                                () -> NoKnockbackClient.getArmorAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
-                                idx -> NoKnockbackClient.setArmorAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                                () -> PaprikaClient.getArmorAnchorMode() == PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
+                                idx -> PaprikaClient.setArmorAnchorMode(idx == 0 ? PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER : PaprikaClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
-                        Control.slider("armor.size", "Armor Size", 0.35, 2.5, 0.1, NoKnockbackClient::getArmorOverlayScale, value -> NoKnockbackClient.setArmorOverlayScale((float) value)),
-                        Control.slider("armor.alpha", "Armor Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getArmorAlpha, value -> NoKnockbackClient.setArmorAlpha((float) value)),
-                        Control.toggle("armor.glow", "Armor Glow", NoKnockbackClient::isArmorVisualGlowEnabled, NoKnockbackClient::setArmorVisualGlowEnabled),
+                        Control.slider("armor.size", "Armor Size", 0.35, 2.5, 0.1, PaprikaClient::getArmorOverlayScale, value -> PaprikaClient.setArmorOverlayScale((float) value)),
+                        Control.slider("armor.alpha", "Armor Alpha", 0.1, 1.0, 0.05, PaprikaClient::getArmorAlpha, value -> PaprikaClient.setArmorAlpha((float) value)),
+                        Control.toggle("armor.glow", "Armor Glow", PaprikaClient::isArmorVisualGlowEnabled, PaprikaClient::setArmorVisualGlowEnabled),
                         Control.cycle("armor.color_mode", "Armor Color Mode", Control.COLOR_MODES,
-                                () -> NoKnockbackClient.getArmorVisualColorMode().ordinal(),
-                                idx -> NoKnockbackClient.setArmorVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                                () -> PaprikaClient.getArmorVisualColorMode().ordinal(),
+                                idx -> PaprikaClient.setArmorVisualColorMode(PaprikaClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("armor.saturation", "Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getArmorVisualSaturationBoost, value -> NoKnockbackClient.setArmorVisualSaturationBoost((float) value)),
-                        Control.slider("armor.anim_speed", "Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getArmorVisualAnimationSpeed, value -> NoKnockbackClient.setArmorVisualAnimationSpeed((float) value))
+                        Control.slider("armor.saturation", "Armor Saturation", 1.0, 2.5, 0.1, PaprikaClient::getArmorVisualSaturationBoost, value -> PaprikaClient.setArmorVisualSaturationBoost((float) value)),
+                        Control.slider("armor.anim_speed", "Armor Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getArmorVisualAnimationSpeed, value -> PaprikaClient.setArmorVisualAnimationSpeed((float) value))
                 )));
                 panels.add(new Panel("Held Item", 1, List.of(
-                        Control.toggle("item.enabled", "Held Item Enabled", NoKnockbackClient::isHeldItemOverlayEnabled, NoKnockbackClient::setHeldItemOverlayEnabled),
+                        Control.toggle("item.enabled", "Held Item Enabled", PaprikaClient::isHeldItemOverlayEnabled, PaprikaClient::setHeldItemOverlayEnabled),
                         Control.cycle("item.position", "Item Position", Control.ANCHOR_MODES,
-                                () -> NoKnockbackClient.getHeldItemAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
-                                idx -> NoKnockbackClient.setHeldItemAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                                () -> PaprikaClient.getHeldItemAnchorMode() == PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
+                                idx -> PaprikaClient.setHeldItemAnchorMode(idx == 0 ? PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER : PaprikaClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
-                        Control.slider("item.size", "Item Size", 0.35, 2.5, 0.1, NoKnockbackClient::getHeldItemOverlayScale, value -> NoKnockbackClient.setHeldItemOverlayScale((float) value)),
-                        Control.slider("item.alpha", "Item Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getHeldItemAlpha, value -> NoKnockbackClient.setHeldItemAlpha((float) value)),
-                        Control.toggle("item.glow", "Item Glow", NoKnockbackClient::isHeldItemVisualGlowEnabled, NoKnockbackClient::setHeldItemVisualGlowEnabled),
+                        Control.slider("item.size", "Item Size", 0.35, 2.5, 0.1, PaprikaClient::getHeldItemOverlayScale, value -> PaprikaClient.setHeldItemOverlayScale((float) value)),
+                        Control.slider("item.alpha", "Item Alpha", 0.1, 1.0, 0.05, PaprikaClient::getHeldItemAlpha, value -> PaprikaClient.setHeldItemAlpha((float) value)),
+                        Control.toggle("item.glow", "Item Glow", PaprikaClient::isHeldItemVisualGlowEnabled, PaprikaClient::setHeldItemVisualGlowEnabled),
                         Control.cycle("item.color_mode", "Item Color Mode", Control.COLOR_MODES,
-                                () -> NoKnockbackClient.getHeldItemVisualColorMode().ordinal(),
-                                idx -> NoKnockbackClient.setHeldItemVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                                () -> PaprikaClient.getHeldItemVisualColorMode().ordinal(),
+                                idx -> PaprikaClient.setHeldItemVisualColorMode(PaprikaClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("item.saturation", "Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getHeldItemVisualSaturationBoost, value -> NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value)),
-                        Control.slider("item.anim_speed", "Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getHeldItemVisualAnimationSpeed, value -> NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value))
+                        Control.slider("item.saturation", "Item Saturation", 1.0, 2.5, 0.1, PaprikaClient::getHeldItemVisualSaturationBoost, value -> PaprikaClient.setHeldItemVisualSaturationBoost((float) value)),
+                        Control.slider("item.anim_speed", "Item Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getHeldItemVisualAnimationSpeed, value -> PaprikaClient.setHeldItemVisualAnimationSpeed((float) value))
                 )));
                 panels.add(new Panel("Distance", 1, List.of(
-                        Control.toggle("distance.enabled", "Distance Enabled", NoKnockbackClient::isDistanceDisplayEnabled, NoKnockbackClient::setDistanceDisplayEnabled),
+                        Control.toggle("distance.enabled", "Distance Enabled", PaprikaClient::isDistanceDisplayEnabled, PaprikaClient::setDistanceDisplayEnabled),
                         Control.cycle("distance.position", "Distance Position", Control.ANCHOR_MODES,
-                                () -> NoKnockbackClient.getDistanceAnchorMode() == NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
-                                idx -> NoKnockbackClient.setDistanceAnchorMode(idx == 0 ? NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER : NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE)
+                                () -> PaprikaClient.getDistanceAnchorMode() == PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER ? 0 : 1,
+                                idx -> PaprikaClient.setDistanceAnchorMode(idx == 0 ? PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER : PaprikaClient.OverlayAnchorMode.RAY_MIDDLE)
                         ),
-                        Control.slider("distance.text_size", "Distance Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getDistanceTextScale, value -> NoKnockbackClient.setDistanceTextScale((float) value)),
-                        Control.slider("distance.alpha", "Distance Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getDistanceAlpha, value -> NoKnockbackClient.setDistanceAlpha((float) value)),
-                        Control.toggle("distance.glow", "Distance Glow", NoKnockbackClient::isDistanceVisualGlowEnabled, NoKnockbackClient::setDistanceVisualGlowEnabled),
+                        Control.slider("distance.text_size", "Distance Text Size", 0.5, 2.0, 0.1, PaprikaClient::getDistanceTextScale, value -> PaprikaClient.setDistanceTextScale((float) value)),
+                        Control.slider("distance.alpha", "Distance Alpha", 0.1, 1.0, 0.05, PaprikaClient::getDistanceAlpha, value -> PaprikaClient.setDistanceAlpha((float) value)),
+                        Control.toggle("distance.glow", "Distance Glow", PaprikaClient::isDistanceVisualGlowEnabled, PaprikaClient::setDistanceVisualGlowEnabled),
                         Control.cycle("distance.color_mode", "Distance Color Mode", Control.COLOR_MODES,
-                                () -> NoKnockbackClient.getDistanceVisualColorMode().ordinal(),
-                                idx -> NoKnockbackClient.setDistanceVisualColorMode(NoKnockbackClient.VisualColorMode.values()[idx])
+                                () -> PaprikaClient.getDistanceVisualColorMode().ordinal(),
+                                idx -> PaprikaClient.setDistanceVisualColorMode(PaprikaClient.VisualColorMode.values()[idx])
                         ),
-                        Control.slider("distance.saturation", "Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient::getDistanceVisualSaturationBoost, value -> NoKnockbackClient.setDistanceVisualSaturationBoost((float) value)),
-                        Control.slider("distance.anim_speed", "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient::getDistanceVisualAnimationSpeed, value -> NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value))
+                        Control.slider("distance.saturation", "Distance Saturation", 1.0, 2.5, 0.1, PaprikaClient::getDistanceVisualSaturationBoost, value -> PaprikaClient.setDistanceVisualSaturationBoost((float) value)),
+                        Control.slider("distance.anim_speed", "Distance Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getDistanceVisualAnimationSpeed, value -> PaprikaClient.setDistanceVisualAnimationSpeed((float) value))
                 )));
             }
             case TRAILS -> {
                 panels.add(new Panel("Trails", 0, List.of(
-                        Control.toggle("trails.enabled", "Enabled", NoKnockbackClient::isPlayerTrailsEnabled, NoKnockbackClient::setPlayerTrailsEnabled),
-                        Control.keybind("trails.bind", "Bind", NoKnockbackClient.getPlayerTrailsKeyBinding()),
+                        Control.toggle("trails.enabled", "Enabled", PaprikaClient::isPlayerTrailsEnabled, PaprikaClient::setPlayerTrailsEnabled),
+                        Control.keybind("trails.bind", "Bind", PaprikaClient.getPlayerTrailsKeyBinding()),
                         Control.cycle("trails.type", "Trail Type", Control.TRAIL_TYPES,
-                                () -> NoKnockbackClient.getTrailType().ordinal(),
-                                idx -> NoKnockbackClient.setTrailType(NoKnockbackClient.TrailType.values()[idx])
+                                () -> PaprikaClient.getTrailType().ordinal(),
+                                idx -> PaprikaClient.setTrailType(PaprikaClient.TrailType.values()[idx])
                         ),
                         Control.cycle("trails.origin", "Trail Origin", Control.TRAIL_ORIGINS,
-                                () -> NoKnockbackClient.getTrailOrigin().ordinal(),
-                                idx -> NoKnockbackClient.setTrailOrigin(NoKnockbackClient.TrailOrigin.values()[idx])
+                                () -> PaprikaClient.getTrailOrigin().ordinal(),
+                                idx -> PaprikaClient.setTrailOrigin(PaprikaClient.TrailOrigin.values()[idx])
                         ),
-                        Control.slider("trails.lifetime", "Lifetime (s)", 0.1, 10.0, 0.1, NoKnockbackClient::getTrailLifetimeSeconds, value -> NoKnockbackClient.setTrailLifetimeSeconds((float) value)),
-                        Control.slider("trails.gradient_speed", "Gradient Speed", 0.1, 5.0, 0.1, NoKnockbackClient::getTrailGradientSpeed, value -> NoKnockbackClient.setTrailGradientSpeed((float) value)),
-                        Control.slider("trails.strip_height", "Strip Height", 0.2, 4.0, 0.1, NoKnockbackClient::getTrailStripeHeight, value -> NoKnockbackClient.setTrailStripeHeight((float) value))
+                        Control.slider("trails.lifetime", "Lifetime (s)", 0.1, 10.0, 0.1, PaprikaClient::getTrailLifetimeSeconds, value -> PaprikaClient.setTrailLifetimeSeconds((float) value)),
+                        Control.slider("trails.gradient_speed", "Gradient Speed", 0.1, 5.0, 0.1, PaprikaClient::getTrailGradientSpeed, value -> PaprikaClient.setTrailGradientSpeed((float) value)),
+                        Control.slider("trails.strip_height", "Strip Height", 0.2, 4.0, 0.1, PaprikaClient::getTrailStripeHeight, value -> PaprikaClient.setTrailStripeHeight((float) value))
                 )));
                 panels.add(new Panel("Trail Color", 0, List.of(
                         Control.cycle("trails.color_mode", "Color Mode", Control.TRAIL_COLOR_MODES,
-                                () -> NoKnockbackClient.getTrailColorMode().ordinal(),
-                                idx -> NoKnockbackClient.setTrailColorMode(NoKnockbackClient.TrailColorMode.values()[idx])
+                                () -> PaprikaClient.getTrailColorMode().ordinal(),
+                                idx -> PaprikaClient.setTrailColorMode(PaprikaClient.TrailColorMode.values()[idx])
                         ),
-                        Control.slider("trails.alpha", "Trail Alpha", 0.1, 1.0, 0.05, NoKnockbackClient::getTrailAlpha, value -> NoKnockbackClient.setTrailAlpha((float) value)),
-                        Control.slider("trails.fixed_r", "Fixed Red", 0, 255, 1, NoKnockbackClient::getTrailFixedRed, value -> NoKnockbackClient.setTrailFixedRed((int) value)),
-                        Control.slider("trails.fixed_g", "Fixed Green", 0, 255, 1, NoKnockbackClient::getTrailFixedGreen, value -> NoKnockbackClient.setTrailFixedGreen((int) value)),
-                        Control.slider("trails.fixed_b", "Fixed Blue", 0, 255, 1, NoKnockbackClient::getTrailFixedBlue, value -> NoKnockbackClient.setTrailFixedBlue((int) value))
+                        Control.slider("trails.alpha", "Trail Alpha", 0.1, 1.0, 0.05, PaprikaClient::getTrailAlpha, value -> PaprikaClient.setTrailAlpha((float) value)),
+                        Control.slider("trails.fixed_r", "Fixed Red", 0, 255, 1, PaprikaClient::getTrailFixedRed, value -> PaprikaClient.setTrailFixedRed((int) value)),
+                        Control.slider("trails.fixed_g", "Fixed Green", 0, 255, 1, PaprikaClient::getTrailFixedGreen, value -> PaprikaClient.setTrailFixedGreen((int) value)),
+                        Control.slider("trails.fixed_b", "Fixed Blue", 0, 255, 1, PaprikaClient::getTrailFixedBlue, value -> PaprikaClient.setTrailFixedBlue((int) value))
                 )));
             }
             case VIEW -> {
                 panels.add(new Panel("Sky", 0, List.of(
-                        Control.toggle("sky.enabled", "Custom Sky", NoKnockbackClient::isCustomSkyEnabled, NoKnockbackClient::setCustomSkyEnabled),
-                        Control.slider("sky.top_r", "Top Red", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyTopRed, value -> NoKnockbackClient.setSkyTopRed((int) Math.round(value))),
-                        Control.slider("sky.top_g", "Top Green", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyTopGreen, value -> NoKnockbackClient.setSkyTopGreen((int) Math.round(value))),
-                        Control.slider("sky.top_b", "Top Blue", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyTopBlue, value -> NoKnockbackClient.setSkyTopBlue((int) Math.round(value))),
-                        Control.slider("sky.bottom_r", "Bottom Red", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyBottomRed, value -> NoKnockbackClient.setSkyBottomRed((int) Math.round(value))),
-                        Control.slider("sky.bottom_g", "Bottom Green", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyBottomGreen, value -> NoKnockbackClient.setSkyBottomGreen((int) Math.round(value))),
-                        Control.slider("sky.bottom_b", "Bottom Blue", 0.0, 255.0, 1.0, NoKnockbackClient::getSkyBottomBlue, value -> NoKnockbackClient.setSkyBottomBlue((int) Math.round(value)))
+                        Control.toggle("sky.enabled", "Custom Sky", PaprikaClient::isCustomSkyEnabled, PaprikaClient::setCustomSkyEnabled),
+                        Control.slider("sky.top_r", "Top Red", 0.0, 255.0, 1.0, PaprikaClient::getSkyTopRed, value -> PaprikaClient.setSkyTopRed((int) Math.round(value))),
+                        Control.slider("sky.top_g", "Top Green", 0.0, 255.0, 1.0, PaprikaClient::getSkyTopGreen, value -> PaprikaClient.setSkyTopGreen((int) Math.round(value))),
+                        Control.slider("sky.top_b", "Top Blue", 0.0, 255.0, 1.0, PaprikaClient::getSkyTopBlue, value -> PaprikaClient.setSkyTopBlue((int) Math.round(value))),
+                        Control.slider("sky.bottom_r", "Bottom Red", 0.0, 255.0, 1.0, PaprikaClient::getSkyBottomRed, value -> PaprikaClient.setSkyBottomRed((int) Math.round(value))),
+                        Control.slider("sky.bottom_g", "Bottom Green", 0.0, 255.0, 1.0, PaprikaClient::getSkyBottomGreen, value -> PaprikaClient.setSkyBottomGreen((int) Math.round(value))),
+                        Control.slider("sky.bottom_b", "Bottom Blue", 0.0, 255.0, 1.0, PaprikaClient::getSkyBottomBlue, value -> PaprikaClient.setSkyBottomBlue((int) Math.round(value)))
                 )));
                 panels.add(new Panel("Hands", 1, List.of(
-                        Control.toggle("hands.hide", "Hide Hands With Item", NoKnockbackClient::isHideHandsWithItemEnabled, NoKnockbackClient::setHideHandsWithItemEnabled),
-                        Control.slider("hands.fov", "Hand FOV", 0.5, 1.6, 0.01, NoKnockbackClient::getHandFovScale, value -> NoKnockbackClient.setHandFovScale((float) value)),
-                        Control.slider("hands.offset_x", "Hand Offset X", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetX, value -> NoKnockbackClient.setHandOffsetX((float) value)),
-                        Control.slider("hands.offset_y", "Hand Offset Y", -1.5, 1.5, 0.01, NoKnockbackClient::getHandOffsetY, value -> NoKnockbackClient.setHandOffsetY((float) value)),
-                        Control.toggle("hands.flip_item", "Flip Item", NoKnockbackClient::isHandItemFlipEnabled, NoKnockbackClient::setHandItemFlipEnabled),
+                        Control.toggle("hands.hide", "Hide Hands With Item", PaprikaClient::isHideHandsWithItemEnabled, PaprikaClient::setHideHandsWithItemEnabled),
+                        Control.slider("hands.fov", "Hand FOV", 0.5, 1.6, 0.01, PaprikaClient::getHandFovScale, value -> PaprikaClient.setHandFovScale((float) value)),
+                        Control.slider("hands.offset_x", "Hand Offset X", -1.5, 1.5, 0.01, PaprikaClient::getHandOffsetX, value -> PaprikaClient.setHandOffsetX((float) value)),
+                        Control.slider("hands.offset_y", "Hand Offset Y", -1.5, 1.5, 0.01, PaprikaClient::getHandOffsetY, value -> PaprikaClient.setHandOffsetY((float) value)),
+                        Control.toggle("hands.flip_item", "Flip Item", PaprikaClient::isHandItemFlipEnabled, PaprikaClient::setHandItemFlipEnabled),
                         Control.cycle("hands.orientation", "Item Orientation", new String[]{"Default", "Left", "Right"},
-                                () -> NoKnockbackClient.getHandItemOrientation().ordinal(),
-                                idx -> NoKnockbackClient.setHandItemOrientation(NoKnockbackClient.HandItemOrientation.values()[idx])
+                                () -> PaprikaClient.getHandItemOrientation().ordinal(),
+                                idx -> PaprikaClient.setHandItemOrientation(PaprikaClient.HandItemOrientation.values()[idx])
                         )
                 )));
             }
             case TARGET_HEALTH -> panels.add(new Panel("Target Health", 0, List.of(
-                    Control.toggle("target_health.enabled", "Enabled", NoKnockbackClient::isTargetHealthOverlayEnabled, NoKnockbackClient::setTargetHealthOverlayEnabled),
-                    Control.toggle("target_health.dynamic_color", "Dynamic Color", NoKnockbackClient::isTargetHealthDynamicColorEnabled, NoKnockbackClient::setTargetHealthDynamicColorEnabled),
-                    Control.slider("target_health.text_size", "Text Size", 0.5, 2.0, 0.1, NoKnockbackClient::getTargetHealthTextScale, value -> NoKnockbackClient.setTargetHealthTextScale((float) value))
+                    Control.toggle("target_health.enabled", "Enabled", PaprikaClient::isTargetHealthOverlayEnabled, PaprikaClient::setTargetHealthOverlayEnabled),
+                    Control.toggle("target_health.dynamic_color", "Dynamic Color", PaprikaClient::isTargetHealthDynamicColorEnabled, PaprikaClient::setTargetHealthDynamicColorEnabled),
+                    Control.slider("target_health.text_size", "Text Size", 0.5, 2.0, 0.1, PaprikaClient::getTargetHealthTextScale, value -> PaprikaClient.setTargetHealthTextScale((float) value))
             )));
             case PLAYER_LIST -> panels.add(new Panel("Player List", 0, List.of(
-                    Control.toggle("player_list.enabled", "Enabled", NoKnockbackClient::isPlayerListEnabled, NoKnockbackClient::setPlayerListEnabled),
-                    Control.keybind("player_list.bind", "Bind", NoKnockbackClient.getPlayerListKeyBinding()),
-                    Control.slider("player_list.offset_x", "Offset X", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetX(), value -> NoKnockbackClient.setPlayerListOffsetX((int) Math.round(value))),
-                    Control.slider("player_list.offset_y", "Offset Y", 0.0, 4096.0, 1.0, () -> NoKnockbackClient.getPlayerListOffsetY(), value -> NoKnockbackClient.setPlayerListOffsetY((int) Math.round(value))),
-                    Control.slider("player_list.scale", "Scale", 0.1, 2.0, 0.1, NoKnockbackClient::getPlayerListTextScale, value -> NoKnockbackClient.setPlayerListTextScale((float) value)),
-                    Control.slider("player_list.max_height", "Max Height", 40.0, 4096.0, 10.0, NoKnockbackClient::getPlayerListMaxHeight, value -> NoKnockbackClient.setPlayerListMaxHeight((int) Math.round(value))),
-                    Control.slider("player_list.alpha", "Alpha", 0.1, 1.0, 0.1, NoKnockbackClient::getPlayerListAlphaMultiplier, value -> NoKnockbackClient.setPlayerListAlphaMultiplier((float) value))
+                    Control.toggle("player_list.enabled", "Enabled", PaprikaClient::isPlayerListEnabled, PaprikaClient::setPlayerListEnabled),
+                    Control.keybind("player_list.bind", "Bind", PaprikaClient.getPlayerListKeyBinding()),
+                    Control.slider("player_list.offset_x", "Offset X", 0.0, 4096.0, 1.0, () -> PaprikaClient.getPlayerListOffsetX(), value -> PaprikaClient.setPlayerListOffsetX((int) Math.round(value))),
+                    Control.slider("player_list.offset_y", "Offset Y", 0.0, 4096.0, 1.0, () -> PaprikaClient.getPlayerListOffsetY(), value -> PaprikaClient.setPlayerListOffsetY((int) Math.round(value))),
+                    Control.slider("player_list.scale", "Scale", 0.1, 2.0, 0.1, PaprikaClient::getPlayerListTextScale, value -> PaprikaClient.setPlayerListTextScale((float) value)),
+                    Control.slider("player_list.max_height", "Max Height", 40.0, 4096.0, 10.0, PaprikaClient::getPlayerListMaxHeight, value -> PaprikaClient.setPlayerListMaxHeight((int) Math.round(value))),
+                    Control.slider("player_list.alpha", "Alpha", 0.1, 1.0, 0.1, PaprikaClient::getPlayerListAlphaMultiplier, value -> PaprikaClient.setPlayerListAlphaMultiplier((float) value))
             )));
             case MENU -> panels.add(new Panel("Menu", 0, List.of(
                     Control.label("menu.enabled", "Enabled", () -> "Always ON"),
-                    Control.keybind("menu.bind", "Menu Key", NoKnockbackClient.getOpenMenuKeyBinding()),
-                    Control.keybind("menu.panic", "Panic Key", NoKnockbackClient.getPanicKeyBinding())
+                    Control.keybind("menu.bind", "Menu Key", PaprikaClient.getOpenMenuKeyBinding()),
+                    Control.keybind("menu.panic", "Panic Key", PaprikaClient.getPanicKeyBinding())
             )));
         }
 

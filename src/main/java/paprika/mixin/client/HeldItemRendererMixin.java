@@ -1,4 +1,4 @@
-package noknockback.mixin.client;
+package paprika.mixin.client;
 
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -10,7 +10,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
 import net.minecraft.util.Hand;
 import net.minecraft.util.math.RotationAxis;
-import noknockback.NoKnockbackClient;
+import paprika.PaprikaClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -45,17 +45,17 @@ public class HeldItemRendererMixin {
         this.paprika$currentItem = item == null ? ItemStack.EMPTY : item;
         this.paprika$offsetPushed = false;
 
-        float scale = NoKnockbackClient.getHandFovScale();
-        float offsetX = NoKnockbackClient.getHandOffsetX();
-        float offsetY = NoKnockbackClient.getHandOffsetY();
-        boolean flipItem = NoKnockbackClient.isHandItemFlipEnabled();
-        NoKnockbackClient.HandItemOrientation orientation = NoKnockbackClient.getHandItemOrientation();
+        float scale = PaprikaClient.getHandFovScale();
+        float offsetX = PaprikaClient.getHandOffsetX();
+        float offsetY = PaprikaClient.getHandOffsetY();
+        boolean flipItem = PaprikaClient.isHandItemFlipEnabled();
+        PaprikaClient.HandItemOrientation orientation = PaprikaClient.getHandItemOrientation();
         boolean hasItem = !this.paprika$currentItem.isEmpty();
 
         boolean needsTransform = Math.abs(scale - 1.0F) > 0.0001F
                 || Math.abs(offsetX) > 0.0001F
                 || Math.abs(offsetY) > 0.0001F
-                || (hasItem && (flipItem || orientation != NoKnockbackClient.HandItemOrientation.DEFAULT));
+                || (hasItem && (flipItem || orientation != PaprikaClient.HandItemOrientation.DEFAULT));
 
         if (needsTransform) {
             matrices.push();
@@ -101,9 +101,9 @@ public class HeldItemRendererMixin {
         this.paprika$itemRotationPushed = false;
         if (stack == null || stack.isEmpty()) return;
 
-        boolean flipItem = NoKnockbackClient.isHandItemFlipEnabled();
-        NoKnockbackClient.HandItemOrientation orientation = NoKnockbackClient.getHandItemOrientation();
-        if (!flipItem && orientation == NoKnockbackClient.HandItemOrientation.DEFAULT) return;
+        boolean flipItem = PaprikaClient.isHandItemFlipEnabled();
+        PaprikaClient.HandItemOrientation orientation = PaprikaClient.getHandItemOrientation();
+        if (!flipItem && orientation == PaprikaClient.HandItemOrientation.DEFAULT) return;
 
         matrices.push();
         this.paprika$itemRotationPushed = true;
@@ -150,7 +150,7 @@ public class HeldItemRendererMixin {
             Arm arm,
             CallbackInfo ci
     ) {
-        if (NoKnockbackClient.isHideHandsWithItemEnabled() && !this.paprika$currentItem.isEmpty()) {
+        if (PaprikaClient.isHideHandsWithItemEnabled() && !this.paprika$currentItem.isEmpty()) {
             ci.cancel();
         }
     }
@@ -163,7 +163,7 @@ public class HeldItemRendererMixin {
             Arm arm,
             CallbackInfo ci
     ) {
-        if (NoKnockbackClient.isHideHandsWithItemEnabled() && !this.paprika$currentItem.isEmpty()) {
+        if (PaprikaClient.isHideHandsWithItemEnabled() && !this.paprika$currentItem.isEmpty()) {
             ci.cancel();
         }
     }

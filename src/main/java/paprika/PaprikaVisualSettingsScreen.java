@@ -1,4 +1,4 @@
-package noknockback;
+package paprika;
 
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -11,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
 
-public class NoKnockbackVisualSettingsScreen extends Screen {
+public class PaprikaVisualSettingsScreen extends Screen {
     private static final int PANEL_WIDTH = 400;
     private static final int ROW_HEIGHT = 20;
     private static final int ROW_GAP = 4;
@@ -32,13 +32,13 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
     private ButtonWidget distanceGlowButton;
 
     @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> rayColorModeButton;
+    private CyclingButtonWidget<PaprikaClient.VisualColorMode> rayColorModeButton;
     @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> armorColorModeButton;
+    private CyclingButtonWidget<PaprikaClient.VisualColorMode> armorColorModeButton;
     @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> heldItemColorModeButton;
+    private CyclingButtonWidget<PaprikaClient.VisualColorMode> heldItemColorModeButton;
     @Nullable
-    private CyclingButtonWidget<NoKnockbackClient.VisualColorMode> distanceColorModeButton;
+    private CyclingButtonWidget<PaprikaClient.VisualColorMode> distanceColorModeButton;
 
     @Nullable
     private SettingSlider raySaturationSlider;
@@ -58,7 +58,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
     @Nullable
     private SettingSlider distanceSpeedSlider;
 
-    public NoKnockbackVisualSettingsScreen(@Nullable Screen parent) {
+    public PaprikaVisualSettingsScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika Visual Settings"));
         this.parent = parent;
     }
@@ -70,116 +70,116 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
 
         y = this.addStyleSectionTitle("Rays", left, y);
         this.rayGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setRayVisualGlowEnabled(!NoKnockbackClient.isRayVisualGlowEnabled());
+            PaprikaClient.setRayVisualGlowEnabled(!PaprikaClient.isRayVisualGlowEnabled());
             this.refreshLabels();
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.rayColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.NICK_GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getRayVisualColorMode())
+                .values(PaprikaClient.VisualColorMode.NICK, PaprikaClient.VisualColorMode.GRADIENT, PaprikaClient.VisualColorMode.NICK_GRADIENT, PaprikaClient.VisualColorMode.RAINBOW)
+                .initially(PaprikaClient.getRayVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Ray Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setRayVisualColorMode(value);
+                    PaprikaClient.setRayVisualColorMode(value);
                     this.refreshLabels();
                 }));
         y += ROW_HEIGHT + ROW_GAP;
-        this.raySaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Ray Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getRayVisualSaturationBoost()) {
+        this.raySaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Ray Saturation", 1.0, 2.5, 0.1, PaprikaClient.getRayVisualSaturationBoost()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayVisualSaturationBoost((float) value);
+                PaprikaClient.setRayVisualSaturationBoost((float) value);
             }
         });
         y += ROW_HEIGHT + ROW_GAP;
-        this.raySpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Ray Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getRayVisualAnimationSpeed()) {
+        this.raySpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Ray Animation Speed", 0.2, 4.0, 0.1, PaprikaClient.getRayVisualAnimationSpeed()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setRayVisualAnimationSpeed((float) value);
+                PaprikaClient.setRayVisualAnimationSpeed((float) value);
             }
         });
         y += ROW_HEIGHT + SECTION_GAP;
 
         y = this.addStyleSectionTitle("Armor", left, y);
         this.armorGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setArmorVisualGlowEnabled(!NoKnockbackClient.isArmorVisualGlowEnabled());
+            PaprikaClient.setArmorVisualGlowEnabled(!PaprikaClient.isArmorVisualGlowEnabled());
             this.refreshLabels();
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.armorColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.NICK_GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getArmorVisualColorMode())
+                .values(PaprikaClient.VisualColorMode.NICK, PaprikaClient.VisualColorMode.GRADIENT, PaprikaClient.VisualColorMode.NICK_GRADIENT, PaprikaClient.VisualColorMode.RAINBOW)
+                .initially(PaprikaClient.getArmorVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Armor Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setArmorVisualColorMode(value);
+                    PaprikaClient.setArmorVisualColorMode(value);
                     this.refreshLabels();
                 }));
         y += ROW_HEIGHT + ROW_GAP;
-        this.armorSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Armor Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getArmorVisualSaturationBoost()) {
+        this.armorSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Armor Saturation", 1.0, 2.5, 0.1, PaprikaClient.getArmorVisualSaturationBoost()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setArmorVisualSaturationBoost((float) value);
+                PaprikaClient.setArmorVisualSaturationBoost((float) value);
             }
         });
         y += ROW_HEIGHT + ROW_GAP;
-        this.armorSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Armor Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getArmorVisualAnimationSpeed()) {
+        this.armorSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Armor Animation Speed", 0.2, 4.0, 0.1, PaprikaClient.getArmorVisualAnimationSpeed()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setArmorVisualAnimationSpeed((float) value);
+                PaprikaClient.setArmorVisualAnimationSpeed((float) value);
             }
         });
         y += ROW_HEIGHT + SECTION_GAP;
 
         y = this.addStyleSectionTitle("Held Item", left, y);
         this.heldItemGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setHeldItemVisualGlowEnabled(!NoKnockbackClient.isHeldItemVisualGlowEnabled());
+            PaprikaClient.setHeldItemVisualGlowEnabled(!PaprikaClient.isHeldItemVisualGlowEnabled());
             this.refreshLabels();
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.heldItemColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.NICK_GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getHeldItemVisualColorMode())
+                .values(PaprikaClient.VisualColorMode.NICK, PaprikaClient.VisualColorMode.GRADIENT, PaprikaClient.VisualColorMode.NICK_GRADIENT, PaprikaClient.VisualColorMode.RAINBOW)
+                .initially(PaprikaClient.getHeldItemVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Held Item Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setHeldItemVisualColorMode(value);
+                    PaprikaClient.setHeldItemVisualColorMode(value);
                     this.refreshLabels();
                 }));
         y += ROW_HEIGHT + ROW_GAP;
-        this.heldItemSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getHeldItemVisualSaturationBoost()) {
+        this.heldItemSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Saturation", 1.0, 2.5, 0.1, PaprikaClient.getHeldItemVisualSaturationBoost()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setHeldItemVisualSaturationBoost((float) value);
+                PaprikaClient.setHeldItemVisualSaturationBoost((float) value);
             }
         });
         y += ROW_HEIGHT + ROW_GAP;
-        this.heldItemSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getHeldItemVisualAnimationSpeed()) {
+        this.heldItemSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Held Item Animation Speed", 0.2, 4.0, 0.1, PaprikaClient.getHeldItemVisualAnimationSpeed()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setHeldItemVisualAnimationSpeed((float) value);
+                PaprikaClient.setHeldItemVisualAnimationSpeed((float) value);
             }
         });
         y += ROW_HEIGHT + SECTION_GAP;
 
         y = this.addStyleSectionTitle("Distance", left, y);
         this.distanceGlowButton = this.addDrawableChild(ButtonWidget.builder(Text.empty(), button -> {
-            NoKnockbackClient.setDistanceVisualGlowEnabled(!NoKnockbackClient.isDistanceVisualGlowEnabled());
+            PaprikaClient.setDistanceVisualGlowEnabled(!PaprikaClient.isDistanceVisualGlowEnabled());
             this.refreshLabels();
         }).dimensions(left, y, PANEL_WIDTH, ROW_HEIGHT).build());
         y += ROW_HEIGHT + ROW_GAP;
         this.distanceColorModeButton = this.addDrawableChild(CyclingButtonWidget.builder(this::colorModeText)
-                .values(NoKnockbackClient.VisualColorMode.NICK, NoKnockbackClient.VisualColorMode.GRADIENT, NoKnockbackClient.VisualColorMode.NICK_GRADIENT, NoKnockbackClient.VisualColorMode.RAINBOW)
-                .initially(NoKnockbackClient.getDistanceVisualColorMode())
+                .values(PaprikaClient.VisualColorMode.NICK, PaprikaClient.VisualColorMode.GRADIENT, PaprikaClient.VisualColorMode.NICK_GRADIENT, PaprikaClient.VisualColorMode.RAINBOW)
+                .initially(PaprikaClient.getDistanceVisualColorMode())
                 .build(left, y, PANEL_WIDTH, ROW_HEIGHT, Text.literal("Distance Color Mode"), (button, value) -> {
-                    NoKnockbackClient.setDistanceVisualColorMode(value);
+                    PaprikaClient.setDistanceVisualColorMode(value);
                     this.refreshLabels();
                 }));
         y += ROW_HEIGHT + ROW_GAP;
-        this.distanceSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Distance Saturation", 1.0, 2.5, 0.1, NoKnockbackClient.getDistanceVisualSaturationBoost()) {
+        this.distanceSaturationSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Distance Saturation", 1.0, 2.5, 0.1, PaprikaClient.getDistanceVisualSaturationBoost()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setDistanceVisualSaturationBoost((float) value);
+                PaprikaClient.setDistanceVisualSaturationBoost((float) value);
             }
         });
         y += ROW_HEIGHT + ROW_GAP;
-        this.distanceSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Distance Animation Speed", 0.2, 4.0, 0.1, NoKnockbackClient.getDistanceVisualAnimationSpeed()) {
+        this.distanceSpeedSlider = this.addDrawableChild(new SettingSlider(left, y, PANEL_WIDTH, "Distance Animation Speed", 0.2, 4.0, 0.1, PaprikaClient.getDistanceVisualAnimationSpeed()) {
             @Override
             protected void onValueChanged(double value) {
-                NoKnockbackClient.setDistanceVisualAnimationSpeed((float) value);
+                PaprikaClient.setDistanceVisualAnimationSpeed((float) value);
             }
         });
 
@@ -217,55 +217,55 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
 
     private void refreshLabels() {
         if (this.rayGlowButton != null) {
-            this.rayGlowButton.setMessage(this.toggleText("Ray Glow", NoKnockbackClient.isRayVisualGlowEnabled()));
+            this.rayGlowButton.setMessage(this.toggleText("Ray Glow", PaprikaClient.isRayVisualGlowEnabled()));
         }
         if (this.armorGlowButton != null) {
-            this.armorGlowButton.setMessage(this.toggleText("Armor Glow", NoKnockbackClient.isArmorVisualGlowEnabled()));
+            this.armorGlowButton.setMessage(this.toggleText("Armor Glow", PaprikaClient.isArmorVisualGlowEnabled()));
         }
         if (this.heldItemGlowButton != null) {
-            this.heldItemGlowButton.setMessage(this.toggleText("Held Item Glow", NoKnockbackClient.isHeldItemVisualGlowEnabled()));
+            this.heldItemGlowButton.setMessage(this.toggleText("Held Item Glow", PaprikaClient.isHeldItemVisualGlowEnabled()));
         }
         if (this.distanceGlowButton != null) {
-            this.distanceGlowButton.setMessage(this.toggleText("Distance Glow", NoKnockbackClient.isDistanceVisualGlowEnabled()));
+            this.distanceGlowButton.setMessage(this.toggleText("Distance Glow", PaprikaClient.isDistanceVisualGlowEnabled()));
         }
 
         if (this.rayColorModeButton != null) {
-            this.rayColorModeButton.setValue(NoKnockbackClient.getRayVisualColorMode());
+            this.rayColorModeButton.setValue(PaprikaClient.getRayVisualColorMode());
         }
         if (this.armorColorModeButton != null) {
-            this.armorColorModeButton.setValue(NoKnockbackClient.getArmorVisualColorMode());
+            this.armorColorModeButton.setValue(PaprikaClient.getArmorVisualColorMode());
         }
         if (this.heldItemColorModeButton != null) {
-            this.heldItemColorModeButton.setValue(NoKnockbackClient.getHeldItemVisualColorMode());
+            this.heldItemColorModeButton.setValue(PaprikaClient.getHeldItemVisualColorMode());
         }
         if (this.distanceColorModeButton != null) {
-            this.distanceColorModeButton.setValue(NoKnockbackClient.getDistanceVisualColorMode());
+            this.distanceColorModeButton.setValue(PaprikaClient.getDistanceVisualColorMode());
         }
 
         if (this.raySaturationSlider != null) {
-            this.raySaturationSlider.sync(NoKnockbackClient.getRayVisualSaturationBoost());
+            this.raySaturationSlider.sync(PaprikaClient.getRayVisualSaturationBoost());
         }
         if (this.armorSaturationSlider != null) {
-            this.armorSaturationSlider.sync(NoKnockbackClient.getArmorVisualSaturationBoost());
+            this.armorSaturationSlider.sync(PaprikaClient.getArmorVisualSaturationBoost());
         }
         if (this.heldItemSaturationSlider != null) {
-            this.heldItemSaturationSlider.sync(NoKnockbackClient.getHeldItemVisualSaturationBoost());
+            this.heldItemSaturationSlider.sync(PaprikaClient.getHeldItemVisualSaturationBoost());
         }
         if (this.distanceSaturationSlider != null) {
-            this.distanceSaturationSlider.sync(NoKnockbackClient.getDistanceVisualSaturationBoost());
+            this.distanceSaturationSlider.sync(PaprikaClient.getDistanceVisualSaturationBoost());
         }
 
         if (this.raySpeedSlider != null) {
-            this.raySpeedSlider.sync(NoKnockbackClient.getRayVisualAnimationSpeed());
+            this.raySpeedSlider.sync(PaprikaClient.getRayVisualAnimationSpeed());
         }
         if (this.armorSpeedSlider != null) {
-            this.armorSpeedSlider.sync(NoKnockbackClient.getArmorVisualAnimationSpeed());
+            this.armorSpeedSlider.sync(PaprikaClient.getArmorVisualAnimationSpeed());
         }
         if (this.heldItemSpeedSlider != null) {
-            this.heldItemSpeedSlider.sync(NoKnockbackClient.getHeldItemVisualAnimationSpeed());
+            this.heldItemSpeedSlider.sync(PaprikaClient.getHeldItemVisualAnimationSpeed());
         }
         if (this.distanceSpeedSlider != null) {
-            this.distanceSpeedSlider.sync(NoKnockbackClient.getDistanceVisualAnimationSpeed());
+            this.distanceSpeedSlider.sync(PaprikaClient.getDistanceVisualAnimationSpeed());
         }
     }
 
@@ -273,7 +273,7 @@ public class NoKnockbackVisualSettingsScreen extends Screen {
         return Text.literal(name + ": " + (enabled ? "ON" : "OFF"));
     }
 
-    private Text colorModeText(NoKnockbackClient.VisualColorMode mode) {
+    private Text colorModeText(PaprikaClient.VisualColorMode mode) {
         return switch (mode) {
             case NICK -> Text.literal("Nick");
             case GRADIENT -> Text.literal("Gradient");

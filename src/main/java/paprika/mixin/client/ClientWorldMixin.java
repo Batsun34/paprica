@@ -1,8 +1,8 @@
-package noknockback.mixin.client;
+package paprika.mixin.client;
 
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Vec3d;
-import noknockback.NoKnockbackClient;
+import paprika.PaprikaClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -12,8 +12,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class ClientWorldMixin {
     @Inject(method = "getSkyColor", at = @At("HEAD"), cancellable = true)
     private void paprika$overrideSkyColor(Vec3d cameraPos, float tickDelta, CallbackInfoReturnable<Integer> cir) {
-        if (NoKnockbackClient.isCustomSkyEnabled()) {
-            cir.setReturnValue(NoKnockbackClient.getSkyTopColor());
+        if (PaprikaClient.isCustomSkyEnabled()) {
+            cir.setReturnValue(PaprikaClient.getSkyTopColor());
         }
     }
 }

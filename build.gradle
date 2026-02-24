@@ -3,7 +3,7 @@ plugins {
     id 'java'
 }
 
-group = 'com.example'
+group = 'paprika'
 version = '1.0.0'
 
 repositories {

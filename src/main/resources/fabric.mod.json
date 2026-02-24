@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"id": "noknockback",
+	"id": "paprika",
 	"version": "${version}",
 	"name": "Paprika",
 	"description": "Paprika client overlay with ESP, rays, player list and visual tuning.",
@@ -8,19 +8,19 @@
 		"Me!"
 	],
 	"contact": {
-		"homepage": "https://github.com/Batsun34/noknockback",
-		"sources": "https://github.com/Batsun34/noknockback"
+		"homepage": "https://github.com/Batsun34/paprika",
+		"sources": "https://github.com/Batsun34/paprika"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/noknockback/icon.png",
+	"icon": "assets/paprika/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"client": [
-			"noknockback.NoKnockbackClient"
+			"paprika.PaprikaClient"
 		]
 	},
 	"mixins": [
-		"noknockback.client.mixins.json"
+		"paprika.client.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.18.4",

@@ -1,4 +1,4 @@
-package noknockback;
+package paprika;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -14,12 +14,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Locale;
 
-public final class NoKnockbackConfig {
+public final class PaprikaConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("paprika.json");
     private static final Path LEGACY_CONFIG_PATH = FabricLoader.getInstance().getConfigDir().resolve("noknockback.json");
 
-    private NoKnockbackConfig() {
+    private PaprikaConfig() {
     }
 
     public static Data load() {
@@ -101,14 +101,14 @@ public final class NoKnockbackConfig {
         sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
         sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
         sanitized.rayOrigin = sanitizeRayOrigin(data.rayOrigin);
-        sanitized.armorAnchorMode = sanitizeOverlayAnchorMode(data.armorAnchorMode, NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER);
-        sanitized.heldItemAnchorMode = sanitizeOverlayAnchorMode(data.heldItemAnchorMode, NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER);
-        sanitized.distanceAnchorMode = sanitizeOverlayAnchorMode(data.distanceAnchorMode, NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE);
-        sanitized.rayVisualColorMode = sanitizeVisualColorMode(data.rayVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
-        sanitized.armorVisualColorMode = sanitizeVisualColorMode(data.armorVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
-        sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
-        sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
-        sanitized.espVisualColorMode = sanitizeVisualColorMode(data.espVisualColorMode, NoKnockbackClient.VisualColorMode.NICK);
+        sanitized.armorAnchorMode = sanitizeOverlayAnchorMode(data.armorAnchorMode, PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER);
+        sanitized.heldItemAnchorMode = sanitizeOverlayAnchorMode(data.heldItemAnchorMode, PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER);
+        sanitized.distanceAnchorMode = sanitizeOverlayAnchorMode(data.distanceAnchorMode, PaprikaClient.OverlayAnchorMode.RAY_MIDDLE);
+        sanitized.rayVisualColorMode = sanitizeVisualColorMode(data.rayVisualColorMode, PaprikaClient.VisualColorMode.NICK);
+        sanitized.armorVisualColorMode = sanitizeVisualColorMode(data.armorVisualColorMode, PaprikaClient.VisualColorMode.NICK);
+        sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, PaprikaClient.VisualColorMode.NICK);
+        sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, PaprikaClient.VisualColorMode.NICK);
+        sanitized.espVisualColorMode = sanitizeVisualColorMode(data.espVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.handItemOrientation = sanitizeHandItemOrientation(data.handItemOrientation);
         sanitized.rayVisualSaturationBoost = MathHelper.clamp(data.rayVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.rayVisualAnimationSpeed = MathHelper.clamp(data.rayVisualAnimationSpeed, 0.2F, 4.0F);
@@ -172,17 +172,17 @@ public final class NoKnockbackConfig {
 
     private static String sanitizeRayOrigin(String value) {
         if (value == null) {
-            return NoKnockbackClient.RayOrigin.BOTTOM.name();
+            return PaprikaClient.RayOrigin.BOTTOM.name();
         }
 
         try {
-            return NoKnockbackClient.RayOrigin.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.RayOrigin.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.RayOrigin.BOTTOM.name();
+            return PaprikaClient.RayOrigin.BOTTOM.name();
         }
     }
 
-    private static String sanitizeVisualColorMode(String value, NoKnockbackClient.VisualColorMode fallback) {
+    private static String sanitizeVisualColorMode(String value, PaprikaClient.VisualColorMode fallback) {
         if (value == null) {
             return fallback.name();
         }
@@ -190,21 +190,21 @@ public final class NoKnockbackConfig {
         try {
             String normalized = value.toUpperCase(Locale.ROOT);
             if ("VIVID".equals(normalized)) {
-                return NoKnockbackClient.VisualColorMode.NICK.name();
+                return PaprikaClient.VisualColorMode.NICK.name();
             }
-            return NoKnockbackClient.VisualColorMode.valueOf(normalized).name();
+            return PaprikaClient.VisualColorMode.valueOf(normalized).name();
         } catch (IllegalArgumentException ignored) {
             return fallback.name();
         }
     }
 
-    private static String sanitizeOverlayAnchorMode(String value, NoKnockbackClient.OverlayAnchorMode fallback) {
+    private static String sanitizeOverlayAnchorMode(String value, PaprikaClient.OverlayAnchorMode fallback) {
         if (value == null) {
             return fallback.name();
         }
 
         try {
-            return NoKnockbackClient.OverlayAnchorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.OverlayAnchorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
             return fallback.name();
         }
@@ -212,73 +212,73 @@ public final class NoKnockbackConfig {
 
     private static String sanitizeHandItemOrientation(String value) {
         if (value == null || value.isBlank()) {
-            return NoKnockbackClient.HandItemOrientation.DEFAULT.name();
+            return PaprikaClient.HandItemOrientation.DEFAULT.name();
         }
 
         try {
-            return NoKnockbackClient.HandItemOrientation.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.HandItemOrientation.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.HandItemOrientation.DEFAULT.name();
+            return PaprikaClient.HandItemOrientation.DEFAULT.name();
         }
     }
 
     private static String sanitizeTrailType(String value) {
         if (value == null || value.isBlank()) {
-            return NoKnockbackClient.TrailType.THIN_LINE.name();
+            return PaprikaClient.TrailType.THIN_LINE.name();
         }
 
         try {
-            return NoKnockbackClient.TrailType.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.TrailType.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.TrailType.THIN_LINE.name();
+            return PaprikaClient.TrailType.THIN_LINE.name();
         }
     }
 
     private static String sanitizeTrailOrigin(String value) {
         if (value == null || value.isBlank()) {
-            return NoKnockbackClient.TrailOrigin.BACK.name();
+            return PaprikaClient.TrailOrigin.BACK.name();
         }
 
         try {
-            return NoKnockbackClient.TrailOrigin.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.TrailOrigin.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.TrailOrigin.BACK.name();
+            return PaprikaClient.TrailOrigin.BACK.name();
         }
     }
 
     private static String sanitizeTrailColorMode(String value) {
         if (value == null || value.isBlank()) {
-            return NoKnockbackClient.TrailColorMode.NICK.name();
+            return PaprikaClient.TrailColorMode.NICK.name();
         }
 
         try {
-            return NoKnockbackClient.TrailColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.TrailColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.TrailColorMode.NICK.name();
+            return PaprikaClient.TrailColorMode.NICK.name();
         }
     }
 
     private static String sanitizeAutoAttackMode(String value) {
         if (value == null || value.isBlank()) {
-            return NoKnockbackClient.AutoAttackMode.CIRCLE.name();
+            return PaprikaClient.AutoAttackMode.CIRCLE.name();
         }
 
         try {
-            return NoKnockbackClient.AutoAttackMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.AutoAttackMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.AutoAttackMode.CIRCLE.name();
+            return PaprikaClient.AutoAttackMode.CIRCLE.name();
         }
     }
 
     private static String sanitizeCircleColorMode(String value) {
         if (value == null || value.isBlank()) {
-            return NoKnockbackClient.CircleColorMode.FIXED.name();
+            return PaprikaClient.CircleColorMode.FIXED.name();
         }
 
         try {
-            return NoKnockbackClient.CircleColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+            return PaprikaClient.CircleColorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
-            return NoKnockbackClient.CircleColorMode.FIXED.name();
+            return PaprikaClient.CircleColorMode.FIXED.name();
         }
     }
 
@@ -320,16 +320,16 @@ public final class NoKnockbackConfig {
         public float playerListAlpha = 0.7F;
         public int playerListOffsetX = 6;
         public int playerListOffsetY = 6;
-        public String rayOrigin = NoKnockbackClient.RayOrigin.BOTTOM.name();
-        public String armorAnchorMode = NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER.name();
-        public String heldItemAnchorMode = NoKnockbackClient.OverlayAnchorMode.ABOVE_PLAYER.name();
-        public String distanceAnchorMode = NoKnockbackClient.OverlayAnchorMode.RAY_MIDDLE.name();
-        public String rayVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
-        public String armorVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
-        public String heldItemVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
-        public String distanceVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
-        public String espVisualColorMode = NoKnockbackClient.VisualColorMode.NICK.name();
-        public String handItemOrientation = NoKnockbackClient.HandItemOrientation.DEFAULT.name();
+        public String rayOrigin = PaprikaClient.RayOrigin.BOTTOM.name();
+        public String armorAnchorMode = PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER.name();
+        public String heldItemAnchorMode = PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER.name();
+        public String distanceAnchorMode = PaprikaClient.OverlayAnchorMode.RAY_MIDDLE.name();
+        public String rayVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
+        public String armorVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
+        public String heldItemVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
+        public String distanceVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
+        public String espVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
+        public String handItemOrientation = PaprikaClient.HandItemOrientation.DEFAULT.name();
         public float rayVisualSaturationBoost = 1.35F;
         public float rayVisualAnimationSpeed = 1.0F;
         public float armorVisualSaturationBoost = 1.35F;
@@ -356,11 +356,11 @@ public final class NoKnockbackConfig {
         public int autoAttackCircleColor = 0x4CB1FF;
         public String menuLastTab = "RAYS";
         public double menuScrollOffset = 0.0;
-        public String trailType = NoKnockbackClient.TrailType.THIN_LINE.name();
-        public String trailOrigin = NoKnockbackClient.TrailOrigin.BACK.name();
-        public String trailColorMode = NoKnockbackClient.TrailColorMode.NICK.name();
-        public String autoAttackMode = NoKnockbackClient.AutoAttackMode.CIRCLE.name();
-        public String autoAttackCircleColorMode = NoKnockbackClient.CircleColorMode.FIXED.name();
+        public String trailType = PaprikaClient.TrailType.THIN_LINE.name();
+        public String trailOrigin = PaprikaClient.TrailOrigin.BACK.name();
+        public String trailColorMode = PaprikaClient.TrailColorMode.NICK.name();
+        public String autoAttackMode = PaprikaClient.AutoAttackMode.CIRCLE.name();
+        public String autoAttackCircleColorMode = PaprikaClient.CircleColorMode.FIXED.name();
 
         public String speedToggleKey = "key.keyboard.v";
         public String noKnockbackKey = "key.keyboard.n";

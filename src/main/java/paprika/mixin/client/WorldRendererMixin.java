@@ -1,9 +1,9 @@
-package noknockback.mixin.client;
+package paprika.mixin.client;
 
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
-import noknockback.NoKnockbackClient;
+import paprika.PaprikaClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -14,9 +14,9 @@ public class WorldRendererMixin {
 		method = "renderEntities",
 		at = @At(value = "INVOKE", target = "Lnet/minecraft/entity/Entity;getTeamColorValue()I")
 	)
-	private int noknockback$useNickColorForOutline(Entity entity) {
-		if (NoKnockbackClient.isPlayerEspEnabled() && entity instanceof PlayerEntity playerEntity) {
-			return NoKnockbackClient.getPlayerHighlightColor(playerEntity);
+	private int paprika$useNickColorForOutline(Entity entity) {
+		if (PaprikaClient.isPlayerEspEnabled() && entity instanceof PlayerEntity playerEntity) {
+			return PaprikaClient.getPlayerHighlightColor(playerEntity);
 		}
 
 		return entity.getTeamColorValue();

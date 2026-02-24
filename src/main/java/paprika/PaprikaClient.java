@@ -1,4 +1,4 @@
-package noknockback;
+package paprika;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -30,7 +30,7 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
-import noknockback.mixin.client.GameRendererAccessor;
+import paprika.mixin.client.GameRendererAccessor;
 
 import org.lwjgl.glfw.GLFW;
 import org.joml.Matrix4f;
@@ -47,7 +47,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-public class NoKnockbackClient implements ClientModInitializer {
+public class PaprikaClient implements ClientModInitializer {
 
     private static final double WALK_SPEED = 0.1D;
     private static final double SPRINT_MULTIPLIER = 1.3D;
@@ -1227,7 +1227,7 @@ public class NoKnockbackClient implements ClientModInitializer {
     }
 
     public static void saveConfigNow() {
-        NoKnockbackConfig.save(captureConfig());
+        PaprikaConfig.save(captureConfig());
     }
 
     public static int getPlayerHighlightColor(PlayerEntity player) {
@@ -1258,7 +1258,7 @@ public class NoKnockbackClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        NoKnockbackConfig.Data loadedConfig = NoKnockbackConfig.load();
+        PaprikaConfig.Data loadedConfig = PaprikaConfig.load();
         applyLoadedConfig(loadedConfig);
 
         toggleKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -1355,18 +1355,18 @@ public class NoKnockbackClient implements ClientModInitializer {
         HudLayerRegistrationCallback.EVENT.register(layeredDrawer -> layeredDrawer.attachLayerAfter(
                 IdentifiedLayer.SUBTITLES,
                 HUD_OVERLAY_LAYER_ID,
-                NoKnockbackClient::renderHudOverlay
+                PaprikaClient::renderHudOverlay
         ));
 
-        WorldRenderEvents.AFTER_ENTITIES.register(NoKnockbackClient::renderPlayerTrails);
-        WorldRenderEvents.AFTER_ENTITIES.register(NoKnockbackClient::renderMarkedTargetDecal);
+        WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderPlayerTrails);
+        WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderMarkedTargetDecal);
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     }
 
     private void onTick(MinecraftClient client) {
         while (openMenuKey.wasPressed()) {
-            if (!(client.currentScreen instanceof NoKnockbackMenuScreen)) {
-                client.setScreen(new NoKnockbackMenuScreen(client.currentScreen));
+            if (!(client.currentScreen instanceof PaprikaMenuScreen)) {
+                client.setScreen(new PaprikaMenuScreen(client.currentScreen));
             }
         }
 
@@ -1531,7 +1531,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float tickDelta = tickCounter.getTickDelta(false);
         float fov = client.options.getFov().getValue().floatValue();
         if (client.gameRenderer instanceof GameRendererAccessor accessor) {
-            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+            fov = accessor.paprika$getFov(camera, tickDelta, true);
         }
         float renderFov = fov;
         float rayStartX = screenWidth * 0.5F;
@@ -1875,7 +1875,7 @@ public class NoKnockbackClient implements ClientModInitializer {
             float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
             float fov = client.options.getFov().getValue().floatValue();
             if (client.gameRenderer instanceof GameRendererAccessor accessor) {
-                fov = accessor.noknockback$getFov(camera, tickDelta, true);
+                fov = accessor.paprika$getFov(camera, tickDelta, true);
             }
             target = findTargetInCircle(client, camera, tickDelta, fov, width, height, MARK_AIM_RADIUS);
         }
@@ -1951,7 +1951,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
         float fov = client.options.getFov().getValue().floatValue();
         if (client.gameRenderer instanceof GameRendererAccessor accessor) {
-            fov = accessor.noknockback$getFov(camera, tickDelta, true);
+            fov = accessor.paprika$getFov(camera, tickDelta, true);
         }
 
         PlayerEntity target = selectAutoAttackTarget(client, camera, tickDelta, fov, width, height);
@@ -3003,7 +3003,7 @@ public class NoKnockbackClient implements ClientModInitializer {
         return new float[]{hue, saturation, max};
     }
 
-    private static void applyLoadedConfig(NoKnockbackConfig.Data config) {
+    private static void applyLoadedConfig(PaprikaConfig.Data config) {
         if (config == null) return;
 
         speedEnabled = config.speedEnabled;
@@ -3207,8 +3207,8 @@ public class NoKnockbackClient implements ClientModInitializer {
         }
     }
 
-    private static NoKnockbackConfig.Data captureConfig() {
-        NoKnockbackConfig.Data data = new NoKnockbackConfig.Data();
+    private static PaprikaConfig.Data captureConfig() {
+        PaprikaConfig.Data data = new PaprikaConfig.Data();
         data.speedEnabled = speedEnabled;
         data.noKnockbackEnabled = noKnockbackEnabled;
         data.playerEspEnabled = playerEspEnabled;

@@ -1,6 +1,6 @@
 {
 	"required": true,
-	"package": "noknockback.mixin.client",
+	"package": "paprika.mixin.client",
 	"compatibilityLevel": "JAVA_21",
 	"client": [
 		"ClientWorldMixin",

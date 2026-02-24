@@ -1,4 +1,4 @@
-package noknockback.mixin.client;
+package paprika.mixin.client;
 
 import net.minecraft.client.render.OutlineVertexConsumerProvider;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -6,7 +6,7 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.PlayerEntity;
-import noknockback.NoKnockbackClient;
+import paprika.PaprikaClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -32,9 +32,9 @@ public class WorldRendererOutlineScaleMixin {
         this.paprika$scaledOutline = false;
         if (!(vertexConsumers instanceof OutlineVertexConsumerProvider)) return;
         if (!(entity instanceof PlayerEntity)) return;
-        if (!NoKnockbackClient.isPlayerEspEnabled()) return;
+        if (!PaprikaClient.isPlayerEspEnabled()) return;
 
-        float thickness = NoKnockbackClient.getOutlineThickness();
+        float thickness = PaprikaClient.getOutlineThickness();
         if (thickness <= 1.01F) return;
 
         float scale = 1.0F + (thickness - 1.0F) * 0.06F;
