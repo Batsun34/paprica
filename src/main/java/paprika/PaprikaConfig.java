@@ -12,7 +12,11 @@ import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public final class PaprikaConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -81,6 +85,7 @@ public final class PaprikaConfig {
         sanitized.skyTopRainbowEnabled = data.skyTopRainbowEnabled;
         sanitized.skyBottomRainbowEnabled = data.skyBottomRainbowEnabled;
         sanitized.hideHandsWithItemEnabled = data.hideHandsWithItemEnabled;
+        sanitized.friendNames = sanitizeFriendNames(data.friendNames);
         sanitized.handItemFlipEnabled = data.handItemFlipEnabled;
         sanitized.rayVisualGlowEnabled = data.rayVisualGlowEnabled;
         sanitized.espVisualGlowEnabled = data.espVisualGlowEnabled;
@@ -155,6 +160,7 @@ public final class PaprikaConfig {
         sanitized.autoAttackKey = sanitizeKey(data.autoAttackKey, "key.keyboard.r");
         sanitized.markTargetKey = sanitizeKey(data.markTargetKey, "key.keyboard.m");
         sanitized.unmarkTargetKey = sanitizeKey(data.unmarkTargetKey, "key.keyboard.u");
+        sanitized.markFriendKey = sanitizeKey(data.markFriendKey, "key.keyboard.f");
         sanitized.panicKey = sanitizeKey(data.panicKey, "key.keyboard.p");
         sanitized.menuKey = sanitizeKey(data.menuKey, "key.keyboard.right.shift");
 
@@ -286,6 +292,22 @@ public final class PaprikaConfig {
         }
     }
 
+    private static List<String> sanitizeFriendNames(List<String> names) {
+        List<String> sanitized = new ArrayList<>();
+        if (names == null) {
+            return sanitized;
+        }
+        Set<String> seen = new HashSet<>();
+        for (String name : names) {
+            String cleaned = PaprikaClient.sanitizeFriendName(name);
+            if (cleaned == null) continue;
+            String key = cleaned.toLowerCase(Locale.ROOT);
+            if (!seen.add(key)) continue;
+            sanitized.add(cleaned);
+        }
+        return sanitized;
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean noKnockbackEnabled = true;
@@ -305,6 +327,7 @@ public final class PaprikaConfig {
         public boolean skyTopRainbowEnabled = false;
         public boolean skyBottomRainbowEnabled = false;
         public boolean hideHandsWithItemEnabled = false;
+        public List<String> friendNames = new ArrayList<>();
         public boolean handItemFlipEnabled = false;
         public boolean rayVisualGlowEnabled = false;
         public boolean espVisualGlowEnabled = false;
@@ -379,6 +402,7 @@ public final class PaprikaConfig {
         public String autoAttackKey = "key.keyboard.r";
         public String markTargetKey = "key.keyboard.m";
         public String unmarkTargetKey = "key.keyboard.u";
+        public String markFriendKey = "key.keyboard.f";
         public String panicKey = "key.keyboard.p";
         public String menuKey = "key.keyboard.right.shift";
     }

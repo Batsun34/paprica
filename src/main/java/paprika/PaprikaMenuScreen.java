@@ -92,6 +92,9 @@ public class PaprikaMenuScreen extends Screen {
     private Control openDropdownControl;
     @Nullable
     private Rect openDropdownListRect;
+    @Nullable
+    private Control activeTextControl;
+    private String friendInputText = "";
 
     public PaprikaMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
@@ -207,12 +210,12 @@ public class PaprikaMenuScreen extends Screen {
                     this.openDropdownId = null;
                     handled = true;
                 }
-                    case KEYBIND -> {
-                        if (hitTarget.control.keyBinding != null) {
-                            this.waitingForKey = hitTarget.control.keyBinding;
-                            this.openDropdownId = null;
-                        }
-                        handled = true;
+                case KEYBIND -> {
+                    if (hitTarget.control.keyBinding != null) {
+                        this.waitingForKey = hitTarget.control.keyBinding;
+                        this.openDropdownId = null;
+                    }
+                    handled = true;
                 }
                 case SLIDER -> {
                     this.sliderDrag = new SliderDrag(hitTarget.control, hitTarget.track);
@@ -220,11 +223,25 @@ public class PaprikaMenuScreen extends Screen {
                     this.openDropdownId = null;
                     handled = true;
                 }
+                case BUTTON -> {
+                    if (hitTarget.control.buttonAction != null) {
+                        hitTarget.control.buttonAction.run();
+                    }
+                    handled = true;
+                }
+                case TEXT -> {
+                    this.activeTextControl = hitTarget.control;
+                    handled = true;
+                }
             }
         }
 
         if (!handled && this.openDropdownId != null) {
             this.openDropdownId = null;
+        }
+
+        if (!handled) {
+            this.activeTextControl = null;
         }
 
         if (handled) {
@@ -278,7 +295,48 @@ public class PaprikaMenuScreen extends Screen {
             this.waitingForKey = null;
             return true;
         }
+        if (this.activeTextControl != null) {
+            if (keyCode == GLFW.GLFW_KEY_ESCAPE || keyCode == GLFW.GLFW_KEY_ENTER || keyCode == GLFW.GLFW_KEY_KP_ENTER) {
+                this.activeTextControl = null;
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_BACKSPACE) {
+                String current = this.activeTextControl.labelValue.get();
+                if (!current.isEmpty()) {
+                    if (this.activeTextControl.textSetter != null) {
+                        this.activeTextControl.textSetter.accept(current.substring(0, current.length() - 1));
+                    }
+                }
+                return true;
+            }
+            if (keyCode == GLFW.GLFW_KEY_DELETE) {
+                if (this.activeTextControl.textSetter != null) {
+                    this.activeTextControl.textSetter.accept("");
+                }
+                return true;
+            }
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
+    }
+
+    @Override
+    public boolean charTyped(char chr, int modifiers) {
+        if (this.activeTextControl != null) {
+            if (Character.isISOControl(chr)) {
+                return false;
+            }
+            String current = this.activeTextControl.labelValue.get();
+            int limit = this.activeTextControl.textMaxLength;
+            if (limit > 0 && current.length() >= limit) {
+                return true;
+            }
+            if (this.activeTextControl.textSetter != null) {
+                this.activeTextControl.textSetter.accept(current + chr);
+            }
+            return true;
+        }
+        return super.charTyped(chr, modifiers);
     }
 
     private void bindKey(KeyBinding keyBinding, InputUtil.Key key) {
@@ -495,7 +553,18 @@ public class PaprikaMenuScreen extends Screen {
                 context.drawCenteredTextWithShadow(this.textRenderer, keyLabel, rect.x + rect.width / 2, rect.y + 5, COLOR_TEXT);
                 this.hitTargets.add(new HitTarget(HitType.KEYBIND, rect, control, rect, -1));
             }
-                case CYCLE -> {
+            case BUTTON -> {
+                int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
+                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
+                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+                String buttonLabel = control.labelValue.get();
+                if (buttonLabel == null || buttonLabel.isBlank()) {
+                    buttonLabel = control.label;
+                }
+                context.drawCenteredTextWithShadow(this.textRenderer, buttonLabel, rect.x + rect.width / 2, rect.y + 5, COLOR_TEXT);
+                this.hitTargets.add(new HitTarget(HitType.BUTTON, rect, control, rect, -1));
+            }
+            case CYCLE -> {
                     int bg = hovered ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
                     context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
                     drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
@@ -543,6 +612,24 @@ public class PaprikaMenuScreen extends Screen {
                     context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_ROW_HOVER);
                 }
                 this.hitTargets.add(new HitTarget(HitType.SLIDER, rect, control, track, -1));
+            }
+            case TEXT -> {
+                boolean active = control == this.activeTextControl;
+                int bg = hovered || active ? COLOR_CONTROL_BORDER : COLOR_CONTROL_BG;
+                context.fill(rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, bg);
+                drawOutline(context, rect.x, rect.y + 2, rect.x + rect.width, rect.y + rect.height - 2, COLOR_CONTROL_BORDER);
+
+                String current = control.labelValue.get();
+                if (current == null) current = "";
+                boolean showCaret = active && (System.currentTimeMillis() / 350) % 2 == 0;
+                String display = current.isEmpty() ? "Type name" : current;
+                if (showCaret) {
+                    display = current + "_";
+                }
+                display = this.textRenderer.trimToWidth(display, rect.width - 10);
+                int color = current.isEmpty() ? COLOR_TEXT_MUTED : COLOR_TEXT;
+                context.drawTextWithShadow(this.textRenderer, display, rect.x + 6, rect.y + 5, color);
+                this.hitTargets.add(new HitTarget(HitType.TEXT, rect, control, rect, -1));
             }
             case LABEL -> {
                 String value = control.labelValue.get();
@@ -693,6 +780,31 @@ public class PaprikaMenuScreen extends Screen {
                         Control.slider("auto_attack.circle_g", "Circle Green", 0, 255, 1, PaprikaClient::getAutoAttackCircleGreen, value -> PaprikaClient.setAutoAttackCircleGreen((int) value)),
                         Control.slider("auto_attack.circle_b", "Circle Blue", 0, 255, 1, PaprikaClient::getAutoAttackCircleBlue, value -> PaprikaClient.setAutoAttackCircleBlue((int) value))
                 )));
+            }
+            case FRIENDS -> {
+                List<Control> friendControls = new ArrayList<>();
+                friendControls.add(Control.keybind("friends.mark", "Mark Friend", PaprikaClient.getMarkFriendKeyBinding()));
+                friendControls.add(Control.textInput("friends.input", "Friend Name", () -> this.friendInputText, value -> this.friendInputText = value, 16));
+                friendControls.add(Control.button("friends.add", "Add Friend", () -> "Add", () -> {
+                    if (PaprikaClient.addFriendName(this.friendInputText)) {
+                        this.friendInputText = "";
+                    }
+                }));
+                friendControls.add(Control.button("friends.clear", "Clear Friends", () -> "Clear", PaprikaClient::clearFriends));
+                panels.add(new Panel("Friends", 0, friendControls));
+
+                List<Control> friendList = new ArrayList<>();
+                List<String> names = PaprikaClient.getFriendNames();
+                if (names.isEmpty()) {
+                    friendList.add(Control.label("friends.empty", "No friends added", () -> ""));
+                } else {
+                    int idx = 1;
+                    for (String name : names) {
+                        friendList.add(Control.label("friends.entry." + idx, name, () -> ""));
+                        idx++;
+                    }
+                }
+                panels.add(new Panel("Friend List", 1, friendList));
             }
             case ESP -> panels.add(new Panel("ESP", 0, List.of(
                     Control.toggle("esp.enabled", "Enabled", PaprikaClient::isPlayerEspEnabled, PaprikaClient::setPlayerEspEnabled),
@@ -869,6 +981,7 @@ public class PaprikaMenuScreen extends Screen {
         NO_KNOCKBACK("No Knockback", ModuleGroup.MOVEMENT),
         SPEED("Sneak Movement Speed", ModuleGroup.MOVEMENT),
         AUTO_ATTACK("Auto Attack", ModuleGroup.COMBAT),
+        FRIENDS("Friends", ModuleGroup.COMBAT),
         ESP("Player ESP", ModuleGroup.VISUAL),
         RAYS("Rays", ModuleGroup.VISUAL),
         TRAILS("Trails", ModuleGroup.VISUAL),
@@ -891,7 +1004,9 @@ public class PaprikaMenuScreen extends Screen {
         KEYBIND,
         DROPDOWN,
         DROPDOWN_OPTION,
-        SLIDER
+        SLIDER,
+        BUTTON,
+        TEXT
     }
 
     private static final class Rect {
@@ -964,11 +1079,15 @@ public class PaprikaMenuScreen extends Screen {
         private final String[] cycleLabels;
         private final KeyBinding keyBinding;
         private final Supplier<String> labelValue;
+        private final Consumer<String> textSetter;
+        private final Runnable buttonAction;
+        private final int textMaxLength;
 
         private Control(String id, ControlType type, String label, BooleanSupplier toggleGetter, Consumer<Boolean> toggleSetter,
                         DoubleSupplier sliderGetter, DoubleConsumer sliderSetter, double min, double max, double step,
                         IntSupplier cycleGetter, IntConsumer cycleSetter, String[] cycleLabels,
-                        KeyBinding keyBinding, Supplier<String> labelValue) {
+                        KeyBinding keyBinding, Supplier<String> labelValue, Consumer<String> textSetter,
+                        Runnable buttonAction, int textMaxLength) {
             this.id = id;
             this.type = type;
             this.label = label;
@@ -984,30 +1103,43 @@ public class PaprikaMenuScreen extends Screen {
             this.cycleLabels = cycleLabels;
             this.keyBinding = keyBinding;
             this.labelValue = labelValue;
+            this.textSetter = textSetter;
+            this.buttonAction = buttonAction;
+            this.textMaxLength = textMaxLength;
         }
 
         private static Control toggle(String id, String label, BooleanSupplier getter, Consumer<Boolean> setter) {
-            return new Control(id, ControlType.TOGGLE, label, getter, setter, null, null, 0.0, 0.0, 0.0, null, null, null, null, () -> "");
+            return new Control(id, ControlType.TOGGLE, label, getter, setter, null, null, 0.0, 0.0, 0.0, null, null, null, null, () -> "", null, null, 0);
         }
 
         private static Control keybind(String id, String label, KeyBinding keyBinding) {
             return new Control(id, ControlType.KEYBIND, label, () -> false, value -> {
-            }, null, null, 0.0, 0.0, 0.0, null, null, null, keyBinding, () -> "");
+            }, null, null, 0.0, 0.0, 0.0, null, null, null, keyBinding, () -> "", null, null, 0);
         }
 
         private static Control slider(String id, String label, double min, double max, double step, DoubleSupplier getter, DoubleConsumer setter) {
             return new Control(id, ControlType.SLIDER, label, () -> false, value -> {
-            }, getter, setter, min, max, step, null, null, null, null, () -> "");
+            }, getter, setter, min, max, step, null, null, null, null, () -> "", null, null, 0);
         }
 
         private static Control cycle(String id, String label, String[] values, IntSupplier getter, IntConsumer setter) {
             return new Control(id, ControlType.CYCLE, label, () -> false, value -> {
-            }, null, null, 0.0, 0.0, 0.0, getter, setter, values, null, () -> "");
+            }, null, null, 0.0, 0.0, 0.0, getter, setter, values, null, () -> "", null, null, 0);
         }
 
         private static Control label(String id, String label, Supplier<String> valueSupplier) {
             return new Control(id, ControlType.LABEL, label, () -> false, value -> {
-            }, null, null, 0.0, 0.0, 0.0, null, null, null, null, valueSupplier);
+            }, null, null, 0.0, 0.0, 0.0, null, null, null, null, valueSupplier, null, null, 0);
+        }
+
+        private static Control textInput(String id, String label, Supplier<String> valueSupplier, Consumer<String> setter, int maxLength) {
+            return new Control(id, ControlType.TEXT, label, () -> false, value -> {
+            }, null, null, 0.0, 0.0, 0.0, null, null, null, null, valueSupplier, setter, null, maxLength);
+        }
+
+        private static Control button(String id, String label, Supplier<String> buttonLabel, Runnable action) {
+            return new Control(id, ControlType.BUTTON, label, () -> false, value -> {
+            }, null, null, 0.0, 0.0, 0.0, null, null, null, null, buttonLabel, null, action, 0);
         }
     }
 
@@ -1016,6 +1148,8 @@ public class PaprikaMenuScreen extends Screen {
         KEYBIND,
         CYCLE,
         SLIDER,
-        LABEL
+        LABEL,
+        BUTTON,
+        TEXT
     }
 }

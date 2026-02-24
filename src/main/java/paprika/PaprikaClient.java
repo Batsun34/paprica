@@ -81,6 +81,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final float AUTO_ATTACK_CIRCLE_THICKNESS = 1.6F;
     private static final int AUTO_ATTACK_CIRCLE_SEED = 0xC1CC1E;
     private static final float MARK_AIM_RADIUS = 18.0F;
+    private static final int MAX_FRIEND_NAME_LENGTH = 16;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int OVERLAY_GROUP_GAP = 4;
     private static final int TARGET_HEALTH_BG_COLOR = 0x7A000000;
@@ -188,12 +189,15 @@ public class PaprikaClient implements ClientModInitializer {
     private static KeyBinding toggleAutoAttackKey;
     private static KeyBinding markTargetKey;
     private static KeyBinding unmarkTargetKey;
+    private static KeyBinding markFriendKey;
     private static KeyBinding panicKey;
     private static KeyBinding openMenuKey;
 
     private Vec3d lastVelocity = Vec3d.ZERO;
     private static String markedPlayerName;
     private static double lastAutoAttackTime;
+    private static String lastFriendMarkName;
+    private static final Map<String, String> friendNames = new LinkedHashMap<>();
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
     private static final List<TrailSegment> trailSegments = new ArrayList<>();
@@ -394,6 +398,44 @@ public class PaprikaClient implements ClientModInitializer {
         if (hideHandsWithItemEnabled == enabled) return;
         hideHandsWithItemEnabled = enabled;
         saveConfigNow();
+    }
+
+    public static List<String> getFriendNames() {
+        return new ArrayList<>(friendNames.values());
+    }
+
+    public static boolean addFriendName(String name) {
+        String sanitized = sanitizeFriendName(name);
+        if (sanitized == null) return false;
+        String key = sanitized.toLowerCase(Locale.ROOT);
+        if (friendNames.containsKey(key)) return false;
+        friendNames.put(key, sanitized);
+        saveConfigNow();
+        return true;
+    }
+
+    public static void clearFriends() {
+        if (friendNames.isEmpty()) return;
+        friendNames.clear();
+        saveConfigNow();
+    }
+
+    static String sanitizeFriendName(String name) {
+        if (name == null) return null;
+        String trimmed = name.trim();
+        if (trimmed.isEmpty()) return null;
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < trimmed.length(); i++) {
+            char c = trimmed.charAt(i);
+            if (Character.isLetterOrDigit(c) || c == '_') {
+                builder.append(c);
+                if (builder.length() >= MAX_FRIEND_NAME_LENGTH) {
+                    break;
+                }
+            }
+        }
+        if (builder.length() == 0) return null;
+        return builder.toString();
     }
 
     public static float getHandFovScale() {
@@ -1275,6 +1317,10 @@ public class PaprikaClient implements ClientModInitializer {
         return unmarkTargetKey;
     }
 
+    public static KeyBinding getMarkFriendKeyBinding() {
+        return markFriendKey;
+    }
+
     public static KeyBinding getPanicKeyBinding() {
         return panicKey;
     }
@@ -1381,6 +1427,13 @@ public class PaprikaClient implements ClientModInitializer {
                 "category.paprika"
         ));
 
+        markFriendKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.mark_friend",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_F,
+                "category.paprika"
+        ));
+
         panicKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.paprika.panic",
                 InputUtil.Type.KEYSYM,
@@ -1404,6 +1457,7 @@ public class PaprikaClient implements ClientModInitializer {
         applyConfiguredKey(toggleAutoAttackKey, loadedConfig.autoAttackKey);
         applyConfiguredKey(markTargetKey, loadedConfig.markTargetKey);
         applyConfiguredKey(unmarkTargetKey, loadedConfig.unmarkTargetKey);
+        applyConfiguredKey(markFriendKey, loadedConfig.markFriendKey);
         applyConfiguredKey(panicKey, loadedConfig.panicKey);
         applyConfiguredKey(openMenuKey, loadedConfig.menuKey);
         KeyBinding.updateKeysByCode();
@@ -1516,6 +1570,26 @@ public class PaprikaClient implements ClientModInitializer {
                     Text.literal("[Paprika] Mark cleared"),
                     true
             );
+        }
+
+        while (markFriendKey.wasPressed()) {
+            FriendMarkResult result = markFriend(client);
+            if (result == FriendMarkResult.ADDED) {
+                player.sendMessage(
+                        Text.literal("[Paprika] Friend added: " + lastFriendMarkName),
+                        true
+                );
+            } else if (result == FriendMarkResult.ALREADY) {
+                player.sendMessage(
+                        Text.literal("[Paprika] Friend already added: " + lastFriendMarkName),
+                        true
+                );
+            } else {
+                player.sendMessage(
+                        Text.literal("[Paprika] Friend mark failed: aim at a player"),
+                        true
+                );
+            }
         }
 
         updatePlayerTrails(client);
@@ -1946,6 +2020,41 @@ public class PaprikaClient implements ClientModInitializer {
         return true;
     }
 
+    private static FriendMarkResult markFriend(MinecraftClient client) {
+        if (client == null || client.player == null || client.world == null || client.gameRenderer == null) {
+            lastFriendMarkName = null;
+            return FriendMarkResult.FAILED;
+        }
+        PlayerEntity target = findCrosshairTarget(client);
+        if (target == null) {
+            Camera camera = client.gameRenderer.getCamera();
+            if (camera == null || !camera.isReady()) {
+                lastFriendMarkName = null;
+                return FriendMarkResult.FAILED;
+            }
+            int width = client.getWindow().getScaledWidth();
+            int height = client.getWindow().getScaledHeight();
+            if (width <= 0 || height <= 0) {
+                lastFriendMarkName = null;
+                return FriendMarkResult.FAILED;
+            }
+            float tickDelta = client.getRenderTickCounter() != null ? client.getRenderTickCounter().getTickDelta(false) : 0.0F;
+            float fov = client.options.getFov().getValue().floatValue();
+            if (client.gameRenderer instanceof GameRendererAccessor accessor) {
+                fov = accessor.paprika$getFov(camera, tickDelta, true);
+            }
+            target = findTargetInCircle(client, camera, tickDelta, fov, width, height, MARK_AIM_RADIUS);
+        }
+        if (target == null) {
+            lastFriendMarkName = null;
+            return FriendMarkResult.FAILED;
+        }
+
+        String name = target.getGameProfile().getName();
+        lastFriendMarkName = name;
+        return addFriendName(name) ? FriendMarkResult.ADDED : FriendMarkResult.ALREADY;
+    }
+
     private static void triggerPanic(MinecraftClient client) {
         panicActive = true;
         speedEnabled = false;
@@ -1990,6 +2099,7 @@ public class PaprikaClient implements ClientModInitializer {
         clearKey(toggleAutoAttackKey);
         clearKey(markTargetKey);
         clearKey(unmarkTargetKey);
+        clearKey(markFriendKey);
         clearKey(panicKey);
         clearKey(openMenuKey);
         KeyBinding.updateKeysByCode();
@@ -3085,6 +3195,7 @@ public class PaprikaClient implements ClientModInitializer {
         trailSelfEnabled = config.trailSelfEnabled;
         trailOthersEnabled = config.trailOthersEnabled;
         autoAttackEnabled = config.autoAttackEnabled;
+        loadFriends(config.friendNames);
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
@@ -3364,6 +3475,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.trailType = trailType.name();
         data.trailOrigin = trailOrigin.name();
         data.trailColorMode = trailColorMode.name();
+        data.friendNames = new ArrayList<>(friendNames.values());
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -3392,6 +3504,9 @@ public class PaprikaClient implements ClientModInitializer {
         if (unmarkTargetKey != null) {
             data.unmarkTargetKey = unmarkTargetKey.getBoundKeyTranslationKey();
         }
+        if (markFriendKey != null) {
+            data.markFriendKey = markFriendKey.getBoundKeyTranslationKey();
+        }
         if (panicKey != null) {
             data.panicKey = panicKey.getBoundKeyTranslationKey();
         }
@@ -3406,6 +3521,16 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private record PlayerListLine(String text, int color) {
+    }
+
+    private static void loadFriends(List<String> names) {
+        friendNames.clear();
+        if (names == null) return;
+        for (String name : names) {
+            String sanitized = sanitizeFriendName(name);
+            if (sanitized == null) continue;
+            friendNames.put(sanitized.toLowerCase(Locale.ROOT), sanitized);
+        }
     }
 
     public enum RayOrigin {
@@ -3460,6 +3585,12 @@ public class PaprikaClient implements ClientModInitializer {
     public enum OverlayAnchorMode {
         ABOVE_PLAYER,
         RAY_MIDDLE
+    }
+
+    private enum FriendMarkResult {
+        ADDED,
+        ALREADY,
+        FAILED
     }
 
     private record TrailState(Vec3d lastPos, Vec3d backDir) {
