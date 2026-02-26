@@ -33,6 +33,8 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ModelTransformationMode;
+import net.minecraft.resource.Resource;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
@@ -53,6 +55,8 @@ import org.lwjgl.glfw.GLFW;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
+import java.io.InputStream;
+import java.util.Optional;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -2403,16 +2407,48 @@ public class PaprikaClient implements ClientModInitializer {
         if (client == null) {
             return -1;
         }
+        Identifier id = Registries.ITEM.getId(stack.getItem());
+        if (id == null) return -1;
+        try {
+            int resourceAvg = computeAverageItemColorFromResource(client.getResourceManager(), id);
+            if (resourceAvg >= 0) {
+                return resourceAvg;
+            }
+        } catch (Exception ignored) {
+        }
         try {
             Sprite sprite = resolveItemSprite(client, stack, seed);
             if (sprite == null) return -1;
             NativeImage image = resolveSpriteImage(sprite);
             if (image == null) return -1;
             int avg = averageNativeImage(image);
-            return avg != 0 ? avg : -1;
+            return avg >= 0 ? avg : -1;
         } catch (Exception ignored) {
         }
         return -1;
+    }
+
+    private static int computeAverageItemColorFromResource(ResourceManager resourceManager, Identifier id) {
+        if (resourceManager == null || id == null) return -1;
+        Identifier itemTexture = Identifier.of(id.getNamespace(), "textures/item/" + id.getPath() + ".png");
+        int color = averageTextureResource(resourceManager, itemTexture);
+        if (color >= 0) {
+            return color;
+        }
+        Identifier blockTexture = Identifier.of(id.getNamespace(), "textures/block/" + id.getPath() + ".png");
+        return averageTextureResource(resourceManager, blockTexture);
+    }
+
+    private static int averageTextureResource(ResourceManager resourceManager, Identifier textureId) {
+        try {
+            Optional<Resource> resource = resourceManager.getResource(textureId);
+            if (resource.isEmpty()) return -1;
+            try (InputStream stream = resource.get().getInputStream(); NativeImage image = NativeImage.read(stream)) {
+                return averageNativeImage(image);
+            }
+        } catch (Exception ignored) {
+            return -1;
+        }
     }
 
     private static Sprite resolveItemSprite(MinecraftClient client, ItemStack stack, int seed) {
@@ -2524,7 +2560,7 @@ public class PaprikaClient implements ClientModInitializer {
         try {
             int width = image.getWidth();
             int height = image.getHeight();
-            if (width <= 0 || height <= 0) return 0;
+            if (width <= 0 || height <= 0) return -1;
             int step = Math.max(1, Math.min(width, height) / 16);
 
             long sumR = 0;
@@ -2546,13 +2582,13 @@ public class PaprikaClient implements ClientModInitializer {
                     count++;
                 }
             }
-            if (count == 0) return 0;
+            if (count == 0) return -1;
             int r = (int) (sumR / count);
             int g = (int) (sumG / count);
             int b = (int) (sumB / count);
             return (r << 16) | (g << 8) | b;
         } catch (Exception ignored) {
-            return 0;
+            return -1;
         }
     }
 
