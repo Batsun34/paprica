@@ -20,6 +20,7 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.texture.NativeImage;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
@@ -2378,18 +2379,21 @@ public class PaprikaClient implements ClientModInitializer {
             return cached;
         }
         int computed = computeAverageItemColor(stack, seed);
-        itemAverageColorCache.put(key, computed);
-        return computed;
+        if (computed >= 0) {
+            itemAverageColorCache.put(key, computed);
+            return computed;
+        }
+        return seedBaseColor(seed);
     }
 
     private static int computeAverageItemColor(ItemStack stack, int seed) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.getItemRenderer() == null) {
-            return seedBaseColor(seed);
+            return -1;
         }
         try {
             Object model = resolveItemModel(client, stack);
-            if (model == null) return seedBaseColor(seed);
+            if (model == null) return -1;
             Object sprite = invokeNoArg(model, "getParticleSprite");
             int avg = averageSpriteColor(sprite);
             if (avg != 0) {
@@ -2397,7 +2401,7 @@ public class PaprikaClient implements ClientModInitializer {
             }
         } catch (Exception ignored) {
         }
-        return seedBaseColor(seed);
+        return -1;
     }
 
     private static Object resolveItemModel(MinecraftClient client, ItemStack stack) {
@@ -2449,13 +2453,32 @@ public class PaprikaClient implements ClientModInitializer {
     private static Object findNativeImage(Object contents) {
         if (contents == null) return null;
         for (var method : contents.getClass().getMethods()) {
-            if (!method.getReturnType().getName().equals("net.minecraft.client.texture.NativeImage")) continue;
+            if (method.getReturnType() != NativeImage.class) continue;
             try {
                 if (method.getParameterCount() == 0) {
                     return method.invoke(contents);
                 }
                 if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == int.class) {
                     return method.invoke(contents, 0);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        for (var field : contents.getClass().getDeclaredFields()) {
+            try {
+                Class<?> type = field.getType();
+                if (type == NativeImage.class) {
+                    field.setAccessible(true);
+                    Object image = field.get(contents);
+                    if (image != null) {
+                        return image;
+                    }
+                } else if (type.isArray() && type.getComponentType() == NativeImage.class) {
+                    field.setAccessible(true);
+                    Object value = field.get(contents);
+                    if (value instanceof NativeImage[] images && images.length > 0 && images[0] != null) {
+                        return images[0];
+                    }
                 }
             } catch (Exception ignored) {
             }
