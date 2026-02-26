@@ -2401,7 +2401,7 @@ public class PaprikaClient implements ClientModInitializer {
             ItemModelManager modelManager = client.getItemModelManager();
             if (modelManager == null) return -1;
             ItemRenderState renderState = new ItemRenderState();
-            modelManager.update(renderState, stack, ModelTransformationMode.GUI, client.world, null, seed);
+            modelManager.update(renderState, stack, ModelTransformationMode.GUI, false, client.world, null, seed);
             Sprite sprite = renderState.getParticleSprite(Random.create(seed));
             if (sprite == null) return -1;
             NativeImage image = resolveSpriteImage(sprite);
