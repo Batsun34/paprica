@@ -2477,14 +2477,24 @@ public class PaprikaClient implements ClientModInitializer {
 
             var colorMethod = findColorMethod(image);
             if (colorMethod == null) return 0;
+            boolean argb = colorMethod.getName().toLowerCase(Locale.ROOT).contains("argb");
             for (int y = 0; y < height; y += step) {
                 for (int x = 0; x < width; x += step) {
                     int color = (int) colorMethod.invoke(image, x, y);
                     int a = (color >>> 24) & 0xFF;
                     if (a < 12) continue;
-                    int b = (color >>> 16) & 0xFF;
-                    int g = (color >>> 8) & 0xFF;
-                    int r = color & 0xFF;
+                    int r;
+                    int g;
+                    int b;
+                    if (argb) {
+                        r = (color >>> 16) & 0xFF;
+                        g = (color >>> 8) & 0xFF;
+                        b = color & 0xFF;
+                    } else {
+                        b = (color >>> 16) & 0xFF;
+                        g = (color >>> 8) & 0xFF;
+                        r = color & 0xFF;
+                    }
                     sumR += r;
                     sumG += g;
                     sumB += b;
@@ -2502,6 +2512,14 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private static java.lang.reflect.Method findColorMethod(Object image) {
+        try {
+            return image.getClass().getMethod("getColorArgb", int.class, int.class);
+        } catch (Exception ignored) {
+        }
+        try {
+            return image.getClass().getMethod("getColor", int.class, int.class);
+        } catch (Exception ignored) {
+        }
         for (var method : image.getClass().getMethods()) {
             if (method.getReturnType() != int.class) continue;
             if (method.getParameterCount() != 2) continue;
