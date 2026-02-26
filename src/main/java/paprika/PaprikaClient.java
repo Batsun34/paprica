@@ -97,6 +97,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
+    private static final float AUTO_ATTACK_AIM_SMOOTHING = 0.25F;
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
     private static final RenderLayer ITEM_OUTLINE_QUADS = RenderLayer.of(
             "paprika_item_outline_quads",
@@ -131,6 +132,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean trailSelfEnabled = true;
     private static boolean trailOthersEnabled = true;
     private static boolean autoAttackEnabled = false;
+    private static boolean autoAttackAimEnabled = false;
     private static boolean itemOutlineEnabled = false;
     private static boolean panicActive = false;
     private static boolean targetHealthOverlayEnabled = false;
@@ -183,6 +185,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static float autoAttackRate = DEFAULT_AUTO_ATTACK_RATE;
     private static float autoAttackCircleRadius = DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS;
     private static float autoAttackMaxDistance = 3.0F;
+    private static boolean jumpBoostEnabled = false;
+    private static float jumpBoostHeight = 0.5F;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
     private static float handOffsetX = 0.0F;
     private static float handOffsetY = 0.0F;
@@ -230,6 +234,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static String markedPlayerName;
     private static double lastAutoAttackTime;
     private static String lastFriendMarkName;
+    private static boolean jumpKeyWasPressed;
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
     private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
     private static final Map<String, Integer> itemAverageColorCache = new HashMap<>();
@@ -352,6 +357,16 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setAutoAttackEnabled(boolean enabled) {
         if (autoAttackEnabled == enabled) return;
         autoAttackEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isAutoAttackAimEnabled() {
+        return autoAttackAimEnabled;
+    }
+
+    public static void setAutoAttackAimEnabled(boolean enabled) {
+        if (autoAttackAimEnabled == enabled) return;
+        autoAttackAimEnabled = enabled;
         saveConfigNow();
     }
 
@@ -1089,6 +1104,27 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static boolean isJumpBoostEnabled() {
+        return jumpBoostEnabled;
+    }
+
+    public static void setJumpBoostEnabled(boolean enabled) {
+        if (jumpBoostEnabled == enabled) return;
+        jumpBoostEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static float getJumpBoostHeight() {
+        return jumpBoostHeight;
+    }
+
+    public static void setJumpBoostHeight(float height) {
+        float clamped = MathHelper.clamp(height, 0.0F, 2.5F);
+        if (Math.abs(jumpBoostHeight - clamped) < 0.0001F) return;
+        jumpBoostHeight = clamped;
+        saveConfigNow();
+    }
+
     public static int getTrailFixedColor() {
         return trailFixedColor & 0xFFFFFF;
     }
@@ -1813,6 +1849,16 @@ public class PaprikaClient implements ClientModInitializer {
 
         lastVelocity = velocity;
 
+        boolean jumpPressed = client.options.jumpKey.isPressed();
+        if (jumpBoostEnabled && jumpPressed && !jumpKeyWasPressed) {
+            double currentY = velocity.y;
+            if (currentY > 0.0) {
+                double targetVelocity = currentY + jumpBoostHeight;
+                player.setVelocity(velocity.x, targetVelocity, velocity.z);
+            }
+        }
+        jumpKeyWasPressed = jumpPressed;
+
         if (!speedEnabled) return;
 
         // ===== ДВИЖЕНИЕ =====
@@ -2156,7 +2202,7 @@ public class PaprikaClient implements ClientModInitializer {
         Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
 
         float thickness = Math.max(0.5F, itemOutlineThickness);
-        float width = Math.max(0.0025F, thickness * 0.01F);
+        float width = Math.max(0.004F, thickness * 0.02F);
         VertexConsumer coreConsumer = context.consumers().getBuffer(ITEM_OUTLINE_QUADS);
 
         Iterable<Entity> entities = client.world.getEntities();
@@ -2582,6 +2628,7 @@ public class PaprikaClient implements ClientModInitializer {
         playerListEnabled = false;
         playerTrailsEnabled = false;
         autoAttackEnabled = false;
+        autoAttackAimEnabled = false;
         itemOutlineEnabled = false;
         targetHealthOverlayEnabled = false;
         distanceDisplayEnabled = false;
@@ -2593,6 +2640,7 @@ public class PaprikaClient implements ClientModInitializer {
         handFovScale = DEFAULT_HAND_FOV_SCALE;
         handOffsetX = 0.0F;
         handOffsetY = 0.0F;
+        jumpBoostEnabled = false;
 
         trailSegments.clear();
         trailStates.clear();
@@ -2634,10 +2682,6 @@ public class PaprikaClient implements ClientModInitializer {
         if (client == null || client.player == null || client.world == null || client.interactionManager == null) return;
         if (client.currentScreen != null) return;
 
-        double now = currentTimeSeconds();
-        double interval = 1.0 / Math.max(0.1, autoAttackRate);
-        if (now - lastAutoAttackTime < interval) return;
-
         Camera camera = client.gameRenderer != null ? client.gameRenderer.getCamera() : null;
         if (camera == null || !camera.isReady()) return;
 
@@ -2658,9 +2702,41 @@ public class PaprikaClient implements ClientModInitializer {
         if (client.player.squaredDistanceTo(target) > reach * reach) return;
         if (autoAttackRequireLineOfSight && !client.player.canSee(target)) return;
 
+        if (autoAttackAimEnabled) {
+            applyAutoAttackAim(client.player, target, tickDelta);
+        }
+
+        double now = currentTimeSeconds();
+        double interval = 1.0 / Math.max(0.1, autoAttackRate);
+        if (now - lastAutoAttackTime < interval) return;
+
         client.interactionManager.attackEntity(client.player, target);
         client.player.swingHand(Hand.MAIN_HAND);
         lastAutoAttackTime = now;
+    }
+
+    private static void applyAutoAttackAim(PlayerEntity player, PlayerEntity target, float tickDelta) {
+        if (player == null || target == null) return;
+        Vec3d eyePos = player.getEyePos();
+        Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+        Vec3d diff = targetPos.subtract(eyePos);
+        double dx = diff.x;
+        double dy = diff.y;
+        double dz = diff.z;
+        double horizontal = MathHelper.sqrt((float) (dx * dx + dz * dz));
+
+        float targetYaw = (float) (MathHelper.atan2(dz, dx) * 57.295776) - 90.0F;
+        float targetPitch = (float) (-(MathHelper.atan2(dy, horizontal) * 57.295776));
+
+        float yaw = player.getYaw();
+        float pitch = player.getPitch();
+        float yawDelta = MathHelper.wrapDegrees(targetYaw - yaw);
+        float pitchDelta = targetPitch - pitch;
+
+        float nextYaw = yaw + yawDelta * AUTO_ATTACK_AIM_SMOOTHING;
+        float nextPitch = pitch + pitchDelta * AUTO_ATTACK_AIM_SMOOTHING;
+        player.setYaw(nextYaw);
+        player.setPitch(MathHelper.clamp(nextPitch, -90.0F, 90.0F));
     }
 
     private static PlayerEntity selectAutoAttackTarget(
@@ -3718,6 +3794,7 @@ public class PaprikaClient implements ClientModInitializer {
         trailSelfEnabled = config.trailSelfEnabled;
         trailOthersEnabled = config.trailOthersEnabled;
         autoAttackEnabled = config.autoAttackEnabled;
+        autoAttackAimEnabled = config.autoAttackAimEnabled;
         itemOutlineEnabled = config.itemOutlineEnabled;
         loadFriends(config.friendNames);
         loadItemFilters(config.itemFilterIds);
@@ -3772,6 +3849,7 @@ public class PaprikaClient implements ClientModInitializer {
         autoAttackRate = MathHelper.clamp(config.autoAttackRate, 1.0F, 20.0F);
         autoAttackCircleRadius = MathHelper.clamp(config.autoAttackCircleRadius, 20.0F, 600.0F);
         autoAttackMaxDistance = MathHelper.clamp(config.autoAttackMaxDistance, 3.0F, 20.0F);
+        jumpBoostHeight = MathHelper.clamp(config.jumpBoostHeight, 0.0F, 2.5F);
         handFovScale = MathHelper.clamp(config.handFovScale, -1.6F, 1.6F);
         handOffsetX = MathHelper.clamp(config.handOffsetX, -1.5F, 1.5F);
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
@@ -3967,7 +4045,9 @@ public class PaprikaClient implements ClientModInitializer {
         data.trailSelfEnabled = trailSelfEnabled;
         data.trailOthersEnabled = trailOthersEnabled;
         data.autoAttackEnabled = autoAttackEnabled;
+        data.autoAttackAimEnabled = autoAttackAimEnabled;
         data.itemOutlineEnabled = itemOutlineEnabled;
+        data.jumpBoostEnabled = jumpBoostEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
@@ -4019,6 +4099,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.autoAttackRate = autoAttackRate;
         data.autoAttackCircleRadius = autoAttackCircleRadius;
         data.autoAttackMaxDistance = autoAttackMaxDistance;
+        data.jumpBoostHeight = jumpBoostHeight;
         data.handFovScale = handFovScale;
         data.handOffsetX = handOffsetX;
         data.handOffsetY = handOffsetY;

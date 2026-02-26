@@ -77,7 +77,9 @@ public final class PaprikaConfig {
         sanitized.trailSelfEnabled = data.trailSelfEnabled;
         sanitized.trailOthersEnabled = data.trailOthersEnabled;
         sanitized.autoAttackEnabled = data.autoAttackEnabled;
+        sanitized.autoAttackAimEnabled = data.autoAttackAimEnabled;
         sanitized.itemOutlineEnabled = data.itemOutlineEnabled;
+        sanitized.jumpBoostEnabled = data.jumpBoostEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
@@ -144,6 +146,7 @@ public final class PaprikaConfig {
         sanitized.autoAttackRate = MathHelper.clamp(data.autoAttackRate, 1.0F, 20.0F);
         sanitized.autoAttackCircleRadius = MathHelper.clamp(data.autoAttackCircleRadius, 20.0F, 600.0F);
         sanitized.autoAttackMaxDistance = MathHelper.clamp(data.autoAttackMaxDistance, 3.0F, 20.0F);
+        sanitized.jumpBoostHeight = MathHelper.clamp(data.jumpBoostHeight, 0.0F, 2.5F);
         sanitized.handFovScale = MathHelper.clamp(data.handFovScale, -1.6F, 1.6F);
         sanitized.handOffsetX = MathHelper.clamp(data.handOffsetX, -1.5F, 1.5F);
         sanitized.handOffsetY = MathHelper.clamp(data.handOffsetY, -1.5F, 1.5F);
@@ -374,7 +377,9 @@ public final class PaprikaConfig {
         public boolean trailSelfEnabled = true;
         public boolean trailOthersEnabled = true;
         public boolean autoAttackEnabled = false;
+        public boolean autoAttackAimEnabled = false;
         public boolean itemOutlineEnabled = false;
+        public boolean jumpBoostEnabled = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
@@ -441,6 +446,7 @@ public final class PaprikaConfig {
         public float autoAttackRate = 6.0F;
         public float autoAttackCircleRadius = 120.0F;
         public float autoAttackMaxDistance = 3.0F;
+        public float jumpBoostHeight = 0.5F;
         public float handFovScale = 1.0F;
         public float handOffsetX = 0.0F;
         public float handOffsetY = 0.0F;

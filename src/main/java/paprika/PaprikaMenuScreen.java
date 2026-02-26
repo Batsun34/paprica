@@ -800,7 +800,8 @@ public class PaprikaMenuScreen extends Screen {
                         ),
                         Control.slider("auto_attack.rate", "Hits Per Second", 1.0, 20.0, 0.5, PaprikaClient::getAutoAttackRate, value -> PaprikaClient.setAutoAttackRate((float) value)),
                         Control.slider("auto_attack.reach", "Max Reach", 3.0, 20.0, 0.5, PaprikaClient::getAutoAttackMaxDistance, value -> PaprikaClient.setAutoAttackMaxDistance((float) value)),
-                        Control.toggle("auto_attack.los", "Require Line of Sight", PaprikaClient::isAutoAttackRequireLineOfSight, PaprikaClient::setAutoAttackRequireLineOfSight)
+                        Control.toggle("auto_attack.los", "Require Line of Sight", PaprikaClient::isAutoAttackRequireLineOfSight, PaprikaClient::setAutoAttackRequireLineOfSight),
+                        Control.toggle("auto_attack.aim", "Aim Follow", PaprikaClient::isAutoAttackAimEnabled, PaprikaClient::setAutoAttackAimEnabled)
                 )));
                 panels.add(new Panel("Mark", 0, List.of(
                         Control.keybind("auto_attack.mark", "Mark Target", PaprikaClient.getMarkTargetKeyBinding()),
@@ -842,6 +843,10 @@ public class PaprikaMenuScreen extends Screen {
                 }
                 panels.add(new Panel("Friend List", 1, friendList));
             }
+            case JUMP -> panels.add(new Panel("Jump Boost", 0, List.of(
+                    Control.toggle("jump.enabled", "Enabled", PaprikaClient::isJumpBoostEnabled, PaprikaClient::setJumpBoostEnabled),
+                    Control.slider("jump.height", "Jump Height", 0.0, 2.5, 0.1, PaprikaClient::getJumpBoostHeight, value -> PaprikaClient.setJumpBoostHeight((float) value))
+            )));
             case ESP -> panels.add(new Panel("ESP", 0, List.of(
                     Control.toggle("esp.enabled", "Enabled", PaprikaClient::isPlayerEspEnabled, PaprikaClient::setPlayerEspEnabled),
                     Control.keybind("esp.bind", "Bind", PaprikaClient.getPlayerEspKeyBinding()),
@@ -1061,6 +1066,7 @@ public class PaprikaMenuScreen extends Screen {
     private enum ModuleTab {
         NO_KNOCKBACK("No Knockback", ModuleGroup.MOVEMENT),
         SPEED("Sneak Movement Speed", ModuleGroup.MOVEMENT),
+        JUMP("Jump Boost", ModuleGroup.MOVEMENT),
         AUTO_ATTACK("Auto Attack", ModuleGroup.COMBAT),
         FRIENDS("Friends", ModuleGroup.COMBAT),
         ESP("Player ESP", ModuleGroup.VISUAL),
