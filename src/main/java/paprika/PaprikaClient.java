@@ -25,6 +25,7 @@ import net.minecraft.client.texture.Sprite;
 import net.minecraft.client.texture.SpriteContents;
 import net.minecraft.client.item.ItemModelManager;
 import net.minecraft.client.render.item.ItemRenderState;
+import net.minecraft.client.render.model.BakedModel;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
@@ -44,6 +45,8 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
+import net.minecraft.client.texture.MissingSprite;
+import net.minecraft.client.texture.SpriteAtlasTexture;
 import paprika.mixin.client.GameRendererAccessor;
 
 import org.lwjgl.glfw.GLFW;
@@ -245,6 +248,9 @@ public class PaprikaClient implements ClientModInitializer {
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
     private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
     private static final Map<String, Integer> itemAverageColorCache = new HashMap<>();
+    private static java.lang.reflect.Field itemRenderStateLayerCountField;
+    private static java.lang.reflect.Field itemRenderStateLayersField;
+    private static java.lang.reflect.Field itemRenderStateLayerModelField;
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
     private static final List<TrailSegment> trailSegments = new ArrayList<>();
@@ -2398,18 +2404,95 @@ public class PaprikaClient implements ClientModInitializer {
             return -1;
         }
         try {
-            ItemModelManager modelManager = client.getItemModelManager();
-            if (modelManager == null) return -1;
-            ItemRenderState renderState = new ItemRenderState();
-            modelManager.update(renderState, stack, ModelTransformationMode.GUI, false, client.world, null, seed);
-            Sprite sprite = renderState.getParticleSprite(Random.create(seed));
+            Sprite sprite = resolveItemSprite(client, stack, seed);
             if (sprite == null) return -1;
             NativeImage image = resolveSpriteImage(sprite);
             if (image == null) return -1;
-            return averageNativeImage(image);
+            int avg = averageNativeImage(image);
+            return avg != 0 ? avg : -1;
         } catch (Exception ignored) {
         }
         return -1;
+    }
+
+    private static Sprite resolveItemSprite(MinecraftClient client, ItemStack stack, int seed) {
+        try {
+            ItemModelManager modelManager = client.getItemModelManager();
+            if (modelManager != null) {
+                ItemRenderState renderState = new ItemRenderState();
+                modelManager.update(renderState, stack, ModelTransformationMode.GUI, false, client.world, null, seed);
+                Sprite sprite = resolveSpriteFromRenderState(renderState, seed);
+                if (sprite != null && !isMissingSprite(sprite)) {
+                    return sprite;
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return resolveSpriteFromAtlas(client, stack);
+    }
+
+    private static Sprite resolveSpriteFromRenderState(ItemRenderState renderState, int seed) {
+        if (renderState == null) return null;
+        Sprite sprite = renderState.getParticleSprite(Random.create(seed));
+        if (sprite != null) return sprite;
+        try {
+            if (itemRenderStateLayerCountField == null) {
+                itemRenderStateLayerCountField = ItemRenderState.class.getDeclaredField("layerCount");
+                itemRenderStateLayerCountField.setAccessible(true);
+            }
+            if (itemRenderStateLayersField == null) {
+                itemRenderStateLayersField = ItemRenderState.class.getDeclaredField("layers");
+                itemRenderStateLayersField.setAccessible(true);
+            }
+            int count = (int) itemRenderStateLayerCountField.get(renderState);
+            Object[] layers = (Object[]) itemRenderStateLayersField.get(renderState);
+            if (layers == null) return null;
+            int max = Math.min(count, layers.length);
+            for (int i = 0; i < max; i++) {
+                Object layer = layers[i];
+                if (layer == null) continue;
+                if (itemRenderStateLayerModelField == null) {
+                    itemRenderStateLayerModelField = layer.getClass().getDeclaredField("model");
+                    itemRenderStateLayerModelField.setAccessible(true);
+                }
+                Object modelObj = itemRenderStateLayerModelField.get(layer);
+                if (modelObj instanceof BakedModel model) {
+                    Sprite modelSprite = model.getParticleSprite();
+                    if (modelSprite != null) {
+                        return modelSprite;
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
+    private static Sprite resolveSpriteFromAtlas(MinecraftClient client, ItemStack stack) {
+        if (client == null || stack == null) return null;
+        Identifier id = Registries.ITEM.getId(stack.getItem());
+        if (id == null) return null;
+        java.util.function.Function<Identifier, Sprite> atlas = client.getSpriteAtlas(SpriteAtlasTexture.BLOCK_ATLAS_TEXTURE);
+        Identifier itemSpriteId = Identifier.of(id.getNamespace(), "item/" + id.getPath());
+        Sprite sprite = atlas.apply(itemSpriteId);
+        if (sprite != null && !isMissingSprite(sprite)) {
+            return sprite;
+        }
+        Identifier blockSpriteId = Identifier.of(id.getNamespace(), "block/" + id.getPath());
+        Sprite blockSprite = atlas.apply(blockSpriteId);
+        if (blockSprite != null && !isMissingSprite(blockSprite)) {
+            return blockSprite;
+        }
+        return null;
+    }
+
+    private static boolean isMissingSprite(Sprite sprite) {
+        try {
+            SpriteContents contents = sprite.getContents();
+            return contents != null && MissingSprite.getMissingSpriteId().equals(contents.getId());
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private static NativeImage resolveSpriteImage(Sprite sprite) {
