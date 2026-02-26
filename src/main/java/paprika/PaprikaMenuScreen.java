@@ -62,6 +62,8 @@ public class PaprikaMenuScreen extends Screen {
     private ModuleTab selectedModule = ModuleTab.RAYS;
     private double scrollOffset = 0.0;
     private double maxScroll = 0.0;
+    private double sidebarScrollOffset = 0.0;
+    private double sidebarMaxScroll = 0.0;
 
     private int windowX;
     private int windowY;
@@ -269,6 +271,13 @@ public class PaprikaMenuScreen extends Screen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (isInsideSidebar(mouseX, mouseY)) {
+            if (this.sidebarMaxScroll <= 0.0) {
+                return true;
+            }
+            this.sidebarScrollOffset = MathHelper.clamp(this.sidebarScrollOffset - verticalAmount * SCROLL_STEP, 0.0, this.sidebarMaxScroll);
+            return true;
+        }
         if (!isInsideContent(mouseX, mouseY)) {
             return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
         }
@@ -352,6 +361,11 @@ public class PaprikaMenuScreen extends Screen {
                 && mouseY >= this.contentY && mouseY <= this.contentY + this.contentHeight;
     }
 
+    private boolean isInsideSidebar(double mouseX, double mouseY) {
+        return mouseX >= this.sidebarX && mouseX <= this.sidebarX + this.sidebarWidth
+                && mouseY >= this.sidebarY && mouseY <= this.sidebarY + (this.windowHeight - HEADER_HEIGHT);
+    }
+
     private void updateLayout() {
         this.windowWidth = Math.min(WINDOW_WIDTH, this.width - 20);
         this.windowHeight = Math.min(WINDOW_HEIGHT, this.height - 20);
@@ -400,8 +414,15 @@ public class PaprikaMenuScreen extends Screen {
     private void drawSidebar(DrawContext context, int mouseX, int mouseY) {
         this.moduleEntries.clear();
 
+        int totalHeight = computeSidebarContentHeight();
+        int availableHeight = (this.windowHeight - HEADER_HEIGHT) - PADDING * 2;
+        this.sidebarMaxScroll = Math.max(0.0, totalHeight - availableHeight);
+        this.sidebarScrollOffset = MathHelper.clamp(this.sidebarScrollOffset, 0.0, this.sidebarMaxScroll);
+
         int x = this.sidebarX + PADDING;
-        int y = this.sidebarY + PADDING;
+        int y = this.sidebarY + PADDING - (int) Math.round(this.sidebarScrollOffset);
+
+        context.enableScissor(this.sidebarX, this.sidebarY, this.sidebarX + this.sidebarWidth, this.sidebarY + (this.windowHeight - HEADER_HEIGHT));
         for (ModuleGroup group : ModuleGroup.values()) {
             context.drawTextWithShadow(this.textRenderer, group.title, x, y, COLOR_TEXT_MUTED);
             y += 14;
@@ -422,6 +443,20 @@ public class PaprikaMenuScreen extends Screen {
             }
             y += GROUP_GAP;
         }
+        context.disableScissor();
+    }
+
+    private int computeSidebarContentHeight() {
+        int y = 0;
+        for (ModuleGroup group : ModuleGroup.values()) {
+            y += 14;
+            for (ModuleTab tab : ModuleTab.values()) {
+                if (tab.group != group) continue;
+                y += MODULE_HEIGHT + MODULE_GAP;
+            }
+            y += GROUP_GAP;
+        }
+        return y;
     }
     private void drawContent(DrawContext context, int mouseX, int mouseY) {
         this.hitTargets.clear();

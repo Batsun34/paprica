@@ -51,7 +51,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.UUID;
 
@@ -99,6 +98,21 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
+    private static final RenderLayer ITEM_OUTLINE_QUADS = RenderLayer.of(
+            "paprika_item_outline_quads",
+            VertexFormats.POSITION_COLOR,
+            VertexFormat.DrawMode.QUADS,
+            1536,
+            RenderLayer.MultiPhaseParameters.builder()
+                    .program(RenderPhase.POSITION_COLOR_PROGRAM)
+                    .transparency(RenderPhase.TRANSLUCENT_TRANSPARENCY)
+                    .depthTest(RenderPhase.ALWAYS_DEPTH_TEST)
+                    .cull(RenderPhase.DISABLE_CULLING)
+                    .writeMaskState(RenderPhase.COLOR_MASK)
+                    .target(RenderPhase.MAIN_TARGET)
+                    .layering(RenderPhase.VIEW_OFFSET_Z_LAYERING)
+                    .build(false)
+    );
     private static int rayVisualRevision = 0;
     private static int espVisualRevision = 0;
     private static int armorVisualRevision = 0;
@@ -218,7 +232,6 @@ public class PaprikaClient implements ClientModInitializer {
     private static String lastFriendMarkName;
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
     private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
-    private static final Map<Float, RenderLayer> itemOutlineLayers = new HashMap<>();
     private static final Map<String, Integer> itemAverageColorCache = new HashMap<>();
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
@@ -2143,10 +2156,8 @@ public class PaprikaClient implements ClientModInitializer {
         Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
 
         float thickness = Math.max(0.5F, itemOutlineThickness);
-        VertexConsumer coreConsumer = context.consumers().getBuffer(getItemOutlineLayer(thickness));
-        VertexConsumer glowConsumer = itemOutlineGlowEnabled
-                ? context.consumers().getBuffer(getItemOutlineLayer(Math.max(0.5F, thickness * 1.8F)))
-                : null;
+        float width = Math.max(0.0025F, thickness * 0.01F);
+        VertexConsumer coreConsumer = context.consumers().getBuffer(ITEM_OUTLINE_QUADS);
 
         Iterable<Entity> entities = client.world.getEntities();
         if (entities == null) {
@@ -2166,11 +2177,11 @@ public class PaprikaClient implements ClientModInitializer {
             Box box = item.getBoundingBox();
             if (box == null) continue;
 
-            if (itemOutlineGlowEnabled && glowConsumer != null) {
-                addItemOutlineBox(glowConsumer, matrix, box, item, 1.0F, itemOutlineAlpha * 0.38F);
+            if (itemOutlineGlowEnabled) {
+                addItemOutlineBox(coreConsumer, matrix, cameraPos, box, item, width, 1.0F, itemOutlineAlpha * 0.38F);
             }
 
-            addItemOutlineBox(coreConsumer, matrix, box, item, 0.6F, itemOutlineAlpha);
+            addItemOutlineBox(coreConsumer, matrix, cameraPos, box, item, width, 0.6F, itemOutlineAlpha);
         }
 
         context.matrixStack().pop();
@@ -2234,7 +2245,7 @@ public class PaprikaClient implements ClientModInitializer {
         context.matrixStack().pop();
     }
 
-    private static void addItemOutlineBox(VertexConsumer consumer, Matrix4f matrix, Box box, ItemEntity item, float emissive, float alpha) {
+    private static void addItemOutlineBox(VertexConsumer consumer, Matrix4f matrix, Vec3d cameraPos, Box box, ItemEntity item, float width, float emissive, float alpha) {
         double minX = box.minX;
         double minY = box.minY;
         double minZ = box.minZ;
@@ -2245,55 +2256,50 @@ public class PaprikaClient implements ClientModInitializer {
         float[] offsets = new float[]{0.08F, 0.14F, 0.2F, 0.26F, 0.32F, 0.38F, 0.44F, 0.5F, 0.58F, 0.66F, 0.74F, 0.82F};
 
         int idx = 0;
-        addItemOutlineLine(consumer, matrix, minX, minY, minZ, maxX, minY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, minY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, minX, minY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, minY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, minX, minY, minZ, maxX, minY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, maxX, minY, minZ, maxX, minY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, maxX, minY, maxZ, minX, minY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, minX, minY, maxZ, minX, minY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
 
-        addItemOutlineLine(consumer, matrix, minX, maxY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, maxY, minZ, maxX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, maxY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, minX, maxY, maxZ, minX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, minX, maxY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, maxX, maxY, minZ, maxX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, maxX, maxY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, minX, maxY, maxZ, minX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
 
-        addItemOutlineLine(consumer, matrix, minX, minY, minZ, minX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, maxX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, minX, minY, minZ, minX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, maxX, minY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, maxX, minY, maxZ, maxX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, cameraPos, width, minX, minY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx], emissive, alpha));
     }
 
-    private static void addItemOutlineLine(VertexConsumer consumer, Matrix4f matrix, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
-        int transparent = color & 0x00FFFFFF;
-        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(transparent);
-        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(color);
-        consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(color);
-        consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(transparent);
+    private static void addItemOutlineLine(VertexConsumer consumer, Matrix4f matrix, Vec3d cameraPos, float width, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
+        Vec3d start = new Vec3d(x1, y1, z1);
+        Vec3d end = new Vec3d(x2, y2, z2);
+        addThickLine(consumer, matrix, cameraPos, start, end, width, color);
     }
 
-    private static RenderLayer getItemOutlineLayer(float lineWidth) {
-        float clamped = MathHelper.clamp(lineWidth, 0.5F, 12.0F);
-        float key = Math.round(clamped * 10.0F) / 10.0F;
-        RenderLayer cached = itemOutlineLayers.get(key);
-        if (cached != null) {
-            return cached;
+    private static void addThickLine(VertexConsumer consumer, Matrix4f matrix, Vec3d cameraPos, Vec3d start, Vec3d end, float width, int color) {
+        Vec3d dir = end.subtract(start);
+        double lenSq = dir.lengthSquared();
+        if (lenSq < 0.000001) return;
+
+        Vec3d mid = start.add(end).multiply(0.5);
+        Vec3d camDir = cameraPos.subtract(mid);
+        Vec3d right = dir.crossProduct(camDir);
+        if (right.lengthSquared() < 0.000001) {
+            right = dir.crossProduct(new Vec3d(0.0, 1.0, 0.0));
+            if (right.lengthSquared() < 0.000001) {
+                right = new Vec3d(1.0, 0.0, 0.0);
+            }
         }
-        RenderLayer layer = RenderLayer.of(
-                "paprika_item_outline_" + key,
-                VertexFormats.POSITION_COLOR,
-                VertexFormat.DrawMode.DEBUG_LINE_STRIP,
-                1536,
-                RenderLayer.MultiPhaseParameters.builder()
-                        .program(RenderPhase.POSITION_COLOR_PROGRAM)
-                        .lineWidth(new RenderPhase.LineWidth(OptionalDouble.of(key)))
-                        .transparency(RenderPhase.TRANSLUCENT_TRANSPARENCY)
-                        .depthTest(RenderPhase.ALWAYS_DEPTH_TEST)
-                        .cull(RenderPhase.DISABLE_CULLING)
-                        .writeMaskState(RenderPhase.COLOR_MASK)
-                        .target(RenderPhase.MAIN_TARGET)
-                        .layering(RenderPhase.VIEW_OFFSET_Z_LAYERING)
-                        .build(false)
-        );
-        itemOutlineLayers.put(key, layer);
-        return layer;
+        right = right.normalize().multiply(width * 0.5);
+
+        Vec3d v1 = start.subtract(right);
+        Vec3d v2 = start.add(right);
+        Vec3d v3 = end.add(right);
+        Vec3d v4 = end.subtract(right);
+        addQuad(consumer, matrix, v1, v2, v3, v4, color);
+        addQuad(consumer, matrix, v4, v3, v2, v1, color);
     }
 
     private static int resolveItemOutlineColor(ItemEntity item, float offset, float emissive, float alpha) {
