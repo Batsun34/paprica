@@ -18,15 +18,19 @@ import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EquipmentSlot;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
@@ -96,6 +100,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static int armorVisualRevision = 0;
     private static int heldItemVisualRevision = 0;
     private static int distanceVisualRevision = 0;
+    private static int itemOutlineVisualRevision = 0;
 
     private static boolean speedEnabled = true;
     private static boolean noKnockbackEnabled = true;
@@ -108,6 +113,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean trailSelfEnabled = true;
     private static boolean trailOthersEnabled = true;
     private static boolean autoAttackEnabled = false;
+    private static boolean itemOutlineEnabled = false;
     private static boolean panicActive = false;
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
@@ -122,6 +128,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean heldItemVisualGlowEnabled = false;
     private static boolean distanceVisualGlowEnabled = false;
     private static boolean autoAttackRequireLineOfSight = true;
+    private static boolean itemOutlineGlowEnabled = false;
     private static float rayThickness = 2.0F;
     private static float outlineThickness = 1.0F;
     private static float rayBottomStartHeight = 2.0F;
@@ -146,6 +153,10 @@ public class PaprikaClient implements ClientModInitializer {
     private static float distanceVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static float espVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
     private static float espVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float itemOutlineAlpha = 1.0F;
+    private static float itemOutlineSaturationBoost = DEFAULT_STYLE_SATURATION;
+    private static float itemOutlineAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
+    private static float itemOutlineThickness = 1.0F;
     private static float trailStripeHeight = 1.4F;
     private static float trailLifetimeSeconds = 2.5F;
     private static float trailGradientSpeed = 1.0F;
@@ -171,6 +182,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode distanceVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode espVisualColorMode = VisualColorMode.NICK;
+    private static VisualColorMode itemOutlineColorMode = VisualColorMode.NICK;
+    private static ItemOutlineMode itemOutlineMode = ItemOutlineMode.ALL;
     private static AutoAttackMode autoAttackMode = AutoAttackMode.CIRCLE;
     private static CircleColorMode autoAttackCircleColorMode = CircleColorMode.FIXED;
     private static TrailType trailType = TrailType.THIN_LINE;
@@ -187,6 +200,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static KeyBinding togglePlayerListKey;
     private static KeyBinding togglePlayerTrailsKey;
     private static KeyBinding toggleAutoAttackKey;
+    private static KeyBinding toggleItemOutlineKey;
     private static KeyBinding markTargetKey;
     private static KeyBinding unmarkTargetKey;
     private static KeyBinding markFriendKey;
@@ -198,6 +212,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static double lastAutoAttackTime;
     private static String lastFriendMarkName;
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
+    private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
     private static final List<TrailSegment> trailSegments = new ArrayList<>();
@@ -273,6 +288,16 @@ public class PaprikaClient implements ClientModInitializer {
             trailSegments.clear();
             trailStates.clear();
         }
+        saveConfigNow();
+    }
+
+    public static boolean isItemOutlineEnabled() {
+        return itemOutlineEnabled;
+    }
+
+    public static void setItemOutlineEnabled(boolean enabled) {
+        if (itemOutlineEnabled == enabled) return;
+        itemOutlineEnabled = enabled;
         saveConfigNow();
     }
 
@@ -436,6 +461,35 @@ public class PaprikaClient implements ClientModInitializer {
         }
         if (builder.length() == 0) return null;
         return builder.toString();
+    }
+
+    public static List<String> getItemFilterEntries() {
+        return new ArrayList<>(itemFilterIds.values());
+    }
+
+    public static boolean addItemFilterEntry(String rawId) {
+        String sanitized = sanitizeItemId(rawId);
+        if (sanitized == null) return false;
+        String key = sanitized.toLowerCase(Locale.ROOT);
+        if (itemFilterIds.containsKey(key)) return false;
+        itemFilterIds.put(key, sanitized);
+        saveConfigNow();
+        return true;
+    }
+
+    public static void clearItemFilterEntries() {
+        if (itemFilterIds.isEmpty()) return;
+        itemFilterIds.clear();
+        saveConfigNow();
+    }
+
+    static String sanitizeItemId(String rawId) {
+        if (rawId == null) return null;
+        String trimmed = rawId.trim().toLowerCase(Locale.ROOT);
+        if (trimmed.isEmpty()) return null;
+        Identifier id = Identifier.tryParse(trimmed);
+        if (id == null) return null;
+        return id.toString();
     }
 
     public static float getHandFovScale() {
@@ -760,6 +814,16 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static boolean isItemOutlineGlowEnabled() {
+        return itemOutlineGlowEnabled;
+    }
+
+    public static void setItemOutlineGlowEnabled(boolean enabled) {
+        if (itemOutlineGlowEnabled == enabled) return;
+        itemOutlineGlowEnabled = enabled;
+        saveConfigNow();
+    }
+
     public static VisualColorMode getEspVisualColorMode() {
         return espVisualColorMode;
     }
@@ -769,6 +833,29 @@ public class PaprikaClient implements ClientModInitializer {
         if (espVisualColorMode == updated) return;
         espVisualColorMode = updated;
         bumpEspRevision();
+        saveConfigNow();
+    }
+
+    public static VisualColorMode getItemOutlineColorMode() {
+        return itemOutlineColorMode;
+    }
+
+    public static void setItemOutlineColorMode(VisualColorMode mode) {
+        VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
+        if (itemOutlineColorMode == updated) return;
+        itemOutlineColorMode = updated;
+        bumpItemOutlineRevision();
+        saveConfigNow();
+    }
+
+    public static ItemOutlineMode getItemOutlineMode() {
+        return itemOutlineMode;
+    }
+
+    public static void setItemOutlineMode(ItemOutlineMode mode) {
+        ItemOutlineMode updated = mode == null ? ItemOutlineMode.ALL : mode;
+        if (itemOutlineMode == updated) return;
+        itemOutlineMode = updated;
         saveConfigNow();
     }
 
@@ -784,6 +871,18 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static float getItemOutlineSaturationBoost() {
+        return itemOutlineSaturationBoost;
+    }
+
+    public static void setItemOutlineSaturationBoost(float boost) {
+        float clamped = MathHelper.clamp(boost, 1.0F, 2.5F);
+        if (Math.abs(itemOutlineSaturationBoost - clamped) < 0.0001F) return;
+        itemOutlineSaturationBoost = clamped;
+        bumpItemOutlineRevision();
+        saveConfigNow();
+    }
+
     public static float getEspVisualAnimationSpeed() {
         return espVisualAnimationSpeed;
     }
@@ -793,6 +892,40 @@ public class PaprikaClient implements ClientModInitializer {
         if (Math.abs(espVisualAnimationSpeed - clamped) < 0.0001F) return;
         espVisualAnimationSpeed = clamped;
         bumpEspRevision();
+        saveConfigNow();
+    }
+
+    public static float getItemOutlineAnimationSpeed() {
+        return itemOutlineAnimationSpeed;
+    }
+
+    public static void setItemOutlineAnimationSpeed(float speed) {
+        float clamped = MathHelper.clamp(speed, 0.2F, 4.0F);
+        if (Math.abs(itemOutlineAnimationSpeed - clamped) < 0.0001F) return;
+        itemOutlineAnimationSpeed = clamped;
+        bumpItemOutlineRevision();
+        saveConfigNow();
+    }
+
+    public static float getItemOutlineAlpha() {
+        return itemOutlineAlpha;
+    }
+
+    public static void setItemOutlineAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.05F, 1.0F);
+        if (Math.abs(itemOutlineAlpha - clamped) < 0.0001F) return;
+        itemOutlineAlpha = clamped;
+        saveConfigNow();
+    }
+
+    public static float getItemOutlineThickness() {
+        return itemOutlineThickness;
+    }
+
+    public static void setItemOutlineThickness(float thickness) {
+        float clamped = MathHelper.clamp(thickness, 0.5F, 6.0F);
+        if (Math.abs(itemOutlineThickness - clamped) < 0.0001F) return;
+        itemOutlineThickness = clamped;
         saveConfigNow();
     }
 
@@ -1305,6 +1438,10 @@ public class PaprikaClient implements ClientModInitializer {
         return togglePlayerTrailsKey;
     }
 
+    public static KeyBinding getItemOutlineKeyBinding() {
+        return toggleItemOutlineKey;
+    }
+
     public static KeyBinding getAutoAttackKeyBinding() {
         return toggleAutoAttackKey;
     }
@@ -1406,6 +1543,13 @@ public class PaprikaClient implements ClientModInitializer {
                 "category.paprika"
         ));
 
+        toggleItemOutlineKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+                "key.paprika.item_outline",
+                InputUtil.Type.KEYSYM,
+                GLFW.GLFW_KEY_Y,
+                "category.paprika"
+        ));
+
         toggleAutoAttackKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.paprika.auto_attack",
                 InputUtil.Type.KEYSYM,
@@ -1454,6 +1598,7 @@ public class PaprikaClient implements ClientModInitializer {
         applyConfiguredKey(togglePlayerRaysKey, loadedConfig.playerRaysKey);
         applyConfiguredKey(togglePlayerListKey, loadedConfig.playerListKey);
         applyConfiguredKey(togglePlayerTrailsKey, loadedConfig.playerTrailsKey);
+        applyConfiguredKey(toggleItemOutlineKey, loadedConfig.itemOutlineKey);
         applyConfiguredKey(toggleAutoAttackKey, loadedConfig.autoAttackKey);
         applyConfiguredKey(markTargetKey, loadedConfig.markTargetKey);
         applyConfiguredKey(unmarkTargetKey, loadedConfig.unmarkTargetKey);
@@ -1470,6 +1615,7 @@ public class PaprikaClient implements ClientModInitializer {
         ));
 
         WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderPlayerTrails);
+        WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderItemOutlines);
         WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderMarkedTargetDecal);
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     }
@@ -1533,6 +1679,14 @@ public class PaprikaClient implements ClientModInitializer {
             setPlayerTrailsEnabled(!playerTrailsEnabled);
             player.sendMessage(
                     Text.literal("[Paprika] Player Trails: " + (playerTrailsEnabled ? "ON" : "OFF")),
+                    true
+            );
+        }
+
+        while (toggleItemOutlineKey.wasPressed()) {
+            setItemOutlineEnabled(!itemOutlineEnabled);
+            player.sendMessage(
+                    Text.literal("[Paprika] Item Outline: " + (itemOutlineEnabled ? "ON" : "OFF")),
                     true
             );
         }
@@ -1935,6 +2089,65 @@ public class PaprikaClient implements ClientModInitializer {
         context.matrixStack().pop();
     }
 
+    private static void renderItemOutlines(WorldRenderContext context) {
+        if (!itemOutlineEnabled) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) return;
+
+        Vec3d cameraPos = context.camera().getPos();
+        double range = 512.0;
+        double rangeSq = range * range;
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableDepthTest();
+        RenderSystem.depthMask(false);
+
+        context.matrixStack().push();
+        context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
+
+        float thickness = Math.max(0.5F, itemOutlineThickness);
+        VertexConsumer coreConsumer = context.consumers().getBuffer(RenderLayer.getDebugLineStrip(thickness));
+        VertexConsumer glowConsumer = itemOutlineGlowEnabled
+                ? context.consumers().getBuffer(RenderLayer.getDebugLineStrip(thickness * 1.8F))
+                : null;
+
+        Iterable<Entity> entities = client.world.getEntities();
+        if (entities == null) {
+            context.matrixStack().pop();
+            RenderSystem.depthMask(true);
+            RenderSystem.enableDepthTest();
+            return;
+        }
+
+        for (Entity entity : entities) {
+            if (!(entity instanceof ItemEntity item)) continue;
+            if (item.isRemoved()) continue;
+            if (item.getStack().isEmpty()) continue;
+            if (item.squaredDistanceTo(cameraPos) > rangeSq) continue;
+            if (!isItemOutlineAllowed(item)) continue;
+
+            Box box = item.getBoundingBox();
+            if (box == null) continue;
+
+            int seed = getItemOutlineSeed(item);
+            int baseColor = seedBaseColor(seed);
+
+            if (itemOutlineGlowEnabled && glowConsumer != null) {
+                Box glowBox = box.expand(0.03 + thickness * 0.03);
+                addItemOutlineBox(glowConsumer, matrix, glowBox, baseColor, seed, 1.0F, itemOutlineAlpha * 0.38F);
+            }
+
+            addItemOutlineBox(coreConsumer, matrix, box, baseColor, seed, 0.6F, itemOutlineAlpha);
+        }
+
+        context.matrixStack().pop();
+
+        RenderSystem.depthMask(true);
+        RenderSystem.enableDepthTest();
+    }
+
     private static void renderMarkedTargetDecal(WorldRenderContext context) {
         if (markedPlayerName == null || markedPlayerName.isBlank()) return;
         MinecraftClient client = MinecraftClient.getInstance();
@@ -1990,6 +2203,74 @@ public class PaprikaClient implements ClientModInitializer {
                 color
         );
         context.matrixStack().pop();
+    }
+
+    private static void addItemOutlineBox(VertexConsumer consumer, Matrix4f matrix, Box box, int baseColor, int seed, float emissive, float alpha) {
+        double minX = box.minX;
+        double minY = box.minY;
+        double minZ = box.minZ;
+        double maxX = box.maxX;
+        double maxY = box.maxY;
+        double maxZ = box.maxZ;
+
+        float[] offsets = new float[]{0.08F, 0.14F, 0.2F, 0.26F, 0.32F, 0.38F, 0.44F, 0.5F, 0.58F, 0.66F, 0.74F, 0.82F};
+
+        int idx = 0;
+        addItemOutlineLine(consumer, matrix, minX, minY, minZ, maxX, minY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, minY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, minX, minY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, minY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+
+        addItemOutlineLine(consumer, matrix, minX, maxY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, maxY, minZ, maxX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, maxY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, maxY, maxZ, minX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+
+        addItemOutlineLine(consumer, matrix, minX, minY, minZ, minX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, maxX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx], emissive, alpha));
+    }
+
+    private static void addItemOutlineLine(VertexConsumer consumer, Matrix4f matrix, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
+        int transparent = color & 0x00FFFFFF;
+        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(transparent);
+        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(color);
+        consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(color);
+        consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(transparent);
+    }
+
+    private static int resolveItemOutlineColor(int baseColor, int seed, float offset, float emissive, float alpha) {
+        int rgb = resolveVisualColor(
+                baseColor,
+                seed,
+                offset,
+                itemOutlineColorMode,
+                itemOutlineSaturationBoost,
+                itemOutlineAnimationSpeed,
+                itemOutlineVisualRevision
+        );
+        int argb = 0xFF000000 | applyEmissive(rgb, emissive);
+        return withAlpha(argb, alpha);
+    }
+
+    private static int getItemOutlineSeed(ItemEntity item) {
+        Identifier id = Registries.ITEM.getId(item.getStack().getItem());
+        if (id != null) {
+            return id.hashCode();
+        }
+        return item.getId();
+    }
+
+    private static boolean isItemOutlineAllowed(ItemEntity item) {
+        if (itemOutlineMode == ItemOutlineMode.ALL) return true;
+        Identifier id = Registries.ITEM.getId(item.getStack().getItem());
+        if (id == null) {
+            return itemOutlineMode == ItemOutlineMode.BLACKLIST;
+        }
+        String key = id.toString().toLowerCase(Locale.ROOT);
+        boolean listed = itemFilterIds.containsKey(key);
+        return itemOutlineMode == ItemOutlineMode.WHITELIST ? listed : !listed;
     }
 
     private static void addQuad(VertexConsumer consumer, Matrix4f matrix, Vec3d v1, Vec3d v2, Vec3d v3, Vec3d v4, int color) {
@@ -2065,6 +2346,7 @@ public class PaprikaClient implements ClientModInitializer {
         playerListEnabled = false;
         playerTrailsEnabled = false;
         autoAttackEnabled = false;
+        itemOutlineEnabled = false;
         targetHealthOverlayEnabled = false;
         distanceDisplayEnabled = false;
         heldItemOverlayEnabled = false;
@@ -2096,6 +2378,7 @@ public class PaprikaClient implements ClientModInitializer {
         clearKey(togglePlayerRaysKey);
         clearKey(togglePlayerListKey);
         clearKey(togglePlayerTrailsKey);
+        clearKey(toggleItemOutlineKey);
         clearKey(toggleAutoAttackKey);
         clearKey(markTargetKey);
         clearKey(unmarkTargetKey);
@@ -3137,6 +3420,10 @@ public class PaprikaClient implements ClientModInitializer {
         distanceVisualRevision = nextRevision(distanceVisualRevision);
     }
 
+    private static void bumpItemOutlineRevision() {
+        itemOutlineVisualRevision = nextRevision(itemOutlineVisualRevision);
+    }
+
     private static float wrapUnit(float value) {
         float wrapped = value % 1.0F;
         return wrapped < 0.0F ? wrapped + 1.0F : wrapped;
@@ -3195,7 +3482,9 @@ public class PaprikaClient implements ClientModInitializer {
         trailSelfEnabled = config.trailSelfEnabled;
         trailOthersEnabled = config.trailOthersEnabled;
         autoAttackEnabled = config.autoAttackEnabled;
+        itemOutlineEnabled = config.itemOutlineEnabled;
         loadFriends(config.friendNames);
+        loadItemFilters(config.itemFilterIds);
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
@@ -3211,6 +3500,7 @@ public class PaprikaClient implements ClientModInitializer {
         heldItemVisualGlowEnabled = config.heldItemVisualGlowEnabled;
         distanceVisualGlowEnabled = config.distanceVisualGlowEnabled;
         autoAttackRequireLineOfSight = config.autoAttackRequireLineOfSight;
+        itemOutlineGlowEnabled = config.itemOutlineGlowEnabled;
         rayThickness = MathHelper.clamp(config.rayThickness, 0.5F, 8.0F);
         outlineThickness = MathHelper.clamp(config.outlineThickness, 0.5F, 6.0F);
         rayBottomStartHeight = MathHelper.clamp(config.rayBottomStartHeight, 0.0F, MAX_BOTTOM_RAY_START_HEIGHT);
@@ -3235,10 +3525,14 @@ public class PaprikaClient implements ClientModInitializer {
         distanceVisualAnimationSpeed = MathHelper.clamp(config.distanceVisualAnimationSpeed, 0.2F, 4.0F);
         espVisualSaturationBoost = MathHelper.clamp(config.espVisualSaturationBoost, 1.0F, 2.5F);
         espVisualAnimationSpeed = MathHelper.clamp(config.espVisualAnimationSpeed, 0.2F, 4.0F);
+        itemOutlineSaturationBoost = MathHelper.clamp(config.itemOutlineSaturationBoost, 1.0F, 2.5F);
+        itemOutlineAnimationSpeed = MathHelper.clamp(config.itemOutlineAnimationSpeed, 0.2F, 4.0F);
         trailStripeHeight = MathHelper.clamp(config.trailStripeHeight, 0.2F, 4.0F);
         trailLifetimeSeconds = MathHelper.clamp(config.trailLifetimeSeconds, 0.1F, 10.0F);
         trailGradientSpeed = MathHelper.clamp(config.trailGradientSpeed, 0.1F, 5.0F);
         trailAlpha = MathHelper.clamp(config.trailAlpha, 0.1F, 1.0F);
+        itemOutlineAlpha = MathHelper.clamp(config.itemOutlineAlpha, 0.05F, 1.0F);
+        itemOutlineThickness = MathHelper.clamp(config.itemOutlineThickness, 0.5F, 6.0F);
         autoAttackRate = MathHelper.clamp(config.autoAttackRate, 1.0F, 20.0F);
         autoAttackCircleRadius = MathHelper.clamp(config.autoAttackCircleRadius, 20.0F, 600.0F);
         autoAttackMaxDistance = MathHelper.clamp(config.autoAttackMaxDistance, 3.0F, 20.0F);
@@ -3263,6 +3557,8 @@ public class PaprikaClient implements ClientModInitializer {
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
         distanceVisualColorMode = parseVisualColorMode(config.distanceVisualColorMode, VisualColorMode.NICK);
         espVisualColorMode = parseVisualColorMode(config.espVisualColorMode, VisualColorMode.NICK);
+        itemOutlineColorMode = parseVisualColorMode(config.itemOutlineColorMode, VisualColorMode.NICK);
+        itemOutlineMode = parseItemOutlineMode(config.itemOutlineMode);
         autoAttackMode = parseAutoAttackMode(config.autoAttackMode);
         autoAttackCircleColorMode = parseCircleColorMode(config.autoAttackCircleColorMode);
         trailType = parseTrailType(config.trailType);
@@ -3367,6 +3663,18 @@ public class PaprikaClient implements ClientModInitializer {
         }
     }
 
+    private static ItemOutlineMode parseItemOutlineMode(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return ItemOutlineMode.ALL;
+        }
+
+        try {
+            return ItemOutlineMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return ItemOutlineMode.ALL;
+        }
+    }
+
     private static AutoAttackMode parseAutoAttackMode(String rawValue) {
         if (rawValue == null || rawValue.isBlank()) {
             return AutoAttackMode.CIRCLE;
@@ -3403,6 +3711,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.trailSelfEnabled = trailSelfEnabled;
         data.trailOthersEnabled = trailOthersEnabled;
         data.autoAttackEnabled = autoAttackEnabled;
+        data.itemOutlineEnabled = itemOutlineEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
@@ -3411,6 +3720,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.skyTopRainbowEnabled = skyTopRainbowEnabled;
         data.skyBottomRainbowEnabled = skyBottomRainbowEnabled;
         data.hideHandsWithItemEnabled = hideHandsWithItemEnabled;
+        data.itemOutlineGlowEnabled = itemOutlineGlowEnabled;
         data.handItemFlipEnabled = handItemFlipEnabled;
         data.rayVisualGlowEnabled = rayVisualGlowEnabled;
         data.espVisualGlowEnabled = espVisualGlowEnabled;
@@ -3442,10 +3752,14 @@ public class PaprikaClient implements ClientModInitializer {
         data.distanceVisualAnimationSpeed = distanceVisualAnimationSpeed;
         data.espVisualSaturationBoost = espVisualSaturationBoost;
         data.espVisualAnimationSpeed = espVisualAnimationSpeed;
+        data.itemOutlineSaturationBoost = itemOutlineSaturationBoost;
+        data.itemOutlineAnimationSpeed = itemOutlineAnimationSpeed;
         data.trailStripeHeight = trailStripeHeight;
         data.trailLifetimeSeconds = trailLifetimeSeconds;
         data.trailGradientSpeed = trailGradientSpeed;
         data.trailAlpha = trailAlpha;
+        data.itemOutlineAlpha = itemOutlineAlpha;
+        data.itemOutlineThickness = itemOutlineThickness;
         data.autoAttackRate = autoAttackRate;
         data.autoAttackCircleRadius = autoAttackCircleRadius;
         data.autoAttackMaxDistance = autoAttackMaxDistance;
@@ -3475,7 +3789,10 @@ public class PaprikaClient implements ClientModInitializer {
         data.trailType = trailType.name();
         data.trailOrigin = trailOrigin.name();
         data.trailColorMode = trailColorMode.name();
+        data.itemOutlineColorMode = itemOutlineColorMode.name();
+        data.itemOutlineMode = itemOutlineMode.name();
         data.friendNames = new ArrayList<>(friendNames.values());
+        data.itemFilterIds = new ArrayList<>(itemFilterIds.values());
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -3494,6 +3811,9 @@ public class PaprikaClient implements ClientModInitializer {
         }
         if (togglePlayerTrailsKey != null) {
             data.playerTrailsKey = togglePlayerTrailsKey.getBoundKeyTranslationKey();
+        }
+        if (toggleItemOutlineKey != null) {
+            data.itemOutlineKey = toggleItemOutlineKey.getBoundKeyTranslationKey();
         }
         if (toggleAutoAttackKey != null) {
             data.autoAttackKey = toggleAutoAttackKey.getBoundKeyTranslationKey();
@@ -3530,6 +3850,16 @@ public class PaprikaClient implements ClientModInitializer {
             String sanitized = sanitizeFriendName(name);
             if (sanitized == null) continue;
             friendNames.put(sanitized.toLowerCase(Locale.ROOT), sanitized);
+        }
+    }
+
+    private static void loadItemFilters(List<String> ids) {
+        itemFilterIds.clear();
+        if (ids == null) return;
+        for (String rawId : ids) {
+            String sanitized = sanitizeItemId(rawId);
+            if (sanitized == null) continue;
+            itemFilterIds.put(sanitized.toLowerCase(Locale.ROOT), sanitized);
         }
     }
 
@@ -3580,6 +3910,12 @@ public class PaprikaClient implements ClientModInitializer {
         FIXED,
         GRADIENT,
         NICK_GRADIENT
+    }
+
+    public enum ItemOutlineMode {
+        ALL,
+        WHITELIST,
+        BLACKLIST
     }
 
     public enum OverlayAnchorMode {

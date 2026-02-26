@@ -77,6 +77,7 @@ public final class PaprikaConfig {
         sanitized.trailSelfEnabled = data.trailSelfEnabled;
         sanitized.trailOthersEnabled = data.trailOthersEnabled;
         sanitized.autoAttackEnabled = data.autoAttackEnabled;
+        sanitized.itemOutlineEnabled = data.itemOutlineEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
@@ -86,6 +87,7 @@ public final class PaprikaConfig {
         sanitized.skyBottomRainbowEnabled = data.skyBottomRainbowEnabled;
         sanitized.hideHandsWithItemEnabled = data.hideHandsWithItemEnabled;
         sanitized.friendNames = sanitizeFriendNames(data.friendNames);
+        sanitized.itemFilterIds = sanitizeItemFilterIds(data.itemFilterIds);
         sanitized.handItemFlipEnabled = data.handItemFlipEnabled;
         sanitized.rayVisualGlowEnabled = data.rayVisualGlowEnabled;
         sanitized.espVisualGlowEnabled = data.espVisualGlowEnabled;
@@ -93,6 +95,7 @@ public final class PaprikaConfig {
         sanitized.heldItemVisualGlowEnabled = data.heldItemVisualGlowEnabled;
         sanitized.distanceVisualGlowEnabled = data.distanceVisualGlowEnabled;
         sanitized.autoAttackRequireLineOfSight = data.autoAttackRequireLineOfSight;
+        sanitized.itemOutlineGlowEnabled = data.itemOutlineGlowEnabled;
         sanitized.rayThickness = MathHelper.clamp(data.rayThickness, 0.5F, 8.0F);
         sanitized.outlineThickness = MathHelper.clamp(data.outlineThickness, 0.5F, 6.0F);
         sanitized.rayBottomStartHeight = MathHelper.clamp(data.rayBottomStartHeight, 0.0F, 300.0F);
@@ -118,6 +121,7 @@ public final class PaprikaConfig {
         sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.espVisualColorMode = sanitizeVisualColorMode(data.espVisualColorMode, PaprikaClient.VisualColorMode.NICK);
+        sanitized.itemOutlineColorMode = sanitizeVisualColorMode(data.itemOutlineColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.handItemOrientation = sanitizeHandItemOrientation(data.handItemOrientation);
         sanitized.rayVisualSaturationBoost = MathHelper.clamp(data.rayVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.rayVisualAnimationSpeed = MathHelper.clamp(data.rayVisualAnimationSpeed, 0.2F, 4.0F);
@@ -129,10 +133,14 @@ public final class PaprikaConfig {
         sanitized.distanceVisualAnimationSpeed = MathHelper.clamp(data.distanceVisualAnimationSpeed, 0.2F, 4.0F);
         sanitized.espVisualSaturationBoost = MathHelper.clamp(data.espVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.espVisualAnimationSpeed = MathHelper.clamp(data.espVisualAnimationSpeed, 0.2F, 4.0F);
+        sanitized.itemOutlineSaturationBoost = MathHelper.clamp(data.itemOutlineSaturationBoost, 1.0F, 2.5F);
+        sanitized.itemOutlineAnimationSpeed = MathHelper.clamp(data.itemOutlineAnimationSpeed, 0.2F, 4.0F);
         sanitized.trailStripeHeight = MathHelper.clamp(data.trailStripeHeight, 0.2F, 4.0F);
         sanitized.trailLifetimeSeconds = MathHelper.clamp(data.trailLifetimeSeconds, 0.1F, 10.0F);
         sanitized.trailGradientSpeed = MathHelper.clamp(data.trailGradientSpeed, 0.1F, 5.0F);
         sanitized.trailAlpha = MathHelper.clamp(data.trailAlpha, 0.1F, 1.0F);
+        sanitized.itemOutlineAlpha = MathHelper.clamp(data.itemOutlineAlpha, 0.05F, 1.0F);
+        sanitized.itemOutlineThickness = MathHelper.clamp(data.itemOutlineThickness, 0.5F, 6.0F);
         sanitized.autoAttackRate = MathHelper.clamp(data.autoAttackRate, 1.0F, 20.0F);
         sanitized.autoAttackCircleRadius = MathHelper.clamp(data.autoAttackCircleRadius, 20.0F, 600.0F);
         sanitized.autoAttackMaxDistance = MathHelper.clamp(data.autoAttackMaxDistance, 3.0F, 20.0F);
@@ -148,6 +156,7 @@ public final class PaprikaConfig {
         sanitized.trailType = sanitizeTrailType(data.trailType);
         sanitized.trailOrigin = sanitizeTrailOrigin(data.trailOrigin);
         sanitized.trailColorMode = sanitizeTrailColorMode(data.trailColorMode);
+        sanitized.itemOutlineMode = sanitizeItemOutlineMode(data.itemOutlineMode);
         sanitized.autoAttackMode = sanitizeAutoAttackMode(data.autoAttackMode);
         sanitized.autoAttackCircleColorMode = sanitizeCircleColorMode(data.autoAttackCircleColorMode);
 
@@ -157,6 +166,7 @@ public final class PaprikaConfig {
         sanitized.playerRaysKey = sanitizeKey(data.playerRaysKey, "key.keyboard.j");
         sanitized.playerListKey = sanitizeKey(data.playerListKey, "key.keyboard.k");
         sanitized.playerTrailsKey = sanitizeKey(data.playerTrailsKey, "key.keyboard.l");
+        sanitized.itemOutlineKey = sanitizeKey(data.itemOutlineKey, "key.keyboard.y");
         sanitized.autoAttackKey = sanitizeKey(data.autoAttackKey, "key.keyboard.r");
         sanitized.markTargetKey = sanitizeKey(data.markTargetKey, "key.keyboard.m");
         sanitized.unmarkTargetKey = sanitizeKey(data.unmarkTargetKey, "key.keyboard.u");
@@ -308,6 +318,34 @@ public final class PaprikaConfig {
         return sanitized;
     }
 
+    private static List<String> sanitizeItemFilterIds(List<String> ids) {
+        List<String> sanitized = new ArrayList<>();
+        if (ids == null) {
+            return sanitized;
+        }
+        Set<String> seen = new HashSet<>();
+        for (String rawId : ids) {
+            String cleaned = PaprikaClient.sanitizeItemId(rawId);
+            if (cleaned == null) continue;
+            String key = cleaned.toLowerCase(Locale.ROOT);
+            if (!seen.add(key)) continue;
+            sanitized.add(cleaned);
+        }
+        return sanitized;
+    }
+
+    private static String sanitizeItemOutlineMode(String value) {
+        if (value == null || value.isBlank()) {
+            return PaprikaClient.ItemOutlineMode.ALL.name();
+        }
+
+        try {
+            return PaprikaClient.ItemOutlineMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return PaprikaClient.ItemOutlineMode.ALL.name();
+        }
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean noKnockbackEnabled = true;
@@ -319,6 +357,7 @@ public final class PaprikaConfig {
         public boolean trailSelfEnabled = true;
         public boolean trailOthersEnabled = true;
         public boolean autoAttackEnabled = false;
+        public boolean itemOutlineEnabled = false;
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
@@ -328,12 +367,14 @@ public final class PaprikaConfig {
         public boolean skyBottomRainbowEnabled = false;
         public boolean hideHandsWithItemEnabled = false;
         public List<String> friendNames = new ArrayList<>();
+        public List<String> itemFilterIds = new ArrayList<>();
         public boolean handItemFlipEnabled = false;
         public boolean rayVisualGlowEnabled = false;
         public boolean espVisualGlowEnabled = false;
         public boolean armorVisualGlowEnabled = false;
         public boolean heldItemVisualGlowEnabled = false;
         public boolean distanceVisualGlowEnabled = false;
+        public boolean itemOutlineGlowEnabled = false;
         public boolean autoAttackRequireLineOfSight = true;
         public float rayThickness = 2.0F;
         public float outlineThickness = 1.0F;
@@ -360,6 +401,7 @@ public final class PaprikaConfig {
         public String heldItemVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
         public String distanceVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
         public String espVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
+        public String itemOutlineColorMode = PaprikaClient.VisualColorMode.NICK.name();
         public String handItemOrientation = PaprikaClient.HandItemOrientation.DEFAULT.name();
         public float rayVisualSaturationBoost = 1.35F;
         public float rayVisualAnimationSpeed = 1.0F;
@@ -371,10 +413,14 @@ public final class PaprikaConfig {
         public float distanceVisualAnimationSpeed = 1.0F;
         public float espVisualSaturationBoost = 1.35F;
         public float espVisualAnimationSpeed = 1.0F;
+        public float itemOutlineSaturationBoost = 1.35F;
+        public float itemOutlineAnimationSpeed = 1.0F;
         public float trailStripeHeight = 1.4F;
         public float trailLifetimeSeconds = 2.5F;
         public float trailGradientSpeed = 1.0F;
         public float trailAlpha = 1.0F;
+        public float itemOutlineAlpha = 1.0F;
+        public float itemOutlineThickness = 1.0F;
         public float autoAttackRate = 6.0F;
         public float autoAttackCircleRadius = 120.0F;
         public float autoAttackMaxDistance = 3.0F;
@@ -390,6 +436,7 @@ public final class PaprikaConfig {
         public String trailType = PaprikaClient.TrailType.THIN_LINE.name();
         public String trailOrigin = PaprikaClient.TrailOrigin.BACK.name();
         public String trailColorMode = PaprikaClient.TrailColorMode.NICK.name();
+        public String itemOutlineMode = PaprikaClient.ItemOutlineMode.ALL.name();
         public String autoAttackMode = PaprikaClient.AutoAttackMode.CIRCLE.name();
         public String autoAttackCircleColorMode = PaprikaClient.CircleColorMode.FIXED.name();
 
@@ -399,6 +446,7 @@ public final class PaprikaConfig {
         public String playerRaysKey = "key.keyboard.j";
         public String playerListKey = "key.keyboard.k";
         public String playerTrailsKey = "key.keyboard.l";
+        public String itemOutlineKey = "key.keyboard.y";
         public String autoAttackKey = "key.keyboard.r";
         public String markTargetKey = "key.keyboard.m";
         public String unmarkTargetKey = "key.keyboard.u";

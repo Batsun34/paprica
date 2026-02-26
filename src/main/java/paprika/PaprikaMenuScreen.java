@@ -95,6 +95,7 @@ public class PaprikaMenuScreen extends Screen {
     @Nullable
     private Control activeTextControl;
     private String friendInputText = "";
+    private String itemFilterInputText = "";
 
     public PaprikaMenuScreen(@Nullable Screen parent) {
         super(Text.literal("Paprika"));
@@ -818,6 +819,48 @@ public class PaprikaMenuScreen extends Screen {
                     Control.slider("esp.saturation", "Saturation", 1.0, 2.5, 0.1, PaprikaClient::getEspVisualSaturationBoost, value -> PaprikaClient.setEspVisualSaturationBoost((float) value)),
                     Control.slider("esp.anim_speed", "Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getEspVisualAnimationSpeed, value -> PaprikaClient.setEspVisualAnimationSpeed((float) value))
             )));
+            case ITEMS -> {
+                panels.add(new Panel("Item Outline", 0, List.of(
+                        Control.toggle("items.enabled", "Enabled", PaprikaClient::isItemOutlineEnabled, PaprikaClient::setItemOutlineEnabled),
+                        Control.keybind("items.bind", "Bind", PaprikaClient.getItemOutlineKeyBinding()),
+                        Control.cycle("items.mode", "Mode", Control.ITEM_LIST_MODES,
+                                () -> PaprikaClient.getItemOutlineMode().ordinal(),
+                                idx -> PaprikaClient.setItemOutlineMode(PaprikaClient.ItemOutlineMode.values()[idx])
+                        ),
+                        Control.slider("items.thickness", "Outline Thickness", 0.5, 6.0, 0.1, PaprikaClient::getItemOutlineThickness, value -> PaprikaClient.setItemOutlineThickness((float) value)),
+                        Control.slider("items.alpha", "Outline Alpha", 0.05, 1.0, 0.05, PaprikaClient::getItemOutlineAlpha, value -> PaprikaClient.setItemOutlineAlpha((float) value)),
+                        Control.toggle("items.glow", "Glow", PaprikaClient::isItemOutlineGlowEnabled, PaprikaClient::setItemOutlineGlowEnabled),
+                        Control.cycle("items.color_mode", "Color Mode", Control.COLOR_MODES,
+                                () -> PaprikaClient.getItemOutlineColorMode().ordinal(),
+                                idx -> PaprikaClient.setItemOutlineColorMode(PaprikaClient.VisualColorMode.values()[idx])
+                        ),
+                        Control.slider("items.saturation", "Saturation", 1.0, 2.5, 0.1, PaprikaClient::getItemOutlineSaturationBoost, value -> PaprikaClient.setItemOutlineSaturationBoost((float) value)),
+                        Control.slider("items.anim_speed", "Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getItemOutlineAnimationSpeed, value -> PaprikaClient.setItemOutlineAnimationSpeed((float) value))
+                )));
+
+                List<Control> filterControls = new ArrayList<>();
+                filterControls.add(Control.textInput("items.input", "Item ID", () -> this.itemFilterInputText, value -> this.itemFilterInputText = value, 64));
+                filterControls.add(Control.button("items.add", "Add Item", () -> "Add", () -> {
+                    if (PaprikaClient.addItemFilterEntry(this.itemFilterInputText)) {
+                        this.itemFilterInputText = "";
+                    }
+                }));
+                filterControls.add(Control.button("items.clear", "Clear List", () -> "Clear", PaprikaClient::clearItemFilterEntries));
+                panels.add(new Panel("Item Filter", 1, filterControls));
+
+                List<Control> itemList = new ArrayList<>();
+                List<String> entries = PaprikaClient.getItemFilterEntries();
+                if (entries.isEmpty()) {
+                    itemList.add(Control.label("items.empty", "No items added", () -> ""));
+                } else {
+                    int idx = 1;
+                    for (String id : entries) {
+                        itemList.add(Control.label("items.entry." + idx, id, () -> ""));
+                        idx++;
+                    }
+                }
+                panels.add(new Panel("Item List", 1, itemList));
+            }
             case RAYS -> {
                 panels.add(new Panel("Rays", 0, List.of(
                         Control.toggle("rays.enabled", "Enabled", PaprikaClient::isPlayerRaysEnabled, PaprikaClient::setPlayerRaysEnabled),
@@ -983,6 +1026,7 @@ public class PaprikaMenuScreen extends Screen {
         AUTO_ATTACK("Auto Attack", ModuleGroup.COMBAT),
         FRIENDS("Friends", ModuleGroup.COMBAT),
         ESP("Player ESP", ModuleGroup.VISUAL),
+        ITEMS("Items", ModuleGroup.VISUAL),
         RAYS("Rays", ModuleGroup.VISUAL),
         TRAILS("Trails", ModuleGroup.VISUAL),
         VIEW("View", ModuleGroup.VISUAL),
@@ -1061,6 +1105,7 @@ public class PaprikaMenuScreen extends Screen {
         private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
         private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};
         private static final String[] TRAIL_COLOR_MODES = new String[]{"Nick", "Fixed", "Gradient", "Nick Gradient"};
+        private static final String[] ITEM_LIST_MODES = new String[]{"All Items", "Whitelist", "Blacklist"};
         private static final String[] AUTO_ATTACK_MODES = new String[]{"Circle", "Circle + Mark", "Marked Only", "All Nearby"};
         private static final String[] CIRCLE_COLOR_MODES = new String[]{"Fixed", "Gradient", "Rainbow"};
 
