@@ -161,6 +161,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static float itemOutlineSaturationBoost = DEFAULT_STYLE_SATURATION;
     private static float itemOutlineAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static float itemOutlineThickness = 1.0F;
+    private static int itemOutlineSolidColor = 0x4CB1FF;
     private static float trailStripeHeight = 1.4F;
     private static float trailLifetimeSeconds = 2.5F;
     private static float trailGradientSpeed = 1.0F;
@@ -186,7 +187,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode distanceVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode espVisualColorMode = VisualColorMode.NICK;
-    private static VisualColorMode itemOutlineColorMode = VisualColorMode.NICK;
+    private static ItemOutlineColorMode itemOutlineColorMode = ItemOutlineColorMode.NICK;
     private static ItemOutlineMode itemOutlineMode = ItemOutlineMode.ALL;
     private static AutoAttackMode autoAttackMode = AutoAttackMode.CIRCLE;
     private static CircleColorMode autoAttackCircleColorMode = CircleColorMode.FIXED;
@@ -218,6 +219,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
     private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
     private static final Map<Float, RenderLayer> itemOutlineLayers = new HashMap<>();
+    private static final Map<String, Integer> itemAverageColorCache = new HashMap<>();
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
     private static final List<TrailSegment> trailSegments = new ArrayList<>();
@@ -841,12 +843,12 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
-    public static VisualColorMode getItemOutlineColorMode() {
+    public static ItemOutlineColorMode getItemOutlineColorMode() {
         return itemOutlineColorMode;
     }
 
-    public static void setItemOutlineColorMode(VisualColorMode mode) {
-        VisualColorMode updated = mode == null ? VisualColorMode.NICK : mode;
+    public static void setItemOutlineColorMode(ItemOutlineColorMode mode) {
+        ItemOutlineColorMode updated = mode == null ? ItemOutlineColorMode.NICK : mode;
         if (itemOutlineColorMode == updated) return;
         itemOutlineColorMode = updated;
         bumpItemOutlineRevision();
@@ -931,6 +933,36 @@ public class PaprikaClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(thickness, 0.5F, 6.0F);
         if (Math.abs(itemOutlineThickness - clamped) < 0.0001F) return;
         itemOutlineThickness = clamped;
+        saveConfigNow();
+    }
+
+    public static int getItemOutlineSolidRed() {
+        return (itemOutlineSolidColor >> 16) & 0xFF;
+    }
+
+    public static void setItemOutlineSolidRed(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        itemOutlineSolidColor = (itemOutlineSolidColor & 0xFF00FFFF) | (clamped << 16);
+        saveConfigNow();
+    }
+
+    public static int getItemOutlineSolidGreen() {
+        return (itemOutlineSolidColor >> 8) & 0xFF;
+    }
+
+    public static void setItemOutlineSolidGreen(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        itemOutlineSolidColor = (itemOutlineSolidColor & 0xFFFF00FF) | (clamped << 8);
+        saveConfigNow();
+    }
+
+    public static int getItemOutlineSolidBlue() {
+        return itemOutlineSolidColor & 0xFF;
+    }
+
+    public static void setItemOutlineSolidBlue(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        itemOutlineSolidColor = (itemOutlineSolidColor & 0xFFFFFF00) | clamped;
         saveConfigNow();
     }
 
@@ -2134,14 +2166,11 @@ public class PaprikaClient implements ClientModInitializer {
             Box box = item.getBoundingBox();
             if (box == null) continue;
 
-            int seed = getItemOutlineSeed(item);
-            int baseColor = seedBaseColor(seed);
-
             if (itemOutlineGlowEnabled && glowConsumer != null) {
-                addItemOutlineBox(glowConsumer, matrix, box, baseColor, seed, 1.0F, itemOutlineAlpha * 0.38F);
+                addItemOutlineBox(glowConsumer, matrix, box, item, 1.0F, itemOutlineAlpha * 0.38F);
             }
 
-            addItemOutlineBox(coreConsumer, matrix, box, baseColor, seed, 0.6F, itemOutlineAlpha);
+            addItemOutlineBox(coreConsumer, matrix, box, item, 0.6F, itemOutlineAlpha);
         }
 
         context.matrixStack().pop();
@@ -2205,7 +2234,7 @@ public class PaprikaClient implements ClientModInitializer {
         context.matrixStack().pop();
     }
 
-    private static void addItemOutlineBox(VertexConsumer consumer, Matrix4f matrix, Box box, int baseColor, int seed, float emissive, float alpha) {
+    private static void addItemOutlineBox(VertexConsumer consumer, Matrix4f matrix, Box box, ItemEntity item, float emissive, float alpha) {
         double minX = box.minX;
         double minY = box.minY;
         double minZ = box.minZ;
@@ -2216,20 +2245,20 @@ public class PaprikaClient implements ClientModInitializer {
         float[] offsets = new float[]{0.08F, 0.14F, 0.2F, 0.26F, 0.32F, 0.38F, 0.44F, 0.5F, 0.58F, 0.66F, 0.74F, 0.82F};
 
         int idx = 0;
-        addItemOutlineLine(consumer, matrix, minX, minY, minZ, maxX, minY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, minY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, minX, minY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, minY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, minY, minZ, maxX, minY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, minY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, minX, minY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, minY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
 
-        addItemOutlineLine(consumer, matrix, minX, maxY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, maxY, minZ, maxX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, maxY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, minX, maxY, maxZ, minX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, maxY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, maxY, minZ, maxX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, maxY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, maxY, maxZ, minX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
 
-        addItemOutlineLine(consumer, matrix, minX, minY, minZ, minX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, maxX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx++], emissive, alpha));
-        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(baseColor, seed, offsets[idx], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, minY, minZ, minX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, minZ, maxX, maxY, minZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, maxX, minY, maxZ, maxX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx++], emissive, alpha));
+        addItemOutlineLine(consumer, matrix, minX, minY, maxZ, minX, maxY, maxZ, resolveItemOutlineColor(item, offsets[idx], emissive, alpha));
     }
 
     private static void addItemOutlineLine(VertexConsumer consumer, Matrix4f matrix, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
@@ -2267,18 +2296,192 @@ public class PaprikaClient implements ClientModInitializer {
         return layer;
     }
 
-    private static int resolveItemOutlineColor(int baseColor, int seed, float offset, float emissive, float alpha) {
-        int rgb = resolveVisualColor(
-                baseColor,
-                seed,
-                offset,
-                itemOutlineColorMode,
-                itemOutlineSaturationBoost,
-                itemOutlineAnimationSpeed,
-                itemOutlineVisualRevision
-        );
+    private static int resolveItemOutlineColor(ItemEntity item, float offset, float emissive, float alpha) {
+        int seed = getItemOutlineSeed(item);
+        int rgb = switch (itemOutlineColorMode) {
+            case SOLID -> itemOutlineSolidColor;
+            case ITEM_AVERAGE -> getAverageItemColor(item.getStack(), seed);
+            case NICK, GRADIENT, NICK_GRADIENT, RAINBOW -> resolveVisualColor(
+                    seedBaseColor(seed),
+                    seed,
+                    offset,
+                    itemOutlineColorMode.getVisualColorMode(),
+                    itemOutlineSaturationBoost,
+                    itemOutlineAnimationSpeed,
+                    itemOutlineVisualRevision
+            );
+        };
         int argb = 0xFF000000 | applyEmissive(rgb, emissive);
         return withAlpha(argb, alpha);
+    }
+
+    private static int getAverageItemColor(ItemStack stack, int seed) {
+        Identifier id = Registries.ITEM.getId(stack.getItem());
+        if (id == null) {
+            return seedBaseColor(seed);
+        }
+        String key = id.toString();
+        Integer cached = itemAverageColorCache.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        int computed = computeAverageItemColor(stack, seed);
+        itemAverageColorCache.put(key, computed);
+        return computed;
+    }
+
+    private static int computeAverageItemColor(ItemStack stack, int seed) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getItemRenderer() == null) {
+            return seedBaseColor(seed);
+        }
+        try {
+            Object model = resolveItemModel(client, stack);
+            if (model == null) return seedBaseColor(seed);
+            Object sprite = invokeNoArg(model, "getParticleSprite");
+            int avg = averageSpriteColor(sprite);
+            if (avg != 0) {
+                return avg;
+            }
+        } catch (Exception ignored) {
+        }
+        return seedBaseColor(seed);
+    }
+
+    private static Object resolveItemModel(MinecraftClient client, ItemStack stack) {
+        Object renderer = client.getItemRenderer();
+        if (renderer == null) return null;
+        for (var method : renderer.getClass().getMethods()) {
+            if (!method.getName().equals("getModel")) continue;
+            Class<?>[] params = method.getParameterTypes();
+            if (params.length == 0 || params[0] != ItemStack.class) continue;
+            Object[] args = new Object[params.length];
+            args[0] = stack;
+            for (int i = 1; i < params.length; i++) {
+                Class<?> param = params[i];
+                if (param.isInstance(client.world)) {
+                    args[i] = client.world;
+                } else if (param.getName().endsWith(".World") || param.getName().endsWith(".ClientWorld")) {
+                    args[i] = client.world;
+                } else if (param.getName().endsWith(".LivingEntity")) {
+                    args[i] = null;
+                } else if (param == int.class || param == Integer.class) {
+                    args[i] = 0;
+                } else if (param == long.class || param == Long.class) {
+                    args[i] = 0L;
+                } else {
+                    args[i] = null;
+                }
+            }
+            try {
+                return method.invoke(renderer, args);
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static int averageSpriteColor(Object sprite) {
+        if (sprite == null) return 0;
+        try {
+            Object contents = invokeNoArg(sprite, "getContents");
+            Object image = findNativeImage(contents);
+            if (image != null) {
+                return averageNativeImage(image);
+            }
+        } catch (Exception ignored) {
+        }
+        return 0;
+    }
+
+    private static Object findNativeImage(Object contents) {
+        if (contents == null) return null;
+        for (var method : contents.getClass().getMethods()) {
+            if (!method.getReturnType().getName().equals("net.minecraft.client.texture.NativeImage")) continue;
+            try {
+                if (method.getParameterCount() == 0) {
+                    return method.invoke(contents);
+                }
+                if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == int.class) {
+                    return method.invoke(contents, 0);
+                }
+            } catch (Exception ignored) {
+            }
+        }
+        return null;
+    }
+
+    private static int averageNativeImage(Object image) {
+        try {
+            int width = invokeInt(image, "getWidth");
+            int height = invokeInt(image, "getHeight");
+            if (width <= 0 || height <= 0) return 0;
+            int step = Math.max(1, Math.min(width, height) / 16);
+
+            long sumR = 0;
+            long sumG = 0;
+            long sumB = 0;
+            long count = 0;
+
+            var colorMethod = findColorMethod(image);
+            if (colorMethod == null) return 0;
+            for (int y = 0; y < height; y += step) {
+                for (int x = 0; x < width; x += step) {
+                    int color = (int) colorMethod.invoke(image, x, y);
+                    int a = (color >>> 24) & 0xFF;
+                    if (a < 12) continue;
+                    int b = (color >>> 16) & 0xFF;
+                    int g = (color >>> 8) & 0xFF;
+                    int r = color & 0xFF;
+                    sumR += r;
+                    sumG += g;
+                    sumB += b;
+                    count++;
+                }
+            }
+            if (count == 0) return 0;
+            int r = (int) (sumR / count);
+            int g = (int) (sumG / count);
+            int b = (int) (sumB / count);
+            return (r << 16) | (g << 8) | b;
+        } catch (Exception ignored) {
+            return 0;
+        }
+    }
+
+    private static java.lang.reflect.Method findColorMethod(Object image) {
+        for (var method : image.getClass().getMethods()) {
+            if (method.getReturnType() != int.class) continue;
+            if (method.getParameterCount() != 2) continue;
+            Class<?>[] params = method.getParameterTypes();
+            if (params[0] != int.class || params[1] != int.class) continue;
+            String name = method.getName().toLowerCase(Locale.ROOT);
+            if (name.contains("color")) {
+                return method;
+            }
+        }
+        return null;
+    }
+
+    private static Object invokeNoArg(Object target, String methodName) {
+        try {
+            var method = target.getClass().getMethod(methodName);
+            return method.invoke(target);
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private static int invokeInt(Object target, String methodName) {
+        try {
+            var method = target.getClass().getMethod(methodName);
+            Object value = method.invoke(target);
+            if (value instanceof Integer integer) {
+                return integer;
+            }
+        } catch (Exception ignored) {
+        }
+        return 0;
     }
 
     private static int getItemOutlineSeed(ItemEntity item) {
@@ -3572,6 +3775,7 @@ public class PaprikaClient implements ClientModInitializer {
         skyBottomColor = config.skyBottomColor & 0xFFFFFF;
         trailFixedColor = config.trailFixedColor & 0xFFFFFF;
         autoAttackCircleColor = config.autoAttackCircleColor & 0xFFFFFF;
+        itemOutlineSolidColor = config.itemOutlineSolidColor & 0xFFFFFF;
         menuLastTabId = (config.menuLastTab == null || config.menuLastTab.isBlank()) ? "RAYS" : config.menuLastTab;
         menuScrollOffset = config.menuScrollOffset;
         rayOrigin = parseRayOrigin(config.rayOrigin);
@@ -3584,7 +3788,7 @@ public class PaprikaClient implements ClientModInitializer {
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
         distanceVisualColorMode = parseVisualColorMode(config.distanceVisualColorMode, VisualColorMode.NICK);
         espVisualColorMode = parseVisualColorMode(config.espVisualColorMode, VisualColorMode.NICK);
-        itemOutlineColorMode = parseVisualColorMode(config.itemOutlineColorMode, VisualColorMode.NICK);
+        itemOutlineColorMode = parseItemOutlineColorMode(config.itemOutlineColorMode);
         itemOutlineMode = parseItemOutlineMode(config.itemOutlineMode);
         autoAttackMode = parseAutoAttackMode(config.autoAttackMode);
         autoAttackCircleColorMode = parseCircleColorMode(config.autoAttackCircleColorMode);
@@ -3687,6 +3891,25 @@ public class PaprikaClient implements ClientModInitializer {
             return TrailColorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
             return TrailColorMode.NICK;
+        }
+    }
+
+    private static ItemOutlineColorMode parseItemOutlineColorMode(String rawValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return ItemOutlineColorMode.NICK;
+        }
+
+        try {
+            String normalized = rawValue.toUpperCase(Locale.ROOT);
+            if ("AVERAGE".equals(normalized) || "AVG".equals(normalized)) {
+                return ItemOutlineColorMode.ITEM_AVERAGE;
+            }
+            if ("ITEM".equals(normalized)) {
+                return ItemOutlineColorMode.ITEM_AVERAGE;
+            }
+            return ItemOutlineColorMode.valueOf(normalized);
+        } catch (IllegalArgumentException ignored) {
+            return ItemOutlineColorMode.NICK;
         }
     }
 
@@ -3820,6 +4043,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.itemOutlineMode = itemOutlineMode.name();
         data.friendNames = new ArrayList<>(friendNames.values());
         data.itemFilterIds = new ArrayList<>(itemFilterIds.values());
+        data.itemOutlineSolidColor = itemOutlineSolidColor & 0xFFFFFF;
 
         if (toggleKey != null) {
             data.speedToggleKey = toggleKey.getBoundKeyTranslationKey();
@@ -3906,6 +4130,25 @@ public class PaprikaClient implements ClientModInitializer {
         GRADIENT,
         NICK_GRADIENT,
         RAINBOW
+    }
+
+    public enum ItemOutlineColorMode {
+        NICK(VisualColorMode.NICK),
+        GRADIENT(VisualColorMode.GRADIENT),
+        NICK_GRADIENT(VisualColorMode.NICK_GRADIENT),
+        RAINBOW(VisualColorMode.RAINBOW),
+        SOLID(VisualColorMode.NICK),
+        ITEM_AVERAGE(VisualColorMode.NICK);
+
+        private final VisualColorMode visualColorMode;
+
+        ItemOutlineColorMode(VisualColorMode visualColorMode) {
+            this.visualColorMode = visualColorMode;
+        }
+
+        public VisualColorMode getVisualColorMode() {
+            return visualColorMode;
+        }
     }
 
     public enum AutoAttackMode {

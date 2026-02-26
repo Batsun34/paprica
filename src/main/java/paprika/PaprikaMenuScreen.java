@@ -830,10 +830,13 @@ public class PaprikaMenuScreen extends Screen {
                         Control.slider("items.thickness", "Outline Thickness", 0.5, 6.0, 0.1, PaprikaClient::getItemOutlineThickness, value -> PaprikaClient.setItemOutlineThickness((float) value)),
                         Control.slider("items.alpha", "Outline Alpha", 0.05, 1.0, 0.05, PaprikaClient::getItemOutlineAlpha, value -> PaprikaClient.setItemOutlineAlpha((float) value)),
                         Control.toggle("items.glow", "Glow", PaprikaClient::isItemOutlineGlowEnabled, PaprikaClient::setItemOutlineGlowEnabled),
-                        Control.cycle("items.color_mode", "Color Mode", Control.COLOR_MODES,
+                        Control.cycle("items.color_mode", "Color Mode", Control.ITEM_COLOR_MODES,
                                 () -> PaprikaClient.getItemOutlineColorMode().ordinal(),
-                                idx -> PaprikaClient.setItemOutlineColorMode(PaprikaClient.VisualColorMode.values()[idx])
+                                idx -> PaprikaClient.setItemOutlineColorMode(PaprikaClient.ItemOutlineColorMode.values()[idx])
                         ),
+                        Control.slider("items.solid_r", "Solid Red", 0, 255, 1, PaprikaClient::getItemOutlineSolidRed, value -> PaprikaClient.setItemOutlineSolidRed((int) value)),
+                        Control.slider("items.solid_g", "Solid Green", 0, 255, 1, PaprikaClient::getItemOutlineSolidGreen, value -> PaprikaClient.setItemOutlineSolidGreen((int) value)),
+                        Control.slider("items.solid_b", "Solid Blue", 0, 255, 1, PaprikaClient::getItemOutlineSolidBlue, value -> PaprikaClient.setItemOutlineSolidBlue((int) value)),
                         Control.slider("items.saturation", "Saturation", 1.0, 2.5, 0.1, PaprikaClient::getItemOutlineSaturationBoost, value -> PaprikaClient.setItemOutlineSaturationBoost((float) value)),
                         Control.slider("items.anim_speed", "Animation Speed", 0.2, 4.0, 0.1, PaprikaClient::getItemOutlineAnimationSpeed, value -> PaprikaClient.setItemOutlineAnimationSpeed((float) value))
                 )));
@@ -1101,6 +1104,7 @@ public class PaprikaMenuScreen extends Screen {
 
     private static final class Control {
         private static final String[] COLOR_MODES = new String[]{"Nick", "Gradient", "Nick Gradient", "Rainbow"};
+        private static final String[] ITEM_COLOR_MODES = new String[]{"Nick", "Gradient", "Nick Gradient", "Rainbow", "Solid", "Item Average"};
         private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
         private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
         private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};

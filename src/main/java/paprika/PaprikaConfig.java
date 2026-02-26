@@ -121,7 +121,7 @@ public final class PaprikaConfig {
         sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.distanceVisualColorMode = sanitizeVisualColorMode(data.distanceVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.espVisualColorMode = sanitizeVisualColorMode(data.espVisualColorMode, PaprikaClient.VisualColorMode.NICK);
-        sanitized.itemOutlineColorMode = sanitizeVisualColorMode(data.itemOutlineColorMode, PaprikaClient.VisualColorMode.NICK);
+        sanitized.itemOutlineColorMode = sanitizeItemOutlineColorMode(data.itemOutlineColorMode);
         sanitized.handItemOrientation = sanitizeHandItemOrientation(data.handItemOrientation);
         sanitized.rayVisualSaturationBoost = MathHelper.clamp(data.rayVisualSaturationBoost, 1.0F, 2.5F);
         sanitized.rayVisualAnimationSpeed = MathHelper.clamp(data.rayVisualAnimationSpeed, 0.2F, 4.0F);
@@ -151,6 +151,7 @@ public final class PaprikaConfig {
         sanitized.skyBottomColor = data.skyBottomColor & 0xFFFFFF;
         sanitized.trailFixedColor = data.trailFixedColor & 0xFFFFFF;
         sanitized.autoAttackCircleColor = data.autoAttackCircleColor & 0xFFFFFF;
+        sanitized.itemOutlineSolidColor = data.itemOutlineSolidColor & 0xFFFFFF;
         sanitized.menuLastTab = data.menuLastTab == null ? "RAYS" : data.menuLastTab;
         sanitized.menuScrollOffset = data.menuScrollOffset;
         sanitized.trailType = sanitizeTrailType(data.trailType);
@@ -346,6 +347,22 @@ public final class PaprikaConfig {
         }
     }
 
+    private static String sanitizeItemOutlineColorMode(String value) {
+        if (value == null || value.isBlank()) {
+            return PaprikaClient.ItemOutlineColorMode.NICK.name();
+        }
+
+        try {
+            String normalized = value.toUpperCase(Locale.ROOT);
+            if ("AVERAGE".equals(normalized) || "AVG".equals(normalized) || "ITEM".equals(normalized)) {
+                return PaprikaClient.ItemOutlineColorMode.ITEM_AVERAGE.name();
+            }
+            return PaprikaClient.ItemOutlineColorMode.valueOf(normalized).name();
+        } catch (IllegalArgumentException ignored) {
+            return PaprikaClient.ItemOutlineColorMode.NICK.name();
+        }
+    }
+
     public static final class Data {
         public boolean speedEnabled = true;
         public boolean noKnockbackEnabled = true;
@@ -431,6 +448,7 @@ public final class PaprikaConfig {
         public int skyBottomColor = 0xA0C8FF;
         public int trailFixedColor = 0x4CB1FF;
         public int autoAttackCircleColor = 0x4CB1FF;
+        public int itemOutlineSolidColor = 0x4CB1FF;
         public String menuLastTab = "RAYS";
         public double menuScrollOffset = 0.0;
         public String trailType = PaprikaClient.TrailType.THIN_LINE.name();
