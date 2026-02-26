@@ -21,12 +21,17 @@ import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.texture.SpriteContents;
+import net.minecraft.client.item.ItemModelManager;
+import net.minecraft.client.render.item.ItemRenderState;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.ModelTransformationMode;
 import net.minecraft.registry.Registries;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
@@ -38,6 +43,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.RotationAxis;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 import paprika.mixin.client.GameRendererAccessor;
 
 import org.lwjgl.glfw.GLFW;
@@ -2388,108 +2394,53 @@ public class PaprikaClient implements ClientModInitializer {
 
     private static int computeAverageItemColor(ItemStack stack, int seed) {
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.getItemRenderer() == null) {
+        if (client == null) {
             return -1;
         }
         try {
-            Object model = resolveItemModel(client, stack);
-            if (model == null) return -1;
-            Object sprite = invokeNoArg(model, "getParticleSprite");
-            int avg = averageSpriteColor(sprite);
-            if (avg != 0) {
-                return avg;
-            }
+            ItemModelManager modelManager = client.getItemModelManager();
+            if (modelManager == null) return -1;
+            ItemRenderState renderState = new ItemRenderState();
+            modelManager.update(renderState, stack, ModelTransformationMode.GUI, client.world, null, seed);
+            Sprite sprite = renderState.getParticleSprite(Random.create(seed));
+            if (sprite == null) return -1;
+            NativeImage image = resolveSpriteImage(sprite);
+            if (image == null) return -1;
+            return averageNativeImage(image);
         } catch (Exception ignored) {
         }
         return -1;
     }
 
-    private static Object resolveItemModel(MinecraftClient client, ItemStack stack) {
-        Object renderer = client.getItemRenderer();
-        if (renderer == null) return null;
-        for (var method : renderer.getClass().getMethods()) {
-            if (!method.getName().equals("getModel")) continue;
-            Class<?>[] params = method.getParameterTypes();
-            if (params.length == 0 || params[0] != ItemStack.class) continue;
-            Object[] args = new Object[params.length];
-            args[0] = stack;
-            for (int i = 1; i < params.length; i++) {
-                Class<?> param = params[i];
-                if (param.isInstance(client.world)) {
-                    args[i] = client.world;
-                } else if (param.getName().endsWith(".World") || param.getName().endsWith(".ClientWorld")) {
-                    args[i] = client.world;
-                } else if (param.getName().endsWith(".LivingEntity")) {
-                    args[i] = null;
-                } else if (param == int.class || param == Integer.class) {
-                    args[i] = 0;
-                } else if (param == long.class || param == Long.class) {
-                    args[i] = 0L;
-                } else {
-                    args[i] = null;
-                }
-            }
-            try {
-                return method.invoke(renderer, args);
-            } catch (Exception ignored) {
-            }
-        }
-        return null;
-    }
-
-    private static int averageSpriteColor(Object sprite) {
-        if (sprite == null) return 0;
+    private static NativeImage resolveSpriteImage(Sprite sprite) {
+        if (sprite == null) return null;
+        SpriteContents contents = sprite.getContents();
+        if (contents == null) return null;
         try {
-            Object contents = invokeNoArg(sprite, "getContents");
-            Object image = findNativeImage(contents);
-            if (image != null) {
-                return averageNativeImage(image);
+            var imageField = SpriteContents.class.getDeclaredField("image");
+            imageField.setAccessible(true);
+            Object value = imageField.get(contents);
+            if (value instanceof NativeImage image) {
+                return image;
             }
         } catch (Exception ignored) {
         }
-        return 0;
-    }
-
-    private static Object findNativeImage(Object contents) {
-        if (contents == null) return null;
-        for (var method : contents.getClass().getMethods()) {
-            if (method.getReturnType() != NativeImage.class) continue;
-            try {
-                if (method.getParameterCount() == 0) {
-                    return method.invoke(contents);
-                }
-                if (method.getParameterCount() == 1 && method.getParameterTypes()[0] == int.class) {
-                    return method.invoke(contents, 0);
-                }
-            } catch (Exception ignored) {
+        try {
+            var mipmapField = SpriteContents.class.getDeclaredField("mipmapLevelsImages");
+            mipmapField.setAccessible(true);
+            Object value = mipmapField.get(contents);
+            if (value instanceof NativeImage[] images && images.length > 0 && images[0] != null) {
+                return images[0];
             }
-        }
-        for (var field : contents.getClass().getDeclaredFields()) {
-            try {
-                Class<?> type = field.getType();
-                if (type == NativeImage.class) {
-                    field.setAccessible(true);
-                    Object image = field.get(contents);
-                    if (image != null) {
-                        return image;
-                    }
-                } else if (type.isArray() && type.getComponentType() == NativeImage.class) {
-                    field.setAccessible(true);
-                    Object value = field.get(contents);
-                    if (value instanceof NativeImage[] images && images.length > 0 && images[0] != null) {
-                        return images[0];
-                    }
-                }
-            } catch (Exception ignored) {
-            }
+        } catch (Exception ignored) {
         }
         return null;
     }
 
-    private static int averageNativeImage(Object image) {
+    private static int averageNativeImage(NativeImage image) {
         try {
-            int width = invokeInt(image, "getWidth");
-            int height = invokeInt(image, "getHeight");
+            int width = image.getWidth();
+            int height = image.getHeight();
             if (width <= 0 || height <= 0) return 0;
             int step = Math.max(1, Math.min(width, height) / 16);
 
@@ -2498,26 +2449,14 @@ public class PaprikaClient implements ClientModInitializer {
             long sumB = 0;
             long count = 0;
 
-            var colorMethod = findColorMethod(image);
-            if (colorMethod == null) return 0;
-            boolean argb = colorMethod.getName().toLowerCase(Locale.ROOT).contains("argb");
             for (int y = 0; y < height; y += step) {
                 for (int x = 0; x < width; x += step) {
-                    int color = (int) colorMethod.invoke(image, x, y);
+                    int color = image.getColorArgb(x, y);
                     int a = (color >>> 24) & 0xFF;
-                    if (a < 12) continue;
-                    int r;
-                    int g;
-                    int b;
-                    if (argb) {
-                        r = (color >>> 16) & 0xFF;
-                        g = (color >>> 8) & 0xFF;
-                        b = color & 0xFF;
-                    } else {
-                        b = (color >>> 16) & 0xFF;
-                        g = (color >>> 8) & 0xFF;
-                        r = color & 0xFF;
-                    }
+                    if (a == 0) continue;
+                    int r = (color >>> 16) & 0xFF;
+                    int g = (color >>> 8) & 0xFF;
+                    int b = color & 0xFF;
                     sumR += r;
                     sumG += g;
                     sumB += b;
@@ -2532,49 +2471,6 @@ public class PaprikaClient implements ClientModInitializer {
         } catch (Exception ignored) {
             return 0;
         }
-    }
-
-    private static java.lang.reflect.Method findColorMethod(Object image) {
-        try {
-            return image.getClass().getMethod("getColorArgb", int.class, int.class);
-        } catch (Exception ignored) {
-        }
-        try {
-            return image.getClass().getMethod("getColor", int.class, int.class);
-        } catch (Exception ignored) {
-        }
-        for (var method : image.getClass().getMethods()) {
-            if (method.getReturnType() != int.class) continue;
-            if (method.getParameterCount() != 2) continue;
-            Class<?>[] params = method.getParameterTypes();
-            if (params[0] != int.class || params[1] != int.class) continue;
-            String name = method.getName().toLowerCase(Locale.ROOT);
-            if (name.contains("color")) {
-                return method;
-            }
-        }
-        return null;
-    }
-
-    private static Object invokeNoArg(Object target, String methodName) {
-        try {
-            var method = target.getClass().getMethod(methodName);
-            return method.invoke(target);
-        } catch (Exception ignored) {
-            return null;
-        }
-    }
-
-    private static int invokeInt(Object target, String methodName) {
-        try {
-            var method = target.getClass().getMethod(methodName);
-            Object value = method.invoke(target);
-            if (value instanceof Integer integer) {
-                return integer;
-            }
-        } catch (Exception ignored) {
-        }
-        return 0;
     }
 
     private static int getItemOutlineSeed(ItemEntity item) {
