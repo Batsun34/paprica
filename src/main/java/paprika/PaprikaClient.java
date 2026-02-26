@@ -2233,8 +2233,11 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private static void addItemOutlineLine(VertexConsumer consumer, Matrix4f matrix, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
+        int transparent = color & 0x00FFFFFF;
+        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(transparent);
         consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(color);
         consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(color);
+        consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(transparent);
     }
 
     private static RenderLayer getItemOutlineLayer(float lineWidth) {
@@ -2247,7 +2250,7 @@ public class PaprikaClient implements ClientModInitializer {
         RenderLayer layer = RenderLayer.of(
                 "paprika_item_outline_" + key,
                 VertexFormats.POSITION_COLOR,
-                VertexFormat.DrawMode.LINES,
+                VertexFormat.DrawMode.DEBUG_LINE_STRIP,
                 1536,
                 RenderLayer.MultiPhaseParameters.builder()
                         .program(RenderPhase.POSITION_COLOR_PROGRAM)
@@ -2256,7 +2259,7 @@ public class PaprikaClient implements ClientModInitializer {
                         .depthTest(RenderPhase.ALWAYS_DEPTH_TEST)
                         .cull(RenderPhase.DISABLE_CULLING)
                         .writeMaskState(RenderPhase.COLOR_MASK)
-                        .target(RenderPhase.ITEM_ENTITY_TARGET)
+                        .target(RenderPhase.MAIN_TARGET)
                         .layering(RenderPhase.VIEW_OFFSET_Z_LAYERING)
                         .build(false)
         );
