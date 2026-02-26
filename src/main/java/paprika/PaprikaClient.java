@@ -14,8 +14,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderPhase;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.entity.EquipmentSlot;
 import net.minecraft.entity.Entity;
@@ -48,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.UUID;
 
@@ -213,6 +217,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static String lastFriendMarkName;
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
     private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
+    private static final Map<Float, RenderLayer> itemOutlineLayers = new HashMap<>();
 
     private static final Map<UUID, TrailState> trailStates = new HashMap<>();
     private static final List<TrailSegment> trailSegments = new ArrayList<>();
@@ -2100,17 +2105,15 @@ public class PaprikaClient implements ClientModInitializer {
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        RenderSystem.disableDepthTest();
-        RenderSystem.depthMask(false);
 
         context.matrixStack().push();
         context.matrixStack().translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
 
         float thickness = Math.max(0.5F, itemOutlineThickness);
-        VertexConsumer coreConsumer = context.consumers().getBuffer(RenderLayer.getDebugLineStrip(thickness));
+        VertexConsumer coreConsumer = context.consumers().getBuffer(getItemOutlineLayer(thickness));
         VertexConsumer glowConsumer = itemOutlineGlowEnabled
-                ? context.consumers().getBuffer(RenderLayer.getDebugLineStrip(thickness * 1.8F))
+                ? context.consumers().getBuffer(getItemOutlineLayer(Math.max(0.5F, thickness * 1.8F)))
                 : null;
 
         Iterable<Entity> entities = client.world.getEntities();
@@ -2135,8 +2138,7 @@ public class PaprikaClient implements ClientModInitializer {
             int baseColor = seedBaseColor(seed);
 
             if (itemOutlineGlowEnabled && glowConsumer != null) {
-                Box glowBox = box.expand(0.03 + thickness * 0.03);
-                addItemOutlineBox(glowConsumer, matrix, glowBox, baseColor, seed, 1.0F, itemOutlineAlpha * 0.38F);
+                addItemOutlineBox(glowConsumer, matrix, box, baseColor, seed, 1.0F, itemOutlineAlpha * 0.38F);
             }
 
             addItemOutlineBox(coreConsumer, matrix, box, baseColor, seed, 0.6F, itemOutlineAlpha);
@@ -2144,8 +2146,6 @@ public class PaprikaClient implements ClientModInitializer {
 
         context.matrixStack().pop();
 
-        RenderSystem.depthMask(true);
-        RenderSystem.enableDepthTest();
     }
 
     private static void renderMarkedTargetDecal(WorldRenderContext context) {
@@ -2233,11 +2233,35 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private static void addItemOutlineLine(VertexConsumer consumer, Matrix4f matrix, double x1, double y1, double z1, double x2, double y2, double z2, int color) {
-        int transparent = color & 0x00FFFFFF;
-        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(transparent);
         consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(color);
         consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(color);
-        consumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(transparent);
+    }
+
+    private static RenderLayer getItemOutlineLayer(float lineWidth) {
+        float clamped = MathHelper.clamp(lineWidth, 0.5F, 12.0F);
+        float key = Math.round(clamped * 10.0F) / 10.0F;
+        RenderLayer cached = itemOutlineLayers.get(key);
+        if (cached != null) {
+            return cached;
+        }
+        RenderLayer layer = RenderLayer.of(
+                "paprika_item_outline_" + key,
+                VertexFormats.POSITION_COLOR,
+                VertexFormat.DrawMode.LINES,
+                1536,
+                RenderLayer.MultiPhaseParameters.builder()
+                        .program(RenderPhase.POSITION_COLOR_PROGRAM)
+                        .lineWidth(new RenderPhase.LineWidth(OptionalDouble.of(key)))
+                        .transparency(RenderPhase.TRANSLUCENT_TRANSPARENCY)
+                        .depthTest(RenderPhase.ALWAYS_DEPTH_TEST)
+                        .cull(RenderPhase.DISABLE_CULLING)
+                        .writeMaskState(RenderPhase.COLOR_MASK)
+                        .target(RenderPhase.ITEM_ENTITY_TARGET)
+                        .layering(RenderPhase.VIEW_OFFSET_Z_LAYERING)
+                        .build(false)
+        );
+        itemOutlineLayers.put(key, layer);
+        return layer;
     }
 
     private static int resolveItemOutlineColor(int baseColor, int seed, float offset, float emissive, float alpha) {
