@@ -118,7 +118,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
-    private static final float AUTO_ATTACK_AIM_SMOOTHING = 0.25F;
+    private static final float AUTO_ATTACK_AIM_SMOOTHING = 0.12F;
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
     private static final RenderLayer ITEM_OUTLINE_QUADS = RenderLayer.of(
             "paprika_item_outline_quads",
