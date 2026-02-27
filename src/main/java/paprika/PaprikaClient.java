@@ -3530,7 +3530,7 @@ public class PaprikaClient implements ClientModInitializer {
         int y2 = y1 + size;
 
         float targetYaw = MathHelper.wrapDegrees(player.getYaw(tickDelta));
-        float targetPitch = MathHelper.clamp(player.getPitch(tickDelta), -60.0F, 60.0F);
+        float targetPitch = MathHelper.clamp(-player.getPitch(tickDelta), -60.0F, 60.0F);
         if (!playerDollSmoothingInit) {
             playerDollYaw = targetYaw;
             playerDollPitch = targetPitch;
