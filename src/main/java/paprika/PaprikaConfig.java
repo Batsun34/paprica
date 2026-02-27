@@ -79,6 +79,7 @@ public final class PaprikaConfig {
         sanitized.trailOthersEnabled = data.trailOthersEnabled;
         sanitized.autoAttackEnabled = data.autoAttackEnabled;
         sanitized.autoAttackAimEnabled = data.autoAttackAimEnabled;
+        sanitized.autoAttackExtendReachEnabled = data.autoAttackExtendReachEnabled;
         sanitized.itemOutlineEnabled = data.itemOutlineEnabled;
         sanitized.jumpBoostEnabled = data.jumpBoostEnabled;
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
@@ -396,6 +397,7 @@ public final class PaprikaConfig {
         public boolean trailOthersEnabled = true;
         public boolean autoAttackEnabled = false;
         public boolean autoAttackAimEnabled = false;
+        public boolean autoAttackExtendReachEnabled = false;
         public boolean itemOutlineEnabled = false;
         public boolean jumpBoostEnabled = false;
         public boolean targetHealthOverlayEnabled = false;

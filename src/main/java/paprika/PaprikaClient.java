@@ -108,6 +108,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final float AUTO_ATTACK_CIRCLE_THICKNESS = 1.6F;
     private static final int AUTO_ATTACK_CIRCLE_SEED = 0xC1CC1E;
     private static final float MARK_AIM_RADIUS = 18.0F;
+    private static final double AUTO_ATTACK_RATE_JITTER = 0.12;
     private static final int MAX_FRIEND_NAME_LENGTH = 16;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int OVERLAY_GROUP_GAP = 4;
@@ -154,6 +155,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean trailOthersEnabled = true;
     private static boolean autoAttackEnabled = false;
     private static boolean autoAttackAimEnabled = false;
+    private static boolean autoAttackExtendReachEnabled = false;
     private static boolean itemOutlineEnabled = false;
     private static boolean panicActive = false;
     private static boolean targetHealthOverlayEnabled = false;
@@ -212,6 +214,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static float autoAttackRate = DEFAULT_AUTO_ATTACK_RATE;
     private static float autoAttackCircleRadius = DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS;
     private static float autoAttackMaxDistance = 3.0F;
+    private static double autoAttackNextInterval = 0.0;
     private static boolean jumpBoostEnabled = false;
     private static float jumpBoostHeight = 0.5F;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
@@ -445,6 +448,8 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setAutoAttackEnabled(boolean enabled) {
         if (autoAttackEnabled == enabled) return;
         autoAttackEnabled = enabled;
+        autoAttackNextInterval = 0.0;
+        lastAutoAttackTime = 0.0;
         saveConfigNow();
     }
 
@@ -455,6 +460,16 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setAutoAttackAimEnabled(boolean enabled) {
         if (autoAttackAimEnabled == enabled) return;
         autoAttackAimEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isAutoAttackExtendReachEnabled() {
+        return autoAttackExtendReachEnabled;
+    }
+
+    public static void setAutoAttackExtendReachEnabled(boolean enabled) {
+        if (autoAttackExtendReachEnabled == enabled) return;
+        autoAttackExtendReachEnabled = enabled;
         saveConfigNow();
     }
 
@@ -2759,6 +2774,7 @@ public class PaprikaClient implements ClientModInitializer {
         playerTrailsEnabled = false;
         autoAttackEnabled = false;
         autoAttackAimEnabled = false;
+        autoAttackExtendReachEnabled = false;
         itemOutlineEnabled = false;
         targetHealthOverlayEnabled = false;
         distanceDisplayEnabled = false;
@@ -2781,6 +2797,7 @@ public class PaprikaClient implements ClientModInitializer {
         trailStates.clear();
         markedPlayerName = null;
         lastAutoAttackTime = 0.0;
+        autoAttackNextInterval = 0.0;
 
         if (client != null) {
             client.setScreen(null);
@@ -2834,26 +2851,27 @@ public class PaprikaClient implements ClientModInitializer {
         if (target == null) return;
 
         double reach = getAttackReach(client.player);
-        if (client.player.squaredDistanceTo(target) > reach * reach) return;
-        if (autoAttackRequireLineOfSight && !client.player.canSee(target)) return;
+        Vec3d aimPoint = resolveAutoAttackAimPoint(client.player, target, reach, tickDelta);
+        if (aimPoint == null) return;
+        if (client.player.getEyePos().squaredDistanceTo(aimPoint) > reach * reach) return;
 
         if (autoAttackAimEnabled) {
-            applyAutoAttackAim(client.player, target, tickDelta);
+            applyAutoAttackAim(client.player, aimPoint);
         }
 
         double now = currentTimeSeconds();
-        double interval = 1.0 / Math.max(0.1, autoAttackRate);
+        double interval = autoAttackNextInterval > 0.0 ? autoAttackNextInterval : (1.0 / Math.max(0.1, autoAttackRate));
         if (now - lastAutoAttackTime < interval) return;
 
         client.interactionManager.attackEntity(client.player, target);
         client.player.swingHand(Hand.MAIN_HAND);
         lastAutoAttackTime = now;
+        autoAttackNextInterval = computeNextAutoAttackInterval();
     }
 
-    private static void applyAutoAttackAim(PlayerEntity player, PlayerEntity target, float tickDelta) {
-        if (player == null || target == null) return;
+    private static void applyAutoAttackAim(PlayerEntity player, Vec3d targetPos) {
+        if (player == null || targetPos == null) return;
         Vec3d eyePos = player.getEyePos();
-        Vec3d targetPos = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
         Vec3d diff = targetPos.subtract(eyePos);
         double dx = diff.x;
         double dy = diff.y;
@@ -2872,6 +2890,105 @@ public class PaprikaClient implements ClientModInitializer {
         float nextPitch = pitch + pitchDelta * AUTO_ATTACK_AIM_SMOOTHING;
         player.setYaw(nextYaw);
         player.setPitch(MathHelper.clamp(nextPitch, -90.0F, 90.0F));
+    }
+
+    private static double computeNextAutoAttackInterval() {
+        double base = 1.0 / Math.max(0.1, autoAttackRate);
+        if (AUTO_ATTACK_RATE_JITTER <= 0.0) return base;
+        double jitter = (Math.random() * 2.0 - 1.0) * AUTO_ATTACK_RATE_JITTER;
+        double factor = MathHelper.clamp(1.0 + jitter, 0.7, 1.3);
+        return base * factor;
+    }
+
+    private static Vec3d resolveAutoAttackAimPoint(PlayerEntity attacker, PlayerEntity target, double reach, float tickDelta) {
+        if (attacker == null || target == null) return null;
+        if (!autoAttackRequireLineOfSight) {
+            return target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+        }
+        return findVisibleAimPoint(attacker, target, reach);
+    }
+
+    private static Vec3d findVisibleAimPoint(PlayerEntity attacker, PlayerEntity target, double reach) {
+        if (attacker == null || target == null || attacker.getWorld() == null) return null;
+        Box box = target.getBoundingBox();
+        if (box == null) return null;
+        double minX = box.minX + 0.02;
+        double maxX = box.maxX - 0.02;
+        double minY = box.minY + 0.02;
+        double maxY = box.maxY - 0.02;
+        double minZ = box.minZ + 0.02;
+        double maxZ = box.maxZ - 0.02;
+        if (minX >= maxX || minY >= maxY || minZ >= maxZ) return null;
+
+        double height = maxY - minY;
+        double width = maxX - minX;
+        double midX = (minX + maxX) * 0.5;
+        double headY = maxY - height * 0.1;
+        double torsoY = minY + height * 0.6;
+        double legsY = minY + height * 0.2;
+        double armY = minY + height * 0.6;
+
+        double armWidth = width * 0.35;
+        double leftArmMinX = minX;
+        double leftArmMaxX = Math.min(maxX, minX + armWidth);
+        double rightArmMinX = Math.max(minX, maxX - armWidth);
+        double rightArmMaxX = maxX;
+        double leftLegMinX = minX;
+        double leftLegMaxX = midX;
+        double rightLegMinX = midX;
+        double rightLegMaxX = maxX;
+
+        Vec3d eye = attacker.getEyePos();
+        double maxDistSq = reach * reach;
+
+        Vec3d point;
+        point = findVisiblePointInGrid(attacker, eye, headY, minX, maxX, minZ, maxZ, maxDistSq);
+        if (point != null) return point;
+        point = findVisiblePointInGrid(attacker, eye, torsoY, minX, maxX, minZ, maxZ, maxDistSq);
+        if (point != null) return point;
+        point = findVisiblePointInGrid(attacker, eye, armY, leftArmMinX, leftArmMaxX, minZ, maxZ, maxDistSq);
+        if (point != null) return point;
+        point = findVisiblePointInGrid(attacker, eye, armY, rightArmMinX, rightArmMaxX, minZ, maxZ, maxDistSq);
+        if (point != null) return point;
+        point = findVisiblePointInGrid(attacker, eye, legsY, leftLegMinX, leftLegMaxX, minZ, maxZ, maxDistSq);
+        if (point != null) return point;
+        return findVisiblePointInGrid(attacker, eye, legsY, rightLegMinX, rightLegMaxX, minZ, maxZ, maxDistSq);
+    }
+
+    private static Vec3d findVisiblePointInGrid(PlayerEntity attacker, Vec3d eye, double y, double minX, double maxX, double minZ, double maxZ, double maxDistSq) {
+        if (minX >= maxX || minZ >= maxZ) return null;
+        int steps = 4;
+        for (int ix = 0; ix < steps; ix++) {
+            double fx = (ix + 0.5) / steps;
+            double x = MathHelper.lerp(fx, minX, maxX);
+            for (int iz = 0; iz < steps; iz++) {
+                double fz = (iz + 0.5) / steps;
+                double z = MathHelper.lerp(fz, minZ, maxZ);
+                Vec3d point = new Vec3d(x, y, z);
+                if (eye.squaredDistanceTo(point) > maxDistSq) continue;
+                if (hasLineOfSight(attacker, eye, point)) {
+                    return point;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean hasLineOfSight(PlayerEntity attacker, Vec3d eye, Vec3d point) {
+        if (attacker == null || attacker.getWorld() == null) return false;
+        HitResult hit = attacker.getWorld().raycast(new net.minecraft.world.RaycastContext(
+                eye,
+                point,
+                net.minecraft.world.RaycastContext.ShapeType.OUTLINE,
+                net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                attacker
+        ));
+        if (hit == null || hit.getType() == HitResult.Type.MISS) {
+            return true;
+        }
+        double hitDistSq = hit.getPos().squaredDistanceTo(eye);
+        double targetDistSq = point.squaredDistanceTo(eye);
+        return hitDistSq + 0.001 >= targetDistSq;
     }
 
     private static PlayerEntity selectAutoAttackTarget(
@@ -2994,6 +3111,9 @@ public class PaprikaClient implements ClientModInitializer {
         if (player == null) return 3.0;
         double reach = player.getAttributeValue(EntityAttributes.ENTITY_INTERACTION_RANGE);
         double base = reach > 0.0 ? reach : 3.0;
+        if (!autoAttackExtendReachEnabled) {
+            return base;
+        }
         return Math.max(base, autoAttackMaxDistance);
     }
 
@@ -4023,6 +4143,7 @@ public class PaprikaClient implements ClientModInitializer {
         trailOthersEnabled = config.trailOthersEnabled;
         autoAttackEnabled = config.autoAttackEnabled;
         autoAttackAimEnabled = config.autoAttackAimEnabled;
+        autoAttackExtendReachEnabled = config.autoAttackExtendReachEnabled;
         itemOutlineEnabled = config.itemOutlineEnabled;
         loadFriends(config.friendNames);
         loadItemFilters(config.itemFilterIds);
@@ -4109,6 +4230,7 @@ public class PaprikaClient implements ClientModInitializer {
         itemOutlineMode = parseItemOutlineMode(config.itemOutlineMode);
         autoAttackMode = parseAutoAttackMode(config.autoAttackMode);
         autoAttackCircleColorMode = parseCircleColorMode(config.autoAttackCircleColorMode);
+        autoAttackNextInterval = 0.0;
         trailType = parseTrailType(config.trailType);
         trailOrigin = parseTrailOrigin(config.trailOrigin);
         trailColorMode = parseTrailColorMode(config.trailColorMode);
@@ -4292,6 +4414,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.trailOthersEnabled = trailOthersEnabled;
         data.autoAttackEnabled = autoAttackEnabled;
         data.autoAttackAimEnabled = autoAttackAimEnabled;
+        data.autoAttackExtendReachEnabled = autoAttackExtendReachEnabled;
         data.itemOutlineEnabled = itemOutlineEnabled;
         data.jumpBoostEnabled = jumpBoostEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;

@@ -800,6 +800,7 @@ public class PaprikaMenuScreen extends Screen {
                         ),
                         Control.slider("auto_attack.rate", "Hits Per Second", 1.0, 20.0, 0.5, PaprikaClient::getAutoAttackRate, value -> PaprikaClient.setAutoAttackRate((float) value)),
                         Control.slider("auto_attack.reach", "Max Reach", 3.0, 20.0, 0.5, PaprikaClient::getAutoAttackMaxDistance, value -> PaprikaClient.setAutoAttackMaxDistance((float) value)),
+                        Control.toggle("auto_attack.extend", "Extended Reach", PaprikaClient::isAutoAttackExtendReachEnabled, PaprikaClient::setAutoAttackExtendReachEnabled),
                         Control.toggle("auto_attack.los", "Require Line of Sight", PaprikaClient::isAutoAttackRequireLineOfSight, PaprikaClient::setAutoAttackRequireLineOfSight),
                         Control.toggle("auto_attack.aim", "Aim Follow", PaprikaClient::isAutoAttackAimEnabled, PaprikaClient::setAutoAttackAimEnabled)
                 )));
