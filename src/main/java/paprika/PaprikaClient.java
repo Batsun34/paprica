@@ -37,9 +37,6 @@ import net.minecraft.item.ModelTransformationMode;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.registry.Registries;
-import net.minecraft.registry.entry.RegistryEntry;
-import net.minecraft.sound.SoundEvent;
-import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Hand;
@@ -3012,34 +3009,13 @@ public class PaprikaClient implements ClientModInitializer {
         keyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
     }
 
-    public static void handleAttackSoundFromEntity(RegistryEntry<SoundEvent> sound, int entityId) {
+    public static void handleEntityDamage(int sourceCauseId, int sourceDirectId) {
         if (!hitCounterEnabled || panicActive) return;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.world == null) return;
-        if (!isAttackSound(sound)) return;
-        if (entityId != client.player.getId()) return;
+        int playerId = client.player.getId();
+        if (sourceCauseId != playerId && sourceDirectId != playerId) return;
         recordHitForCounter();
-    }
-
-    public static void handleAttackSound(RegistryEntry<SoundEvent> sound, double x, double y, double z) {
-        if (!hitCounterEnabled || panicActive) return;
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.player == null || client.world == null) return;
-        if (!isAttackSound(sound)) return;
-        double distanceSq = client.player.squaredDistanceTo(x, y, z);
-        if (distanceSq > 2.25) return;
-        recordHitForCounter();
-    }
-
-    private static boolean isAttackSound(RegistryEntry<SoundEvent> soundEntry) {
-        if (soundEntry == null) return false;
-        SoundEvent sound = soundEntry.value();
-        return sound == SoundEvents.ENTITY_PLAYER_ATTACK_STRONG
-                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_WEAK
-                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_CRIT
-                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_KNOCKBACK
-                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP
-                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE;
     }
 
     private static void recordHitForCounter() {
