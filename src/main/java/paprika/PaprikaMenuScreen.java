@@ -1045,7 +1045,9 @@ public class PaprikaMenuScreen extends Screen {
                             () -> PaprikaClient.getPlayerDollCorner().ordinal(),
                             idx -> PaprikaClient.setPlayerDollCorner(PaprikaClient.HudCorner.values()[idx])
                     ),
-                    Control.slider("player_doll.size", "Size", 30.0, 240.0, 2.0, PaprikaClient::getPlayerDollSize, value -> PaprikaClient.setPlayerDollSize((float) value))
+                    Control.slider("player_doll.size", "Size", 30.0, 240.0, 2.0, PaprikaClient::getPlayerDollSize, value -> PaprikaClient.setPlayerDollSize((float) value)),
+                    Control.slider("player_doll.offset_x", "Offset X", -4096.0, 4096.0, 1.0, () -> PaprikaClient.getPlayerDollOffsetX(), value -> PaprikaClient.setPlayerDollOffsetX((int) Math.round(value))),
+                    Control.slider("player_doll.offset_y", "Offset Y", -4096.0, 4096.0, 1.0, () -> PaprikaClient.getPlayerDollOffsetY(), value -> PaprikaClient.setPlayerDollOffsetY((int) Math.round(value)))
             )));
             case MENU -> panels.add(new Panel("Menu", 0, List.of(
                     Control.label("menu.enabled", "Enabled", () -> "Always ON"),

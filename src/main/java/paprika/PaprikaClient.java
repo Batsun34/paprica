@@ -81,6 +81,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int DEFAULT_PLAYER_LIST_MAX_HEIGHT = 280;
     private static final float DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
     private static final float DEFAULT_PLAYER_DOLL_SIZE = 70.0F;
+    private static final float PLAYER_DOLL_RENDER_SCALE = 0.62F;
+    private static final float PLAYER_DOLL_SMOOTHING = 0.18F;
     private static final int PLAYER_DOLL_PADDING = 6;
     private static final float DEFAULT_RAY_LABEL_TEXT_SCALE = 0.75F;
     private static final float DEFAULT_TARGET_HEALTH_TEXT_SCALE = 1.0F;
@@ -175,6 +177,11 @@ public class PaprikaClient implements ClientModInitializer {
     private static float armorOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
     private static float heldItemOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
     private static float playerDollSize = DEFAULT_PLAYER_DOLL_SIZE;
+    private static int playerDollOffsetX = 0;
+    private static int playerDollOffsetY = 0;
+    private static float playerDollYaw = 0.0F;
+    private static float playerDollPitch = 0.0F;
+    private static boolean playerDollSmoothingInit = false;
     private static float rayAlpha = 1.0F;
     private static float armorAlpha = 1.0F;
     private static float heldItemAlpha = 1.0F;
@@ -333,6 +340,9 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setPlayerDollEnabled(boolean enabled) {
         if (playerDollEnabled == enabled) return;
         playerDollEnabled = enabled;
+        if (enabled) {
+            playerDollSmoothingInit = false;
+        }
         saveConfigNow();
     }
 
@@ -344,6 +354,28 @@ public class PaprikaClient implements ClientModInitializer {
         float clamped = MathHelper.clamp(size, 30.0F, 240.0F);
         if (Math.abs(playerDollSize - clamped) < 0.0001F) return;
         playerDollSize = clamped;
+        saveConfigNow();
+    }
+
+    public static int getPlayerDollOffsetX() {
+        return playerDollOffsetX;
+    }
+
+    public static void setPlayerDollOffsetX(int offset) {
+        int clamped = MathHelper.clamp(offset, -4096, 4096);
+        if (playerDollOffsetX == clamped) return;
+        playerDollOffsetX = clamped;
+        saveConfigNow();
+    }
+
+    public static int getPlayerDollOffsetY() {
+        return playerDollOffsetY;
+    }
+
+    public static void setPlayerDollOffsetY(int offset) {
+        int clamped = MathHelper.clamp(offset, -4096, 4096);
+        if (playerDollOffsetY == clamped) return;
+        playerDollOffsetY = clamped;
         saveConfigNow();
     }
 
@@ -1956,18 +1988,18 @@ public class PaprikaClient implements ClientModInitializer {
         int screenWidth = drawContext.getScaledWindowWidth();
         int screenHeight = drawContext.getScaledWindowHeight();
         if (screenWidth <= 0 || screenHeight <= 0) return;
+        float tickDelta = tickCounter.getTickDelta(false);
         if (playerListEnabled) {
             renderPlayerList(drawContext, client, localPlayer);
         }
         if (playerDollEnabled) {
-            renderPlayerDoll(drawContext, client, localPlayer, screenWidth, screenHeight);
+            renderPlayerDoll(drawContext, client, localPlayer, screenWidth, screenHeight, tickDelta);
         }
         if (client.gameRenderer == null) return;
 
         Camera camera = client.gameRenderer.getCamera();
         if (camera == null || !camera.isReady()) return;
 
-        float tickDelta = tickCounter.getTickDelta(false);
         float fov = client.options.getFov().getValue().floatValue();
         if (client.gameRenderer instanceof GameRendererAccessor accessor) {
             fov = accessor.paprika$getFov(camera, tickDelta, true);
@@ -2739,6 +2771,11 @@ public class PaprikaClient implements ClientModInitializer {
         handOffsetX = 0.0F;
         handOffsetY = 0.0F;
         jumpBoostEnabled = false;
+        playerDollSize = DEFAULT_PLAYER_DOLL_SIZE;
+        playerDollOffsetX = 0;
+        playerDollOffsetY = 0;
+        playerDollCorner = HudCorner.TOP_LEFT;
+        playerDollSmoothingInit = false;
 
         trailSegments.clear();
         trailStates.clear();
@@ -3450,7 +3487,8 @@ public class PaprikaClient implements ClientModInitializer {
             MinecraftClient client,
             PlayerEntity player,
             int screenWidth,
-            int screenHeight
+            int screenHeight,
+            float tickDelta
     ) {
         if (player == null) return;
         int size = Math.round(playerDollSize);
@@ -3483,14 +3521,26 @@ public class PaprikaClient implements ClientModInitializer {
             }
         }
 
+        x1 += playerDollOffsetX;
+        y1 += playerDollOffsetY;
+        x1 = MathHelper.clamp(x1, 0, Math.max(0, screenWidth - size));
+        y1 = MathHelper.clamp(y1, 0, Math.max(0, screenHeight - size));
+
         int x2 = x1 + size;
         int y2 = y1 + size;
 
-        float yaw = MathHelper.wrapDegrees(player.getYaw());
-        float pitch = MathHelper.clamp(player.getPitch(), -45.0F, 45.0F);
-        float yawClamped = MathHelper.clamp(yaw, -45.0F, 45.0F);
-        float i = (float) Math.toRadians(yawClamped);
-        float j = (float) Math.toRadians(-pitch);
+        float targetYaw = MathHelper.wrapDegrees(player.getYaw(tickDelta));
+        float targetPitch = MathHelper.clamp(player.getPitch(tickDelta), -45.0F, 45.0F);
+        if (!playerDollSmoothingInit) {
+            playerDollYaw = targetYaw;
+            playerDollPitch = targetPitch;
+            playerDollSmoothingInit = true;
+        } else {
+            playerDollYaw = MathHelper.lerpAngleDegrees(PLAYER_DOLL_SMOOTHING, playerDollYaw, targetYaw);
+            playerDollPitch = MathHelper.lerp(PLAYER_DOLL_SMOOTHING, playerDollPitch, targetPitch);
+        }
+        float i = MathHelper.clamp(playerDollYaw / 45.0F, -1.0F, 1.0F);
+        float j = MathHelper.clamp(playerDollPitch / 45.0F, -1.0F, 1.0F);
 
         drawContext.enableScissor(x1, y1, x2, y2);
 
@@ -3512,7 +3562,7 @@ public class PaprikaClient implements ClientModInitializer {
 
         float scale = player.getScale();
         Vector3f translation = new Vector3f(0.0F, player.getHeight() / 2.0F + 0.0625F * scale, 0.0F);
-        float renderSize = size / scale;
+        float renderSize = (size * PLAYER_DOLL_RENDER_SCALE) / scale;
         InventoryScreen.drawEntity(drawContext, (x1 + x2) / 2.0F, (y1 + y2) / 2.0F, renderSize, translation, quaternionf, quaternionf2, player);
 
         player.bodyYaw = baseYaw;
@@ -4007,6 +4057,8 @@ public class PaprikaClient implements ClientModInitializer {
         playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
         playerListAlphaMultiplier = MathHelper.clamp(config.playerListAlpha, 0.1F, 1.0F);
         playerDollSize = MathHelper.clamp(config.playerDollSize, 30.0F, 240.0F);
+        playerDollOffsetX = MathHelper.clamp(config.playerDollOffsetX, -4096, 4096);
+        playerDollOffsetY = MathHelper.clamp(config.playerDollOffsetY, -4096, 4096);
         rayVisualSaturationBoost = MathHelper.clamp(config.rayVisualSaturationBoost, 1.0F, 2.5F);
         rayVisualAnimationSpeed = MathHelper.clamp(config.rayVisualAnimationSpeed, 0.2F, 4.0F);
         armorVisualSaturationBoost = MathHelper.clamp(config.armorVisualSaturationBoost, 1.0F, 2.5F);
@@ -4047,6 +4099,7 @@ public class PaprikaClient implements ClientModInitializer {
         heldItemAnchorMode = parseOverlayAnchorMode(config.heldItemAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
         distanceAnchorMode = parseOverlayAnchorMode(config.distanceAnchorMode, OverlayAnchorMode.RAY_MIDDLE);
         playerDollCorner = parseHudCorner(config.playerDollCorner, HudCorner.TOP_LEFT);
+        playerDollSmoothingInit = false;
         rayVisualColorMode = parseVisualColorMode(config.rayVisualColorMode, VisualColorMode.NICK);
         armorVisualColorMode = parseVisualColorMode(config.armorVisualColorMode, VisualColorMode.NICK);
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
@@ -4272,6 +4325,8 @@ public class PaprikaClient implements ClientModInitializer {
         data.playerListMaxHeight = playerListMaxHeight;
         data.playerListAlpha = playerListAlphaMultiplier;
         data.playerDollSize = playerDollSize;
+        data.playerDollOffsetX = playerDollOffsetX;
+        data.playerDollOffsetY = playerDollOffsetY;
         data.rayVisualSaturationBoost = rayVisualSaturationBoost;
         data.rayVisualAnimationSpeed = rayVisualAnimationSpeed;
         data.armorVisualSaturationBoost = armorVisualSaturationBoost;

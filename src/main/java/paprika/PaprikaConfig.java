@@ -116,6 +116,8 @@ public final class PaprikaConfig {
         sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
         sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
         sanitized.playerDollSize = MathHelper.clamp(data.playerDollSize, 30.0F, 240.0F);
+        sanitized.playerDollOffsetX = MathHelper.clamp(data.playerDollOffsetX, -4096, 4096);
+        sanitized.playerDollOffsetY = MathHelper.clamp(data.playerDollOffsetY, -4096, 4096);
         sanitized.rayOrigin = sanitizeRayOrigin(data.rayOrigin);
         sanitized.armorAnchorMode = sanitizeOverlayAnchorMode(data.armorAnchorMode, PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER);
         sanitized.heldItemAnchorMode = sanitizeOverlayAnchorMode(data.heldItemAnchorMode, PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER);
@@ -431,6 +433,8 @@ public final class PaprikaConfig {
         public int playerListOffsetX = 6;
         public int playerListOffsetY = 6;
         public float playerDollSize = 70.0F;
+        public int playerDollOffsetX = 0;
+        public int playerDollOffsetY = 0;
         public String rayOrigin = PaprikaClient.RayOrigin.BOTTOM.name();
         public String armorAnchorMode = PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER.name();
         public String heldItemAnchorMode = PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER.name();
