@@ -87,6 +87,7 @@ public final class PaprikaConfig {
         sanitized.targetHealthOverlayEnabled = data.targetHealthOverlayEnabled;
         sanitized.targetHealthDynamicColorEnabled = data.targetHealthDynamicColorEnabled;
         sanitized.distanceDisplayEnabled = data.distanceDisplayEnabled;
+        sanitized.hitCounterEnabled = data.hitCounterEnabled;
         sanitized.heldItemOverlayEnabled = data.heldItemOverlayEnabled;
         sanitized.customSkyEnabled = data.customSkyEnabled;
         sanitized.skyTopRainbowEnabled = data.skyTopRainbowEnabled;
@@ -118,6 +119,8 @@ public final class PaprikaConfig {
         sanitized.playerListAlpha = MathHelper.clamp(data.playerListAlpha, 0.1F, 1.0F);
         sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
         sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
+        sanitized.hitCounterOffsetX = MathHelper.clamp(data.hitCounterOffsetX, -4096, 4096);
+        sanitized.hitCounterOffsetY = MathHelper.clamp(data.hitCounterOffsetY, -4096, 4096);
         sanitized.playerDollSize = MathHelper.clamp(data.playerDollSize, 30.0F, 240.0F);
         sanitized.playerDollOffsetX = MathHelper.clamp(data.playerDollOffsetX, -4096, 4096);
         sanitized.playerDollOffsetY = MathHelper.clamp(data.playerDollOffsetY, -4096, 4096);
@@ -407,6 +410,7 @@ public final class PaprikaConfig {
         public boolean targetHealthOverlayEnabled = false;
         public boolean targetHealthDynamicColorEnabled = true;
         public boolean distanceDisplayEnabled = true;
+        public boolean hitCounterEnabled = false;
         public boolean heldItemOverlayEnabled = false;
         public boolean customSkyEnabled = false;
         public boolean skyTopRainbowEnabled = false;
@@ -438,6 +442,8 @@ public final class PaprikaConfig {
         public float playerListAlpha = 0.7F;
         public int playerListOffsetX = 6;
         public int playerListOffsetY = 6;
+        public int hitCounterOffsetX = 6;
+        public int hitCounterOffsetY = 6;
         public float playerDollSize = 70.0F;
         public int playerDollOffsetX = 0;
         public int playerDollOffsetY = 0;

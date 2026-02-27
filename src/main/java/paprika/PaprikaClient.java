@@ -37,6 +37,9 @@ import net.minecraft.item.ModelTransformationMode;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Hand;
@@ -163,6 +166,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean targetHealthOverlayEnabled = false;
     private static boolean targetHealthDynamicColorEnabled = true;
     private static boolean distanceDisplayEnabled = true;
+    private static boolean hitCounterEnabled = false;
     private static boolean heldItemOverlayEnabled = false;
     private static boolean customSkyEnabled = false;
     private static boolean skyTopRainbowEnabled = false;
@@ -227,6 +231,10 @@ public class PaprikaClient implements ClientModInitializer {
     private static HandItemOrientation handItemOrientation = HandItemOrientation.DEFAULT;
     private static int playerListOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
+    private static int hitCounterOffsetX = DEFAULT_PLAYER_LIST_X;
+    private static int hitCounterOffsetY = DEFAULT_PLAYER_LIST_Y;
+    private static int hitCounterValue = 0;
+    private static long lastHitCounterTick = -1L;
     private static String menuLastTabId = "RAYS";
     private static double menuScrollOffset = 0.0;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
@@ -337,6 +345,16 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setPlayerListEnabled(boolean enabled) {
         if (playerListEnabled == enabled) return;
         playerListEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isHitCounterEnabled() {
+        return hitCounterEnabled;
+    }
+
+    public static void setHitCounterEnabled(boolean enabled) {
+        if (hitCounterEnabled == enabled) return;
+        hitCounterEnabled = enabled;
         saveConfigNow();
     }
 
@@ -1617,6 +1635,28 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static int getHitCounterOffsetX() {
+        return hitCounterOffsetX;
+    }
+
+    public static void setHitCounterOffsetX(int offsetX) {
+        int clamped = MathHelper.clamp(offsetX, -MAX_PLAYER_LIST_OFFSET, MAX_PLAYER_LIST_OFFSET);
+        if (hitCounterOffsetX == clamped) return;
+        hitCounterOffsetX = clamped;
+        saveConfigNow();
+    }
+
+    public static int getHitCounterOffsetY() {
+        return hitCounterOffsetY;
+    }
+
+    public static void setHitCounterOffsetY(int offsetY) {
+        int clamped = MathHelper.clamp(offsetY, -MAX_PLAYER_LIST_OFFSET, MAX_PLAYER_LIST_OFFSET);
+        if (hitCounterOffsetY == clamped) return;
+        hitCounterOffsetY = clamped;
+        saveConfigNow();
+    }
+
     public static RayOrigin getRayOrigin() {
         return rayOrigin;
     }
@@ -1846,6 +1886,8 @@ public class PaprikaClient implements ClientModInitializer {
         if (player == null || client.world == null) {
             trailSegments.clear();
             trailStates.clear();
+            hitCounterValue = 0;
+            lastHitCounterTick = -1L;
             return;
         }
 
@@ -2071,6 +2113,9 @@ public class PaprikaClient implements ClientModInitializer {
         if (autoAttackEnabled && (autoAttackMode == AutoAttackMode.CIRCLE || autoAttackMode == AutoAttackMode.CIRCLE_MARK)) {
             renderAutoAttackCircle(drawContext, screenWidth, screenHeight);
         }
+        if (hitCounterEnabled) {
+            renderHitCounter(drawContext, client);
+        }
         if (!playerRaysEnabled) return;
 
         Vector3f projected = new Vector3f();
@@ -2170,6 +2215,14 @@ public class PaprikaClient implements ClientModInitializer {
                 );
             }
         });
+    }
+
+    private static void renderHitCounter(DrawContext drawContext, MinecraftClient client) {
+        if (client == null || client.textRenderer == null) return;
+        String text = "Hits: " + hitCounterValue;
+        int x = hitCounterOffsetX;
+        int y = hitCounterOffsetY;
+        drawContext.drawTextWithShadow(client.textRenderer, text, x, y, 0xFFE5EEF9);
     }
 
     private static void drawThickRay(
@@ -2806,6 +2859,7 @@ public class PaprikaClient implements ClientModInitializer {
         itemOutlineEnabled = false;
         targetHealthOverlayEnabled = false;
         distanceDisplayEnabled = false;
+        hitCounterEnabled = false;
         heldItemOverlayEnabled = false;
         customSkyEnabled = false;
         hideHandsWithItemEnabled = false;
@@ -2823,6 +2877,8 @@ public class PaprikaClient implements ClientModInitializer {
 
         trailSegments.clear();
         trailStates.clear();
+        hitCounterValue = 0;
+        lastHitCounterTick = -1L;
         markedPlayerName = null;
         lastAutoAttackTime = 0.0;
         autoAttackNextInterval = 0.0;
@@ -2855,6 +2911,46 @@ public class PaprikaClient implements ClientModInitializer {
     private static void clearKey(KeyBinding keyBinding) {
         if (keyBinding == null) return;
         keyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
+    }
+
+    public static void handleAttackSoundFromEntity(RegistryEntry<SoundEvent> sound, int entityId) {
+        if (!hitCounterEnabled || panicActive) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) return;
+        if (!isAttackSound(sound)) return;
+        if (entityId != client.player.getId()) return;
+        incrementHitCounter(client);
+    }
+
+    public static void handleAttackSound(RegistryEntry<SoundEvent> sound, double x, double y, double z) {
+        if (!hitCounterEnabled || panicActive) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) return;
+        if (!isAttackSound(sound)) return;
+        double distanceSq = client.player.squaredDistanceTo(x, y, z);
+        if (distanceSq > 2.25) return;
+        incrementHitCounter(client);
+    }
+
+    private static boolean isAttackSound(RegistryEntry<SoundEvent> soundEntry) {
+        if (soundEntry == null) return false;
+        SoundEvent sound = soundEntry.value();
+        return sound == SoundEvents.ENTITY_PLAYER_ATTACK_STRONG
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_WEAK
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_CRIT
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_KNOCKBACK
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE;
+    }
+
+    private static void incrementHitCounter(MinecraftClient client) {
+        if (client == null || client.world == null) return;
+        long tick = client.world.getTime();
+        if (tick == lastHitCounterTick) return;
+        lastHitCounterTick = tick;
+        if (hitCounterValue < Integer.MAX_VALUE) {
+            hitCounterValue++;
+        }
     }
 
     private static void tryAutoAttack(MinecraftClient client) {
@@ -4292,6 +4388,7 @@ public class PaprikaClient implements ClientModInitializer {
         targetHealthOverlayEnabled = config.targetHealthOverlayEnabled;
         targetHealthDynamicColorEnabled = config.targetHealthDynamicColorEnabled;
         distanceDisplayEnabled = config.distanceDisplayEnabled;
+        hitCounterEnabled = config.hitCounterEnabled;
         heldItemOverlayEnabled = config.heldItemOverlayEnabled;
         customSkyEnabled = config.customSkyEnabled;
         skyTopRainbowEnabled = config.skyTopRainbowEnabled;
@@ -4349,6 +4446,8 @@ public class PaprikaClient implements ClientModInitializer {
         handOffsetY = MathHelper.clamp(config.handOffsetY, -1.5F, 1.5F);
         playerListOffsetX = MathHelper.clamp(config.playerListOffsetX, 0, MAX_PLAYER_LIST_OFFSET);
         playerListOffsetY = MathHelper.clamp(config.playerListOffsetY, 0, MAX_PLAYER_LIST_OFFSET);
+        hitCounterOffsetX = MathHelper.clamp(config.hitCounterOffsetX, -MAX_PLAYER_LIST_OFFSET, MAX_PLAYER_LIST_OFFSET);
+        hitCounterOffsetY = MathHelper.clamp(config.hitCounterOffsetY, -MAX_PLAYER_LIST_OFFSET, MAX_PLAYER_LIST_OFFSET);
         skyTopColor = config.skyTopColor & 0xFFFFFF;
         skyBottomColor = config.skyBottomColor & 0xFFFFFF;
         trailFixedColor = config.trailFixedColor & 0xFFFFFF;
@@ -4564,6 +4663,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
         data.targetHealthDynamicColorEnabled = targetHealthDynamicColorEnabled;
         data.distanceDisplayEnabled = distanceDisplayEnabled;
+        data.hitCounterEnabled = hitCounterEnabled;
         data.heldItemOverlayEnabled = heldItemOverlayEnabled;
         data.customSkyEnabled = customSkyEnabled;
         data.skyTopRainbowEnabled = skyTopRainbowEnabled;
@@ -4621,6 +4721,8 @@ public class PaprikaClient implements ClientModInitializer {
         data.handOffsetY = handOffsetY;
         data.playerListOffsetX = playerListOffsetX;
         data.playerListOffsetY = playerListOffsetY;
+        data.hitCounterOffsetX = hitCounterOffsetX;
+        data.hitCounterOffsetY = hitCounterOffsetY;
         data.skyTopColor = skyTopColor & 0xFFFFFF;
         data.skyBottomColor = skyBottomColor & 0xFFFFFF;
         data.trailFixedColor = trailFixedColor & 0xFFFFFF;

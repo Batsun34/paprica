@@ -820,6 +820,17 @@ public class PaprikaMenuScreen extends Screen {
                         Control.slider("auto_attack.circle_g", "Circle Green", 0, 255, 1, PaprikaClient::getAutoAttackCircleGreen, value -> PaprikaClient.setAutoAttackCircleGreen((int) value)),
                         Control.slider("auto_attack.circle_b", "Circle Blue", 0, 255, 1, PaprikaClient::getAutoAttackCircleBlue, value -> PaprikaClient.setAutoAttackCircleBlue((int) value))
                 )));
+                panels.add(new Panel("Hit Counter", 1, List.of(
+                        Control.toggle("auto_attack.hit_counter", "Enabled", PaprikaClient::isHitCounterEnabled, PaprikaClient::setHitCounterEnabled),
+                        Control.slider("auto_attack.hit_counter_x", "Offset X", -4096.0, 4096.0, 1.0,
+                                () -> PaprikaClient.getHitCounterOffsetX(),
+                                value -> PaprikaClient.setHitCounterOffsetX((int) Math.round(value))
+                        ),
+                        Control.slider("auto_attack.hit_counter_y", "Offset Y", -4096.0, 4096.0, 1.0,
+                                () -> PaprikaClient.getHitCounterOffsetY(),
+                                value -> PaprikaClient.setHitCounterOffsetY((int) Math.round(value))
+                        )
+                )));
             }
             case FRIENDS -> {
                 List<Control> friendControls = new ArrayList<>();
