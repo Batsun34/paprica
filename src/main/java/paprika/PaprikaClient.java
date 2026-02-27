@@ -1977,6 +1977,7 @@ public class PaprikaClient implements ClientModInitializer {
 
         while (unmarkTargetKey.wasPressed()) {
             markedPlayerName = null;
+            autoAttackDebugPoints.clear();
             player.sendMessage(
                     Text.literal("[Paprika] Mark cleared"),
                     true
@@ -2005,6 +2006,7 @@ public class PaprikaClient implements ClientModInitializer {
 
         updatePlayerTrails(client);
         tryAutoAttack(client);
+        updateMarkedTargetDebugPoints(client);
 
         Vec3d velocity = player.getVelocity();
 
@@ -2955,7 +2957,9 @@ public class PaprikaClient implements ClientModInitializer {
 
     private static void tryAutoAttack(MinecraftClient client) {
         if (!autoAttackEnabled) {
-            autoAttackDebugPoints.clear();
+            if (markedPlayerName == null || markedPlayerName.isBlank()) {
+                autoAttackDebugPoints.clear();
+            }
             return;
         }
         if (client == null || client.player == null || client.world == null || client.interactionManager == null) return;
@@ -3272,6 +3276,18 @@ public class PaprikaClient implements ClientModInitializer {
             }
         }
         return null;
+    }
+
+    private static void updateMarkedTargetDebugPoints(MinecraftClient client) {
+        if (client == null || client.player == null || client.world == null) return;
+        if (markedPlayerName == null || markedPlayerName.isBlank()) return;
+        PlayerEntity target = findMarkedPlayer(client);
+        if (target == null) {
+            autoAttackDebugPoints.clear();
+            return;
+        }
+        autoAttackDebugPoints.clear();
+        findVisibleAimPoint(client.player, target, Double.POSITIVE_INFINITY);
     }
 
     private static double getAttackReach(PlayerEntity player) {
