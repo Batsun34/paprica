@@ -109,6 +109,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int AUTO_ATTACK_CIRCLE_SEED = 0xC1CC1E;
     private static final float MARK_AIM_RADIUS = 18.0F;
     private static final double AUTO_ATTACK_RATE_JITTER = 0.12;
+    private static final float AUTO_ATTACK_CROSSHAIR_MAX_ANGLE = 3.5F;
     private static final int MAX_FRIEND_NAME_LENGTH = 16;
     private static final int ARMOR_OVERLAY_ICON_SPACING = 1;
     private static final int OVERLAY_GROUP_GAP = 4;
@@ -156,6 +157,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean autoAttackEnabled = false;
     private static boolean autoAttackAimEnabled = false;
     private static boolean autoAttackExtendReachEnabled = false;
+    private static boolean autoAttackRequireCrosshairOnPoint = false;
     private static boolean itemOutlineEnabled = false;
     private static boolean panicActive = false;
     private static boolean targetHealthOverlayEnabled = false;
@@ -483,6 +485,16 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setAutoAttackExtendReachEnabled(boolean enabled) {
         if (autoAttackExtendReachEnabled == enabled) return;
         autoAttackExtendReachEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isAutoAttackRequireCrosshairOnPoint() {
+        return autoAttackRequireCrosshairOnPoint;
+    }
+
+    public static void setAutoAttackRequireCrosshairOnPoint(boolean enabled) {
+        if (autoAttackRequireCrosshairOnPoint == enabled) return;
+        autoAttackRequireCrosshairOnPoint = enabled;
         saveConfigNow();
     }
 
@@ -2789,6 +2801,7 @@ public class PaprikaClient implements ClientModInitializer {
         autoAttackEnabled = false;
         autoAttackAimEnabled = false;
         autoAttackExtendReachEnabled = false;
+        autoAttackRequireCrosshairOnPoint = false;
         autoAttackAimSmoothing = DEFAULT_AUTO_ATTACK_AIM_SMOOTHING;
         itemOutlineEnabled = false;
         targetHealthOverlayEnabled = false;
@@ -2880,6 +2893,10 @@ public class PaprikaClient implements ClientModInitializer {
             applyAutoAttackAim(client.player, aimPoint);
         }
 
+        if (autoAttackRequireCrosshairOnPoint && !isCrosshairOnPoint(client.player, aimPoint, AUTO_ATTACK_CROSSHAIR_MAX_ANGLE)) {
+            return;
+        }
+
         if (autoAttackRequireLineOfSight) {
             autoAttackDebugPoints.clear();
             findVisibleAimPoint(client.player, target, reach);
@@ -2929,7 +2946,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static Vec3d resolveAutoAttackAimPoint(PlayerEntity attacker, PlayerEntity target, double reach, float tickDelta) {
         if (attacker == null || target == null) return null;
         autoAttackDebugPoints.clear();
-        if (!autoAttackRequireLineOfSight) {
+        boolean requireVisible = autoAttackRequireLineOfSight || autoAttackRequireCrosshairOnPoint;
+        if (!requireVisible) {
             Vec3d point = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
             autoAttackDebugPoints.add(new AutoAttackDebugPoint(point, true));
             return point;
@@ -2968,24 +2986,33 @@ public class PaprikaClient implements ClientModInitializer {
         double rightLegMaxX = maxX;
 
         Vec3d eye = attacker.getEyePos();
+        Vec3d look = attacker.getRotationVector(attacker.getPitch(), attacker.getYaw()).normalize();
         double maxDistSq = reach * reach;
+        BestAim best = new BestAim();
 
-        Vec3d point;
-        point = findVisiblePointInGrid(attacker, eye, headY, minX, maxX, minZ, maxZ, maxDistSq);
-        if (point != null) return point;
-        point = findVisiblePointInGrid(attacker, eye, torsoY, minX, maxX, minZ, maxZ, maxDistSq);
-        if (point != null) return point;
-        point = findVisiblePointInGrid(attacker, eye, armY, leftArmMinX, leftArmMaxX, minZ, maxZ, maxDistSq);
-        if (point != null) return point;
-        point = findVisiblePointInGrid(attacker, eye, armY, rightArmMinX, rightArmMaxX, minZ, maxZ, maxDistSq);
-        if (point != null) return point;
-        point = findVisiblePointInGrid(attacker, eye, legsY, leftLegMinX, leftLegMaxX, minZ, maxZ, maxDistSq);
-        if (point != null) return point;
-        return findVisiblePointInGrid(attacker, eye, legsY, rightLegMinX, rightLegMaxX, minZ, maxZ, maxDistSq);
+        scanVisiblePoints(attacker, eye, look, headY, minX, maxX, minZ, maxZ, maxDistSq, best);
+        scanVisiblePoints(attacker, eye, look, torsoY, minX, maxX, minZ, maxZ, maxDistSq, best);
+        scanVisiblePoints(attacker, eye, look, armY, leftArmMinX, leftArmMaxX, minZ, maxZ, maxDistSq, best);
+        scanVisiblePoints(attacker, eye, look, armY, rightArmMinX, rightArmMaxX, minZ, maxZ, maxDistSq, best);
+        scanVisiblePoints(attacker, eye, look, legsY, leftLegMinX, leftLegMaxX, minZ, maxZ, maxDistSq, best);
+        scanVisiblePoints(attacker, eye, look, legsY, rightLegMinX, rightLegMaxX, minZ, maxZ, maxDistSq, best);
+
+        return best.point;
     }
 
-    private static Vec3d findVisiblePointInGrid(PlayerEntity attacker, Vec3d eye, double y, double minX, double maxX, double minZ, double maxZ, double maxDistSq) {
-        if (minX >= maxX || minZ >= maxZ) return null;
+    private static void scanVisiblePoints(
+            PlayerEntity attacker,
+            Vec3d eye,
+            Vec3d look,
+            double y,
+            double minX,
+            double maxX,
+            double minZ,
+            double maxZ,
+            double maxDistSq,
+            BestAim best
+    ) {
+        if (minX >= maxX || minZ >= maxZ) return;
         int steps = 4;
         for (int ix = 0; ix < steps; ix++) {
             double fx = (ix + 0.5) / steps;
@@ -2997,12 +3024,25 @@ public class PaprikaClient implements ClientModInitializer {
                 if (eye.squaredDistanceTo(point) > maxDistSq) continue;
                 boolean visible = hasLineOfSight(attacker, eye, point);
                 autoAttackDebugPoints.add(new AutoAttackDebugPoint(point, visible));
-                if (visible) {
-                    return point;
+                if (!visible) continue;
+                Vec3d dir = point.subtract(eye).normalize();
+                double dot = look.dotProduct(dir);
+                if (dot > best.dot) {
+                    best.dot = dot;
+                    best.point = point;
                 }
             }
         }
-        return null;
+    }
+
+    private static boolean isCrosshairOnPoint(PlayerEntity attacker, Vec3d point, float maxAngleDeg) {
+        if (attacker == null || point == null) return false;
+        Vec3d eye = attacker.getEyePos();
+        Vec3d look = attacker.getRotationVector(attacker.getPitch(), attacker.getYaw()).normalize();
+        Vec3d dir = point.subtract(eye).normalize();
+        double dot = look.dotProduct(dir);
+        double cos = Math.cos(Math.toRadians(maxAngleDeg));
+        return dot >= cos;
     }
 
     private static boolean hasLineOfSight(PlayerEntity attacker, Vec3d eye, Vec3d point) {
@@ -4244,6 +4284,7 @@ public class PaprikaClient implements ClientModInitializer {
         autoAttackEnabled = config.autoAttackEnabled;
         autoAttackAimEnabled = config.autoAttackAimEnabled;
         autoAttackExtendReachEnabled = config.autoAttackExtendReachEnabled;
+        autoAttackRequireCrosshairOnPoint = config.autoAttackRequireCrosshairOnPoint;
         autoAttackAimSmoothing = MathHelper.clamp(config.autoAttackAimSmoothing, 0.02F, 0.6F);
         itemOutlineEnabled = config.itemOutlineEnabled;
         loadFriends(config.friendNames);
@@ -4516,6 +4557,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.autoAttackEnabled = autoAttackEnabled;
         data.autoAttackAimEnabled = autoAttackAimEnabled;
         data.autoAttackExtendReachEnabled = autoAttackExtendReachEnabled;
+        data.autoAttackRequireCrosshairOnPoint = autoAttackRequireCrosshairOnPoint;
         data.autoAttackAimSmoothing = autoAttackAimSmoothing;
         data.itemOutlineEnabled = itemOutlineEnabled;
         data.jumpBoostEnabled = jumpBoostEnabled;
@@ -4657,6 +4699,11 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private record AutoAttackDebugPoint(Vec3d pos, boolean visible) {
+    }
+
+    private static final class BestAim {
+        private Vec3d point;
+        private double dot = -1.0;
     }
 
     private static void loadFriends(List<String> names) {

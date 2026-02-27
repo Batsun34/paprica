@@ -803,6 +803,7 @@ public class PaprikaMenuScreen extends Screen {
                         Control.toggle("auto_attack.extend", "Extended Reach", PaprikaClient::isAutoAttackExtendReachEnabled, PaprikaClient::setAutoAttackExtendReachEnabled),
                         Control.toggle("auto_attack.los", "Require Line of Sight", PaprikaClient::isAutoAttackRequireLineOfSight, PaprikaClient::setAutoAttackRequireLineOfSight),
                         Control.toggle("auto_attack.aim", "Aim Follow", PaprikaClient::isAutoAttackAimEnabled, PaprikaClient::setAutoAttackAimEnabled),
+                        Control.toggle("auto_attack.crosshair", "Require Crosshair On Point", PaprikaClient::isAutoAttackRequireCrosshairOnPoint, PaprikaClient::setAutoAttackRequireCrosshairOnPoint),
                         Control.slider("auto_attack.aim_smooth", "Aim Smoothness", 0.02, 0.6, 0.01, PaprikaClient::getAutoAttackAimSmoothing, value -> PaprikaClient.setAutoAttackAimSmoothing((float) value))
                 )));
                 panels.add(new Panel("Mark", 0, List.of(

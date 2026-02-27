@@ -80,6 +80,7 @@ public final class PaprikaConfig {
         sanitized.autoAttackEnabled = data.autoAttackEnabled;
         sanitized.autoAttackAimEnabled = data.autoAttackAimEnabled;
         sanitized.autoAttackExtendReachEnabled = data.autoAttackExtendReachEnabled;
+        sanitized.autoAttackRequireCrosshairOnPoint = data.autoAttackRequireCrosshairOnPoint;
         sanitized.autoAttackAimSmoothing = MathHelper.clamp(data.autoAttackAimSmoothing, 0.02F, 0.6F);
         sanitized.itemOutlineEnabled = data.itemOutlineEnabled;
         sanitized.jumpBoostEnabled = data.jumpBoostEnabled;
@@ -399,6 +400,7 @@ public final class PaprikaConfig {
         public boolean autoAttackEnabled = false;
         public boolean autoAttackAimEnabled = false;
         public boolean autoAttackExtendReachEnabled = false;
+        public boolean autoAttackRequireCrosshairOnPoint = false;
         public float autoAttackAimSmoothing = 0.12F;
         public boolean itemOutlineEnabled = false;
         public boolean jumpBoostEnabled = false;
