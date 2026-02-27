@@ -81,8 +81,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int DEFAULT_PLAYER_LIST_MAX_HEIGHT = 280;
     private static final float DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
     private static final float DEFAULT_PLAYER_DOLL_SIZE = 70.0F;
-    private static final float PLAYER_DOLL_RENDER_SCALE = 0.62F;
-    private static final float PLAYER_DOLL_SMOOTHING = 0.18F;
+    private static final float PLAYER_DOLL_RENDER_SCALE = 0.45F;
+    private static final float PLAYER_DOLL_SMOOTHING = 0.45F;
     private static final int PLAYER_DOLL_PADDING = 6;
     private static final float DEFAULT_RAY_LABEL_TEXT_SCALE = 0.75F;
     private static final float DEFAULT_TARGET_HEALTH_TEXT_SCALE = 1.0F;
@@ -3530,7 +3530,7 @@ public class PaprikaClient implements ClientModInitializer {
         int y2 = y1 + size;
 
         float targetYaw = MathHelper.wrapDegrees(player.getYaw(tickDelta));
-        float targetPitch = MathHelper.clamp(player.getPitch(tickDelta), -45.0F, 45.0F);
+        float targetPitch = MathHelper.clamp(player.getPitch(tickDelta), -60.0F, 60.0F);
         if (!playerDollSmoothingInit) {
             playerDollYaw = targetYaw;
             playerDollPitch = targetPitch;
@@ -3539,8 +3539,8 @@ public class PaprikaClient implements ClientModInitializer {
             playerDollYaw = MathHelper.lerpAngleDegrees(PLAYER_DOLL_SMOOTHING, playerDollYaw, targetYaw);
             playerDollPitch = MathHelper.lerp(PLAYER_DOLL_SMOOTHING, playerDollPitch, targetPitch);
         }
-        float i = MathHelper.clamp(playerDollYaw / 45.0F, -1.0F, 1.0F);
-        float j = MathHelper.clamp(playerDollPitch / 45.0F, -1.0F, 1.0F);
+        float i = MathHelper.clamp(playerDollYaw / 60.0F, -1.0F, 1.0F);
+        float j = MathHelper.clamp(playerDollPitch / 60.0F, -1.0F, 1.0F);
 
         drawContext.enableScissor(x1, y1, x2, y2);
 
