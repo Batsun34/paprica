@@ -829,7 +829,14 @@ public class PaprikaMenuScreen extends Screen {
                         Control.slider("auto_attack.hit_counter_y", "Offset Y", -4096.0, 4096.0, 1.0,
                                 () -> PaprikaClient.getHitCounterOffsetY(),
                                 value -> PaprikaClient.setHitCounterOffsetY((int) Math.round(value))
-                        )
+                        ),
+                        Control.cycle("auto_attack.hit_counter_color", "Color Mode", Control.CIRCLE_COLOR_MODES,
+                                () -> PaprikaClient.getHitCounterColorMode().ordinal(),
+                                idx -> PaprikaClient.setHitCounterColorMode(PaprikaClient.CircleColorMode.values()[idx])
+                        ),
+                        Control.slider("auto_attack.hit_counter_r", "Color Red", 0, 255, 1, PaprikaClient::getHitCounterRed, value -> PaprikaClient.setHitCounterRed((int) value)),
+                        Control.slider("auto_attack.hit_counter_g", "Color Green", 0, 255, 1, PaprikaClient::getHitCounterGreen, value -> PaprikaClient.setHitCounterGreen((int) value)),
+                        Control.slider("auto_attack.hit_counter_b", "Color Blue", 0, 255, 1, PaprikaClient::getHitCounterBlue, value -> PaprikaClient.setHitCounterBlue((int) value))
                 )));
             }
             case FRIENDS -> {
@@ -1170,7 +1177,7 @@ public class PaprikaMenuScreen extends Screen {
 
     private static final class Control {
         private static final String[] COLOR_MODES = new String[]{"Nick", "Gradient", "Nick Gradient", "Rainbow"};
-        private static final String[] ITEM_COLOR_MODES = new String[]{"Nick", "Gradient", "Nick Gradient", "Rainbow", "Solid", "Item Average"};
+        private static final String[] ITEM_COLOR_MODES = new String[]{"Nick", "Gradient", "Rainbow", "Solid", "Item Average"};
         private static final String[] ANCHOR_MODES = new String[]{"Above", "Ray Middle"};
         private static final String[] TRAIL_TYPES = new String[]{"Thin Line", "Floating Line", "Strip"};
         private static final String[] TRAIL_ORIGINS = new String[]{"Back", "Head"};

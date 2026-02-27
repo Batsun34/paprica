@@ -165,6 +165,7 @@ public final class PaprikaConfig {
         sanitized.skyBottomColor = data.skyBottomColor & 0xFFFFFF;
         sanitized.trailFixedColor = data.trailFixedColor & 0xFFFFFF;
         sanitized.autoAttackCircleColor = data.autoAttackCircleColor & 0xFFFFFF;
+        sanitized.hitCounterColor = data.hitCounterColor & 0xFFFFFF;
         sanitized.itemOutlineSolidColor = data.itemOutlineSolidColor & 0xFFFFFF;
         sanitized.menuLastTab = data.menuLastTab == null ? "RAYS" : data.menuLastTab;
         sanitized.menuScrollOffset = data.menuScrollOffset;
@@ -174,6 +175,7 @@ public final class PaprikaConfig {
         sanitized.itemOutlineMode = sanitizeItemOutlineMode(data.itemOutlineMode);
         sanitized.autoAttackMode = sanitizeAutoAttackMode(data.autoAttackMode);
         sanitized.autoAttackCircleColorMode = sanitizeCircleColorMode(data.autoAttackCircleColorMode);
+        sanitized.hitCounterColorMode = sanitizeCircleColorMode(data.hitCounterColorMode);
 
         sanitized.speedToggleKey = sanitizeKey(data.speedToggleKey, "key.keyboard.v");
         sanitized.noKnockbackKey = sanitizeKey(data.noKnockbackKey, "key.keyboard.n");
@@ -383,6 +385,9 @@ public final class PaprikaConfig {
             if ("AVERAGE".equals(normalized) || "AVG".equals(normalized) || "ITEM".equals(normalized)) {
                 return PaprikaClient.ItemOutlineColorMode.ITEM_AVERAGE.name();
             }
+            if ("NICK_GRADIENT".equals(normalized)) {
+                return PaprikaClient.ItemOutlineColorMode.GRADIENT.name();
+            }
             return PaprikaClient.ItemOutlineColorMode.valueOf(normalized).name();
         } catch (IllegalArgumentException ignored) {
             return PaprikaClient.ItemOutlineColorMode.NICK.name();
@@ -488,6 +493,7 @@ public final class PaprikaConfig {
         public int skyBottomColor = 0xA0C8FF;
         public int trailFixedColor = 0x4CB1FF;
         public int autoAttackCircleColor = 0x4CB1FF;
+        public int hitCounterColor = 0x4CB1FF;
         public int itemOutlineSolidColor = 0x4CB1FF;
         public String menuLastTab = "RAYS";
         public double menuScrollOffset = 0.0;
@@ -497,6 +503,7 @@ public final class PaprikaConfig {
         public String itemOutlineMode = PaprikaClient.ItemOutlineMode.ALL.name();
         public String autoAttackMode = PaprikaClient.AutoAttackMode.CIRCLE.name();
         public String autoAttackCircleColorMode = PaprikaClient.CircleColorMode.FIXED.name();
+        public String hitCounterColorMode = PaprikaClient.CircleColorMode.FIXED.name();
 
         public String speedToggleKey = "key.keyboard.v";
         public String noKnockbackKey = "key.keyboard.n";

@@ -63,7 +63,9 @@ import org.joml.Vector3f;
 import java.io.InputStream;
 import java.util.Optional;
 import java.util.ArrayList;
+import java.util.ArrayDeque;
 import java.util.Comparator;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -97,6 +99,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int SKY_TOP_RAINBOW_SEED = 0x52E8D4;
     private static final int SKY_BOTTOM_RAINBOW_SEED = 0xC32B9F;
     private static final float DEFAULT_HAND_FOV_SCALE = 1.0F;
+    private static final double HIT_COUNTER_WINDOW_SECONDS = 1.0;
+    private static final int HIT_COUNTER_SEED = 0x5A12C3;
     private static final float DEFAULT_AUTO_ATTACK_RATE = 6.0F;
     private static final float DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS = 120.0F;
     private static final int DEFAULT_AUTO_ATTACK_CIRCLE_COLOR = 0x4CB1FF;
@@ -233,8 +237,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static int playerListOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static int hitCounterOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int hitCounterOffsetY = DEFAULT_PLAYER_LIST_Y;
-    private static int hitCounterValue = 0;
-    private static long lastHitCounterTick = -1L;
+    private static final Deque<Double> hitCounterTimes = new ArrayDeque<>();
     private static String menuLastTabId = "RAYS";
     private static double menuScrollOffset = 0.0;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
@@ -251,6 +254,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static ItemOutlineMode itemOutlineMode = ItemOutlineMode.ALL;
     private static AutoAttackMode autoAttackMode = AutoAttackMode.CIRCLE;
     private static CircleColorMode autoAttackCircleColorMode = CircleColorMode.FIXED;
+    private static CircleColorMode hitCounterColorMode = CircleColorMode.FIXED;
     private static TrailType trailType = TrailType.THIN_LINE;
     private static TrailOrigin trailOrigin = TrailOrigin.BACK;
     private static TrailColorMode trailColorMode = TrailColorMode.NICK;
@@ -258,6 +262,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static int skyBottomColor = DEFAULT_SKY_BOTTOM_COLOR;
     private static int trailFixedColor = 0x4CB1FF;
     private static int autoAttackCircleColor = DEFAULT_AUTO_ATTACK_CIRCLE_COLOR;
+    private static int hitCounterColor = DEFAULT_AUTO_ATTACK_CIRCLE_COLOR;
     private static KeyBinding toggleKey;
     private static KeyBinding toggleNoKnockbackKey;
     private static KeyBinding togglePlayerEspKey;
@@ -1373,6 +1378,57 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static CircleColorMode getHitCounterColorMode() {
+        return hitCounterColorMode;
+    }
+
+    public static void setHitCounterColorMode(CircleColorMode mode) {
+        CircleColorMode updated = mode == null ? CircleColorMode.FIXED : mode;
+        if (hitCounterColorMode == updated) return;
+        hitCounterColorMode = updated;
+        saveConfigNow();
+    }
+
+    public static int getHitCounterColor() {
+        return hitCounterColor & 0xFFFFFF;
+    }
+
+    public static int getHitCounterRed() {
+        return (hitCounterColor >> 16) & 0xFF;
+    }
+
+    public static int getHitCounterGreen() {
+        return (hitCounterColor >> 8) & 0xFF;
+    }
+
+    public static int getHitCounterBlue() {
+        return hitCounterColor & 0xFF;
+    }
+
+    public static void setHitCounterRed(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (hitCounterColor & 0x00FFFF) | (clamped << 16);
+        if (hitCounterColor == updated) return;
+        hitCounterColor = updated;
+        saveConfigNow();
+    }
+
+    public static void setHitCounterGreen(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (hitCounterColor & 0xFF00FF) | (clamped << 8);
+        if (hitCounterColor == updated) return;
+        hitCounterColor = updated;
+        saveConfigNow();
+    }
+
+    public static void setHitCounterBlue(int value) {
+        int clamped = MathHelper.clamp(value, 0, 255);
+        int updated = (hitCounterColor & 0xFFFF00) | clamped;
+        if (hitCounterColor == updated) return;
+        hitCounterColor = updated;
+        saveConfigNow();
+    }
+
     public static VisualColorMode getRayVisualColorMode() {
         return rayVisualColorMode;
     }
@@ -1886,8 +1942,7 @@ public class PaprikaClient implements ClientModInitializer {
         if (player == null || client.world == null) {
             trailSegments.clear();
             trailStates.clear();
-            hitCounterValue = 0;
-            lastHitCounterTick = -1L;
+            hitCounterTimes.clear();
             return;
         }
 
@@ -2221,10 +2276,21 @@ public class PaprikaClient implements ClientModInitializer {
 
     private static void renderHitCounter(DrawContext drawContext, MinecraftClient client) {
         if (client == null || client.textRenderer == null) return;
-        String text = "Hits: " + hitCounterValue;
+        int hitsPerSecond = getHitCounterPerSecond();
+        String text = "Hits/s: " + hitsPerSecond;
         int x = hitCounterOffsetX;
         int y = hitCounterOffsetY;
-        drawContext.drawTextWithShadow(client.textRenderer, text, x, y, 0xFFE5EEF9);
+        int baseColor = resolveHitCounterColor(0.35F);
+        int glowColor = withAlpha(baseColor, 0.35F);
+        drawContext.drawText(client.textRenderer, text, x - 1, y, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x + 1, y, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x, y - 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x, y + 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x - 1, y - 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x + 1, y - 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x - 1, y + 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, x + 1, y + 1, glowColor, false);
+        drawContext.drawTextWithShadow(client.textRenderer, text, x, y, baseColor);
     }
 
     private static void drawThickRay(
@@ -2539,7 +2605,7 @@ public class PaprikaClient implements ClientModInitializer {
         int rgb = switch (itemOutlineColorMode) {
             case SOLID -> itemOutlineSolidColor;
             case ITEM_AVERAGE -> getAverageItemColor(item.getStack(), seed);
-            case NICK, GRADIENT, NICK_GRADIENT, RAINBOW -> resolveVisualColor(
+            case NICK, GRADIENT, RAINBOW -> resolveVisualColor(
                     seedBaseColor(seed),
                     seed,
                     offset,
@@ -2879,8 +2945,7 @@ public class PaprikaClient implements ClientModInitializer {
 
         trailSegments.clear();
         trailStates.clear();
-        hitCounterValue = 0;
-        lastHitCounterTick = -1L;
+        hitCounterTimes.clear();
         markedPlayerName = null;
         lastAutoAttackTime = 0.0;
         autoAttackNextInterval = 0.0;
@@ -2921,7 +2986,7 @@ public class PaprikaClient implements ClientModInitializer {
         if (client == null || client.player == null || client.world == null) return;
         if (!isAttackSound(sound)) return;
         if (entityId != client.player.getId()) return;
-        incrementHitCounter(client);
+        recordHitForCounter();
     }
 
     public static void handleAttackSound(RegistryEntry<SoundEvent> sound, double x, double y, double z) {
@@ -2931,7 +2996,7 @@ public class PaprikaClient implements ClientModInitializer {
         if (!isAttackSound(sound)) return;
         double distanceSq = client.player.squaredDistanceTo(x, y, z);
         if (distanceSq > 2.25) return;
-        incrementHitCounter(client);
+        recordHitForCounter();
     }
 
     private static boolean isAttackSound(RegistryEntry<SoundEvent> soundEntry) {
@@ -2945,14 +3010,23 @@ public class PaprikaClient implements ClientModInitializer {
                 || sound == SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE;
     }
 
-    private static void incrementHitCounter(MinecraftClient client) {
-        if (client == null || client.world == null) return;
-        long tick = client.world.getTime();
-        if (tick == lastHitCounterTick) return;
-        lastHitCounterTick = tick;
-        if (hitCounterValue < Integer.MAX_VALUE) {
-            hitCounterValue++;
+    private static void recordHitForCounter() {
+        double now = currentTimeSeconds();
+        hitCounterTimes.addLast(now);
+        pruneHitCounter(now);
+    }
+
+    private static void pruneHitCounter(double now) {
+        double cutoff = now - HIT_COUNTER_WINDOW_SECONDS;
+        while (!hitCounterTimes.isEmpty() && hitCounterTimes.peekFirst() < cutoff) {
+            hitCounterTimes.removeFirst();
         }
+    }
+
+    private static int getHitCounterPerSecond() {
+        double now = currentTimeSeconds();
+        pruneHitCounter(now);
+        return hitCounterTimes.size();
     }
 
     private static void tryAutoAttack(MinecraftClient client) {
@@ -4160,6 +4234,15 @@ public class PaprikaClient implements ClientModInitializer {
         return 0xFF000000 | applyEmissive(rgb, 0.9F);
     }
 
+    private static int resolveHitCounterColor(float offset) {
+        int rgb = switch (hitCounterColorMode) {
+            case FIXED -> hitCounterColor;
+            case GRADIENT -> toGradientColor(seedBaseColor(HIT_COUNTER_SEED), HIT_COUNTER_SEED, offset, DEFAULT_STYLE_SATURATION, 1.0F);
+            case RAINBOW -> toRainbowColor(HIT_COUNTER_SEED, offset, DEFAULT_STYLE_SATURATION, 1.0F);
+        };
+        return 0xFF000000 | applyEmissive(rgb, 1.0F);
+    }
+
     private static int toGradientColor(int rgbColor, int seed, float offset, float saturationBoost, float animationSpeed) {
         float[] hsv = rgbToHsv(rgbColor);
         float baseHue = hsv[0];
@@ -4468,6 +4551,7 @@ public class PaprikaClient implements ClientModInitializer {
         skyBottomColor = config.skyBottomColor & 0xFFFFFF;
         trailFixedColor = config.trailFixedColor & 0xFFFFFF;
         autoAttackCircleColor = config.autoAttackCircleColor & 0xFFFFFF;
+        hitCounterColor = config.hitCounterColor & 0xFFFFFF;
         itemOutlineSolidColor = config.itemOutlineSolidColor & 0xFFFFFF;
         menuLastTabId = (config.menuLastTab == null || config.menuLastTab.isBlank()) ? "RAYS" : config.menuLastTab;
         menuScrollOffset = config.menuScrollOffset;
@@ -4487,6 +4571,7 @@ public class PaprikaClient implements ClientModInitializer {
         itemOutlineMode = parseItemOutlineMode(config.itemOutlineMode);
         autoAttackMode = parseAutoAttackMode(config.autoAttackMode);
         autoAttackCircleColorMode = parseCircleColorMode(config.autoAttackCircleColorMode);
+        hitCounterColorMode = parseCircleColorMode(config.hitCounterColorMode);
         autoAttackNextInterval = 0.0;
         trailType = parseTrailType(config.trailType);
         trailOrigin = parseTrailOrigin(config.trailOrigin);
@@ -4614,6 +4699,9 @@ public class PaprikaClient implements ClientModInitializer {
             }
             if ("ITEM".equals(normalized)) {
                 return ItemOutlineColorMode.ITEM_AVERAGE;
+            }
+            if ("NICK_GRADIENT".equals(normalized)) {
+                return ItemOutlineColorMode.GRADIENT;
             }
             return ItemOutlineColorMode.valueOf(normalized);
         } catch (IllegalArgumentException ignored) {
@@ -4743,6 +4831,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.skyBottomColor = skyBottomColor & 0xFFFFFF;
         data.trailFixedColor = trailFixedColor & 0xFFFFFF;
         data.autoAttackCircleColor = autoAttackCircleColor & 0xFFFFFF;
+        data.hitCounterColor = hitCounterColor & 0xFFFFFF;
         data.menuLastTab = menuLastTabId;
         data.menuScrollOffset = menuScrollOffset;
         data.rayOrigin = rayOrigin.name();
@@ -4758,6 +4847,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.espVisualColorMode = espVisualColorMode.name();
         data.autoAttackMode = autoAttackMode.name();
         data.autoAttackCircleColorMode = autoAttackCircleColorMode.name();
+        data.hitCounterColorMode = hitCounterColorMode.name();
         data.trailType = trailType.name();
         data.trailOrigin = trailOrigin.name();
         data.trailColorMode = trailColorMode.name();
@@ -4865,7 +4955,6 @@ public class PaprikaClient implements ClientModInitializer {
     public enum ItemOutlineColorMode {
         NICK(VisualColorMode.NICK),
         GRADIENT(VisualColorMode.GRADIENT),
-        NICK_GRADIENT(VisualColorMode.NICK_GRADIENT),
         RAINBOW(VisualColorMode.RAINBOW),
         SOLID(VisualColorMode.NICK),
         ITEM_AVERAGE(VisualColorMode.NICK);
