@@ -2880,6 +2880,11 @@ public class PaprikaClient implements ClientModInitializer {
             applyAutoAttackAim(client.player, aimPoint);
         }
 
+        if (autoAttackRequireLineOfSight) {
+            autoAttackDebugPoints.clear();
+            findVisibleAimPoint(client.player, target, reach);
+        }
+
         double now = currentTimeSeconds();
         double interval = autoAttackNextInterval > 0.0 ? autoAttackNextInterval : (1.0 / Math.max(0.1, autoAttackRate));
         if (now - lastAutoAttackTime < interval) return;
@@ -4056,33 +4061,68 @@ public class PaprikaClient implements ClientModInitializer {
         if (autoAttackDebugPoints.isEmpty()) return;
         Vec3d cameraPos = context.camera().getPos();
         VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getDebugQuads());
-        float size = 0.04F;
+        float size = 0.045F;
+        Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
 
         for (AutoAttackDebugPoint point : autoAttackDebugPoints) {
             int color = point.visible ? 0xFF33FF66 : 0xFFFF4444;
-            context.matrixStack().push();
-            context.matrixStack().translate(point.pos.x - cameraPos.x, point.pos.y - cameraPos.y, point.pos.z - cameraPos.z);
-            context.matrixStack().multiply(context.camera().getRotation());
-            Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
+            double x = point.pos.x - cameraPos.x;
+            double y = point.pos.y - cameraPos.y;
+            double z = point.pos.z - cameraPos.z;
             addQuad(
                     consumer,
                     matrix,
-                    new Vec3d(-size, -size, 0.0),
-                    new Vec3d(size, -size, 0.0),
-                    new Vec3d(size, size, 0.0),
-                    new Vec3d(-size, size, 0.0),
+                    new Vec3d(x - size, y - size, z - size),
+                    new Vec3d(x + size, y - size, z - size),
+                    new Vec3d(x + size, y + size, z - size),
+                    new Vec3d(x - size, y + size, z - size),
                     color
             );
             addQuad(
                     consumer,
                     matrix,
-                    new Vec3d(-size, size, 0.0),
-                    new Vec3d(size, size, 0.0),
-                    new Vec3d(size, -size, 0.0),
-                    new Vec3d(-size, -size, 0.0),
+                    new Vec3d(x - size, y - size, z + size),
+                    new Vec3d(x + size, y - size, z + size),
+                    new Vec3d(x + size, y + size, z + size),
+                    new Vec3d(x - size, y + size, z + size),
                     color
             );
-            context.matrixStack().pop();
+            addQuad(
+                    consumer,
+                    matrix,
+                    new Vec3d(x - size, y - size, z - size),
+                    new Vec3d(x - size, y + size, z - size),
+                    new Vec3d(x - size, y + size, z + size),
+                    new Vec3d(x - size, y - size, z + size),
+                    color
+            );
+            addQuad(
+                    consumer,
+                    matrix,
+                    new Vec3d(x + size, y - size, z - size),
+                    new Vec3d(x + size, y + size, z - size),
+                    new Vec3d(x + size, y + size, z + size),
+                    new Vec3d(x + size, y - size, z + size),
+                    color
+            );
+            addQuad(
+                    consumer,
+                    matrix,
+                    new Vec3d(x - size, y - size, z - size),
+                    new Vec3d(x + size, y - size, z - size),
+                    new Vec3d(x + size, y - size, z + size),
+                    new Vec3d(x - size, y - size, z + size),
+                    color
+            );
+            addQuad(
+                    consumer,
+                    matrix,
+                    new Vec3d(x - size, y + size, z - size),
+                    new Vec3d(x + size, y + size, z - size),
+                    new Vec3d(x + size, y + size, z + size),
+                    new Vec3d(x - size, y + size, z + size),
+                    color
+            );
         }
     }
 
