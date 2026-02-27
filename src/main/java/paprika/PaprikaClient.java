@@ -82,7 +82,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final float DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
     private static final float DEFAULT_PLAYER_DOLL_SIZE = 70.0F;
     private static final float PLAYER_DOLL_RENDER_SCALE = 0.45F;
-    private static final float PLAYER_DOLL_SMOOTHING = 0.45F;
+    private static final float PLAYER_DOLL_SMOOTHING = 0.75F;
     private static final int PLAYER_DOLL_PADDING = 6;
     private static final float DEFAULT_RAY_LABEL_TEXT_SCALE = 0.75F;
     private static final float DEFAULT_TARGET_HEALTH_TEXT_SCALE = 1.0F;
