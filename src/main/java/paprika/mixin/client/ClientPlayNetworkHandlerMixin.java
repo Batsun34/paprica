@@ -13,6 +13,6 @@ public class ClientPlayNetworkHandlerMixin {
     @Inject(method = "onEntityDamage", at = @At("HEAD"))
     private void paprika$onEntityDamage(EntityDamageS2CPacket packet, CallbackInfo ci) {
         if (packet == null) return;
-        PaprikaClient.handleEntityDamage(packet.sourceCauseId(), packet.sourceDirectId());
+        PaprikaClient.handleEntityDamage(packet.entityId());
     }
 }

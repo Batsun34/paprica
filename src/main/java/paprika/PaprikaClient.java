@@ -98,6 +98,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final float DEFAULT_HAND_FOV_SCALE = 1.0F;
     private static final double HIT_COUNTER_WINDOW_SECONDS = 1.0;
     private static final int HIT_COUNTER_SEED = 0x5A12C3;
+    private static final double HIT_COUNTER_CONFIRM_WINDOW_SECONDS = 0.45;
     private static final float DEFAULT_AUTO_ATTACK_RATE = 6.0F;
     private static final float DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS = 120.0F;
     private static final int DEFAULT_AUTO_ATTACK_CIRCLE_COLOR = 0x4CB1FF;
@@ -237,6 +238,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static int hitCounterOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int hitCounterOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static final Deque<Double> hitCounterTimes = new ArrayDeque<>();
+    private static final Map<Integer, Deque<Double>> pendingHitTimes = new HashMap<>();
     private static String menuLastTabId = "RAYS";
     private static double menuScrollOffset = 0.0;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
@@ -1964,6 +1966,7 @@ public class PaprikaClient implements ClientModInitializer {
             trailSegments.clear();
             trailStates.clear();
             hitCounterTimes.clear();
+            pendingHitTimes.clear();
             return;
         }
 
@@ -2975,6 +2978,7 @@ public class PaprikaClient implements ClientModInitializer {
         trailSegments.clear();
         trailStates.clear();
         hitCounterTimes.clear();
+        pendingHitTimes.clear();
         markedPlayerName = null;
         lastAutoAttackTime = 0.0;
         autoAttackNextInterval = 0.0;
@@ -3009,12 +3013,32 @@ public class PaprikaClient implements ClientModInitializer {
         keyBinding.setBoundKey(InputUtil.UNKNOWN_KEY);
     }
 
-    public static void handleEntityDamage(int sourceCauseId, int sourceDirectId) {
+    public static void recordAttackAttempt(int entityId) {
         if (!hitCounterEnabled || panicActive) return;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.world == null) return;
-        int playerId = client.player.getId();
-        if (sourceCauseId != playerId && sourceDirectId != playerId) return;
+        if (entityId <= 0) return;
+        double now = currentTimeSeconds();
+        Deque<Double> queue = pendingHitTimes.computeIfAbsent(entityId, ignored -> new ArrayDeque<>());
+        queue.addLast(now);
+        prunePendingHits(queue, now);
+    }
+
+    public static void handleEntityDamage(int entityId) {
+        if (!hitCounterEnabled || panicActive) return;
+        if (entityId <= 0) return;
+        double now = currentTimeSeconds();
+        Deque<Double> queue = pendingHitTimes.get(entityId);
+        if (queue == null || queue.isEmpty()) return;
+        prunePendingHits(queue, now);
+        if (queue.isEmpty()) {
+            pendingHitTimes.remove(entityId);
+            return;
+        }
+        queue.removeFirst();
+        if (queue.isEmpty()) {
+            pendingHitTimes.remove(entityId);
+        }
         recordHitForCounter();
     }
 
@@ -3022,6 +3046,13 @@ public class PaprikaClient implements ClientModInitializer {
         double now = currentTimeSeconds();
         hitCounterTimes.addLast(now);
         pruneHitCounter(now);
+    }
+
+    private static void prunePendingHits(Deque<Double> queue, double now) {
+        double cutoff = now - HIT_COUNTER_CONFIRM_WINDOW_SECONDS;
+        while (!queue.isEmpty() && queue.peekFirst() < cutoff) {
+            queue.removeFirst();
+        }
     }
 
     private static void pruneHitCounter(double now) {
