@@ -1039,6 +1039,14 @@ public class PaprikaMenuScreen extends Screen {
                     Control.slider("player_list.max_height", "Max Height", 40.0, 4096.0, 10.0, PaprikaClient::getPlayerListMaxHeight, value -> PaprikaClient.setPlayerListMaxHeight((int) Math.round(value))),
                     Control.slider("player_list.alpha", "Alpha", 0.1, 1.0, 0.1, PaprikaClient::getPlayerListAlphaMultiplier, value -> PaprikaClient.setPlayerListAlphaMultiplier((float) value))
             )));
+            case PLAYER_DOLL -> panels.add(new Panel("Player Doll", 0, List.of(
+                    Control.toggle("player_doll.enabled", "Enabled", PaprikaClient::isPlayerDollEnabled, PaprikaClient::setPlayerDollEnabled),
+                    Control.cycle("player_doll.corner", "Corner", new String[]{"Top Left", "Top Right", "Bottom Left", "Bottom Right"},
+                            () -> PaprikaClient.getPlayerDollCorner().ordinal(),
+                            idx -> PaprikaClient.setPlayerDollCorner(PaprikaClient.HudCorner.values()[idx])
+                    ),
+                    Control.slider("player_doll.size", "Size", 30.0, 240.0, 2.0, PaprikaClient::getPlayerDollSize, value -> PaprikaClient.setPlayerDollSize((float) value))
+            )));
             case MENU -> panels.add(new Panel("Menu", 0, List.of(
                     Control.label("menu.enabled", "Enabled", () -> "Always ON"),
                     Control.keybind("menu.bind", "Menu Key", PaprikaClient.getOpenMenuKeyBinding()),
@@ -1076,6 +1084,7 @@ public class PaprikaMenuScreen extends Screen {
         VIEW("View", ModuleGroup.VISUAL),
         TARGET_HEALTH("Target Health", ModuleGroup.OVERLAY),
         PLAYER_LIST("Player List", ModuleGroup.OVERLAY),
+        PLAYER_DOLL("Player Doll", ModuleGroup.OVERLAY),
         MENU("Menu", ModuleGroup.SYSTEM);
 
         private final String title;

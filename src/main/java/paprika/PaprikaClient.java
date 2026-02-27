@@ -12,6 +12,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.gui.screen.ingame.InventoryScreen;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.RenderPhase;
@@ -53,6 +54,7 @@ import paprika.mixin.client.GameRendererAccessor;
 
 import org.lwjgl.glfw.GLFW;
 import org.joml.Matrix4f;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.io.InputStream;
@@ -78,6 +80,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static final float DEFAULT_PLAYER_LIST_TEXT_SCALE = 0.8F;
     private static final int DEFAULT_PLAYER_LIST_MAX_HEIGHT = 280;
     private static final float DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER = 0.7F;
+    private static final float DEFAULT_PLAYER_DOLL_SIZE = 70.0F;
+    private static final int PLAYER_DOLL_PADDING = 6;
     private static final float DEFAULT_RAY_LABEL_TEXT_SCALE = 0.75F;
     private static final float DEFAULT_TARGET_HEALTH_TEXT_SCALE = 1.0F;
     private static final float DEFAULT_EQUIP_ICON_SCALE = 0.75F;
@@ -142,6 +146,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static boolean playerArmorOverlayEnabled = false;
     private static boolean playerRaysEnabled = false;
     private static boolean playerListEnabled = false;
+    private static boolean playerDollEnabled = false;
     private static boolean playerTrailsEnabled = false;
     private static boolean trailSelfEnabled = true;
     private static boolean trailOthersEnabled = true;
@@ -169,6 +174,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static float distanceTextScale = DEFAULT_RAY_LABEL_TEXT_SCALE;
     private static float armorOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
     private static float heldItemOverlayScale = DEFAULT_EQUIP_ICON_SCALE;
+    private static float playerDollSize = DEFAULT_PLAYER_DOLL_SIZE;
     private static float rayAlpha = 1.0F;
     private static float armorAlpha = 1.0F;
     private static float heldItemAlpha = 1.0F;
@@ -214,6 +220,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static OverlayAnchorMode armorAnchorMode = OverlayAnchorMode.ABOVE_PLAYER;
     private static OverlayAnchorMode heldItemAnchorMode = OverlayAnchorMode.ABOVE_PLAYER;
     private static OverlayAnchorMode distanceAnchorMode = OverlayAnchorMode.RAY_MIDDLE;
+    private static HudCorner playerDollCorner = HudCorner.TOP_LEFT;
     private static VisualColorMode rayVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode armorVisualColorMode = VisualColorMode.NICK;
     private static VisualColorMode heldItemVisualColorMode = VisualColorMode.NICK;
@@ -316,6 +323,38 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setPlayerListEnabled(boolean enabled) {
         if (playerListEnabled == enabled) return;
         playerListEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static boolean isPlayerDollEnabled() {
+        return playerDollEnabled;
+    }
+
+    public static void setPlayerDollEnabled(boolean enabled) {
+        if (playerDollEnabled == enabled) return;
+        playerDollEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static float getPlayerDollSize() {
+        return playerDollSize;
+    }
+
+    public static void setPlayerDollSize(float size) {
+        float clamped = MathHelper.clamp(size, 30.0F, 240.0F);
+        if (Math.abs(playerDollSize - clamped) < 0.0001F) return;
+        playerDollSize = clamped;
+        saveConfigNow();
+    }
+
+    public static HudCorner getPlayerDollCorner() {
+        return playerDollCorner;
+    }
+
+    public static void setPlayerDollCorner(HudCorner corner) {
+        HudCorner updated = corner == null ? HudCorner.TOP_LEFT : corner;
+        if (playerDollCorner == updated) return;
+        playerDollCorner = updated;
         saveConfigNow();
     }
 
@@ -1914,17 +1953,19 @@ public class PaprikaClient implements ClientModInitializer {
         MinecraftClient client = MinecraftClient.getInstance();
         PlayerEntity localPlayer = client.player;
         if (localPlayer == null || client.world == null) return;
+        int screenWidth = drawContext.getScaledWindowWidth();
+        int screenHeight = drawContext.getScaledWindowHeight();
+        if (screenWidth <= 0 || screenHeight <= 0) return;
         if (playerListEnabled) {
             renderPlayerList(drawContext, client, localPlayer);
+        }
+        if (playerDollEnabled) {
+            renderPlayerDoll(drawContext, client, localPlayer, screenWidth, screenHeight);
         }
         if (client.gameRenderer == null) return;
 
         Camera camera = client.gameRenderer.getCamera();
         if (camera == null || !camera.isReady()) return;
-
-        int screenWidth = drawContext.getScaledWindowWidth();
-        int screenHeight = drawContext.getScaledWindowHeight();
-        if (screenWidth <= 0 || screenHeight <= 0) return;
 
         float tickDelta = tickCounter.getTickDelta(false);
         float fov = client.options.getFov().getValue().floatValue();
@@ -2682,6 +2723,7 @@ public class PaprikaClient implements ClientModInitializer {
         playerArmorOverlayEnabled = false;
         playerRaysEnabled = false;
         playerListEnabled = false;
+        playerDollEnabled = false;
         playerTrailsEnabled = false;
         autoAttackEnabled = false;
         autoAttackAimEnabled = false;
@@ -3403,6 +3445,85 @@ public class PaprikaClient implements ClientModInitializer {
         return TARGET_HEALTH_COLOR_LIME;
     }
 
+    private static void renderPlayerDoll(
+            DrawContext drawContext,
+            MinecraftClient client,
+            PlayerEntity player,
+            int screenWidth,
+            int screenHeight
+    ) {
+        if (player == null) return;
+        int size = Math.round(playerDollSize);
+        size = MathHelper.clamp(size, 30, Math.max(30, Math.min(screenWidth, screenHeight)));
+        int maxX = Math.max(PLAYER_DOLL_PADDING, screenWidth - PLAYER_DOLL_PADDING - size);
+        int maxY = Math.max(PLAYER_DOLL_PADDING, screenHeight - PLAYER_DOLL_PADDING - size);
+
+        int x1;
+        int y1;
+        switch (playerDollCorner) {
+            case TOP_RIGHT -> {
+                x1 = maxX;
+                y1 = PLAYER_DOLL_PADDING;
+            }
+            case BOTTOM_LEFT -> {
+                x1 = PLAYER_DOLL_PADDING;
+                y1 = maxY;
+            }
+            case BOTTOM_RIGHT -> {
+                x1 = maxX;
+                y1 = maxY;
+            }
+            case TOP_LEFT -> {
+                x1 = PLAYER_DOLL_PADDING;
+                y1 = PLAYER_DOLL_PADDING;
+            }
+            default -> {
+                x1 = PLAYER_DOLL_PADDING;
+                y1 = PLAYER_DOLL_PADDING;
+            }
+        }
+
+        int x2 = x1 + size;
+        int y2 = y1 + size;
+
+        float yaw = MathHelper.wrapDegrees(player.getYaw());
+        float pitch = MathHelper.clamp(player.getPitch(), -45.0F, 45.0F);
+        float yawClamped = MathHelper.clamp(yaw, -45.0F, 45.0F);
+        float i = (float) Math.toRadians(yawClamped);
+        float j = (float) Math.toRadians(-pitch);
+
+        drawContext.enableScissor(x1, y1, x2, y2);
+
+        float baseYaw = player.bodyYaw;
+        float entityYaw = player.getYaw();
+        float entityPitch = player.getPitch();
+        float prevHeadYaw = player.prevHeadYaw;
+        float headYaw = player.headYaw;
+
+        Quaternionf quaternionf = new Quaternionf().rotateZ((float) Math.PI);
+        Quaternionf quaternionf2 = new Quaternionf().rotateX(j * 20.0F * (float) (Math.PI / 180.0));
+        quaternionf.mul(quaternionf2);
+
+        player.bodyYaw = 180.0F + i * 20.0F;
+        player.setYaw(180.0F + i * 40.0F);
+        player.setPitch(-j * 20.0F);
+        player.headYaw = player.getYaw();
+        player.prevHeadYaw = player.getYaw();
+
+        float scale = player.getScale();
+        Vector3f translation = new Vector3f(0.0F, player.getHeight() / 2.0F + 0.0625F * scale, 0.0F);
+        float renderSize = size / scale;
+        InventoryScreen.drawEntity(drawContext, (x1 + x2) / 2.0F, (y1 + y2) / 2.0F, renderSize, translation, quaternionf, quaternionf2, player);
+
+        player.bodyYaw = baseYaw;
+        player.setYaw(entityYaw);
+        player.setPitch(entityPitch);
+        player.prevHeadYaw = prevHeadYaw;
+        player.headYaw = headYaw;
+
+        drawContext.disableScissor();
+    }
+
     private static void renderPlayerList(DrawContext drawContext, MinecraftClient client, PlayerEntity localPlayer) {
         if (client.textRenderer == null || client.world == null) return;
 
@@ -3846,6 +3967,7 @@ public class PaprikaClient implements ClientModInitializer {
         playerArmorOverlayEnabled = config.playerArmorOverlayEnabled;
         playerRaysEnabled = config.playerRaysEnabled;
         playerListEnabled = config.playerListEnabled;
+        playerDollEnabled = config.playerDollEnabled;
         playerTrailsEnabled = config.playerTrailsEnabled;
         trailSelfEnabled = config.trailSelfEnabled;
         trailOthersEnabled = config.trailOthersEnabled;
@@ -3884,6 +4006,7 @@ public class PaprikaClient implements ClientModInitializer {
         playerListTextScale = MathHelper.clamp(config.playerListTextScale, 0.1F, 2.0F);
         playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
         playerListAlphaMultiplier = MathHelper.clamp(config.playerListAlpha, 0.1F, 1.0F);
+        playerDollSize = MathHelper.clamp(config.playerDollSize, 30.0F, 240.0F);
         rayVisualSaturationBoost = MathHelper.clamp(config.rayVisualSaturationBoost, 1.0F, 2.5F);
         rayVisualAnimationSpeed = MathHelper.clamp(config.rayVisualAnimationSpeed, 0.2F, 4.0F);
         armorVisualSaturationBoost = MathHelper.clamp(config.armorVisualSaturationBoost, 1.0F, 2.5F);
@@ -3923,6 +4046,7 @@ public class PaprikaClient implements ClientModInitializer {
         armorAnchorMode = parseOverlayAnchorMode(config.armorAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
         heldItemAnchorMode = parseOverlayAnchorMode(config.heldItemAnchorMode, OverlayAnchorMode.ABOVE_PLAYER);
         distanceAnchorMode = parseOverlayAnchorMode(config.distanceAnchorMode, OverlayAnchorMode.RAY_MIDDLE);
+        playerDollCorner = parseHudCorner(config.playerDollCorner, HudCorner.TOP_LEFT);
         rayVisualColorMode = parseVisualColorMode(config.rayVisualColorMode, VisualColorMode.NICK);
         armorVisualColorMode = parseVisualColorMode(config.armorVisualColorMode, VisualColorMode.NICK);
         heldItemVisualColorMode = parseVisualColorMode(config.heldItemVisualColorMode, VisualColorMode.NICK);
@@ -3993,6 +4117,18 @@ public class PaprikaClient implements ClientModInitializer {
 
         try {
             return OverlayAnchorMode.valueOf(rawValue.toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ignored) {
+            return fallback;
+        }
+    }
+
+    private static HudCorner parseHudCorner(String rawValue, HudCorner fallback) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return fallback;
+        }
+
+        try {
+            return HudCorner.valueOf(rawValue.toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException ignored) {
             return fallback;
         }
@@ -4097,6 +4233,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.playerArmorOverlayEnabled = playerArmorOverlayEnabled;
         data.playerRaysEnabled = playerRaysEnabled;
         data.playerListEnabled = playerListEnabled;
+        data.playerDollEnabled = playerDollEnabled;
         data.playerTrailsEnabled = playerTrailsEnabled;
         data.trailSelfEnabled = trailSelfEnabled;
         data.trailOthersEnabled = trailOthersEnabled;
@@ -4134,6 +4271,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.playerListTextScale = playerListTextScale;
         data.playerListMaxHeight = playerListMaxHeight;
         data.playerListAlpha = playerListAlphaMultiplier;
+        data.playerDollSize = playerDollSize;
         data.rayVisualSaturationBoost = rayVisualSaturationBoost;
         data.rayVisualAnimationSpeed = rayVisualAnimationSpeed;
         data.armorVisualSaturationBoost = armorVisualSaturationBoost;
@@ -4172,6 +4310,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.armorAnchorMode = armorAnchorMode.name();
         data.heldItemAnchorMode = heldItemAnchorMode.name();
         data.distanceAnchorMode = distanceAnchorMode.name();
+        data.playerDollCorner = playerDollCorner.name();
         data.rayVisualColorMode = rayVisualColorMode.name();
         data.armorVisualColorMode = armorVisualColorMode.name();
         data.heldItemVisualColorMode = heldItemVisualColorMode.name();
@@ -4334,6 +4473,13 @@ public class PaprikaClient implements ClientModInitializer {
     public enum OverlayAnchorMode {
         ABOVE_PLAYER,
         RAY_MIDDLE
+    }
+
+    public enum HudCorner {
+        TOP_LEFT,
+        TOP_RIGHT,
+        BOTTOM_LEFT,
+        BOTTOM_RIGHT
     }
 
     private enum FriendMarkResult {

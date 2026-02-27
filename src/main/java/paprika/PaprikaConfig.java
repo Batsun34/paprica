@@ -73,6 +73,7 @@ public final class PaprikaConfig {
         sanitized.playerArmorOverlayEnabled = data.playerArmorOverlayEnabled;
         sanitized.playerRaysEnabled = data.playerRaysEnabled;
         sanitized.playerListEnabled = data.playerListEnabled;
+        sanitized.playerDollEnabled = data.playerDollEnabled;
         sanitized.playerTrailsEnabled = data.playerTrailsEnabled;
         sanitized.trailSelfEnabled = data.trailSelfEnabled;
         sanitized.trailOthersEnabled = data.trailOthersEnabled;
@@ -114,10 +115,12 @@ public final class PaprikaConfig {
         sanitized.playerListAlpha = MathHelper.clamp(data.playerListAlpha, 0.1F, 1.0F);
         sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
         sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
+        sanitized.playerDollSize = MathHelper.clamp(data.playerDollSize, 30.0F, 240.0F);
         sanitized.rayOrigin = sanitizeRayOrigin(data.rayOrigin);
         sanitized.armorAnchorMode = sanitizeOverlayAnchorMode(data.armorAnchorMode, PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER);
         sanitized.heldItemAnchorMode = sanitizeOverlayAnchorMode(data.heldItemAnchorMode, PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER);
         sanitized.distanceAnchorMode = sanitizeOverlayAnchorMode(data.distanceAnchorMode, PaprikaClient.OverlayAnchorMode.RAY_MIDDLE);
+        sanitized.playerDollCorner = sanitizeHudCorner(data.playerDollCorner, PaprikaClient.HudCorner.TOP_LEFT);
         sanitized.rayVisualColorMode = sanitizeVisualColorMode(data.rayVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.armorVisualColorMode = sanitizeVisualColorMode(data.armorVisualColorMode, PaprikaClient.VisualColorMode.NICK);
         sanitized.heldItemVisualColorMode = sanitizeVisualColorMode(data.heldItemVisualColorMode, PaprikaClient.VisualColorMode.NICK);
@@ -229,6 +232,18 @@ public final class PaprikaConfig {
 
         try {
             return PaprikaClient.OverlayAnchorMode.valueOf(value.toUpperCase(Locale.ROOT)).name();
+        } catch (IllegalArgumentException ignored) {
+            return fallback.name();
+        }
+    }
+
+    private static String sanitizeHudCorner(String value, PaprikaClient.HudCorner fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback.name();
+        }
+
+        try {
+            return PaprikaClient.HudCorner.valueOf(value.toUpperCase(Locale.ROOT)).name();
         } catch (IllegalArgumentException ignored) {
             return fallback.name();
         }
@@ -373,6 +388,7 @@ public final class PaprikaConfig {
         public boolean playerArmorOverlayEnabled = false;
         public boolean playerRaysEnabled = false;
         public boolean playerListEnabled = false;
+        public boolean playerDollEnabled = false;
         public boolean playerTrailsEnabled = false;
         public boolean trailSelfEnabled = true;
         public boolean trailOthersEnabled = true;
@@ -414,10 +430,12 @@ public final class PaprikaConfig {
         public float playerListAlpha = 0.7F;
         public int playerListOffsetX = 6;
         public int playerListOffsetY = 6;
+        public float playerDollSize = 70.0F;
         public String rayOrigin = PaprikaClient.RayOrigin.BOTTOM.name();
         public String armorAnchorMode = PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER.name();
         public String heldItemAnchorMode = PaprikaClient.OverlayAnchorMode.ABOVE_PLAYER.name();
         public String distanceAnchorMode = PaprikaClient.OverlayAnchorMode.RAY_MIDDLE.name();
+        public String playerDollCorner = PaprikaClient.HudCorner.TOP_LEFT.name();
         public String rayVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
         public String armorVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
         public String heldItemVisualColorMode = PaprikaClient.VisualColorMode.NICK.name();
