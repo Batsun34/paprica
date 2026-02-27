@@ -269,6 +269,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final Map<String, String> friendNames = new LinkedHashMap<>();
     private static final Map<String, String> itemFilterIds = new LinkedHashMap<>();
     private static final Map<String, Integer> itemAverageColorCache = new HashMap<>();
+    private static final List<AutoAttackDebugPoint> autoAttackDebugPoints = new ArrayList<>();
     private static java.lang.reflect.Field itemRenderStateLayerCountField;
     private static java.lang.reflect.Field itemRenderStateLayersField;
     private static java.lang.reflect.Field itemRenderStateLayerModelField;
@@ -1806,6 +1807,7 @@ public class PaprikaClient implements ClientModInitializer {
         WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderPlayerTrails);
         WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderItemOutlines);
         WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderMarkedTargetDecal);
+        WorldRenderEvents.AFTER_ENTITIES.register(PaprikaClient::renderAutoAttackDebugPoints);
         ClientTickEvents.END_CLIENT_TICK.register(this::onTick);
     }
 
@@ -2830,7 +2832,10 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private static void tryAutoAttack(MinecraftClient client) {
-        if (!autoAttackEnabled) return;
+        if (!autoAttackEnabled) {
+            autoAttackDebugPoints.clear();
+            return;
+        }
         if (client == null || client.player == null || client.world == null || client.interactionManager == null) return;
         if (client.currentScreen != null) return;
 
@@ -2848,7 +2853,10 @@ public class PaprikaClient implements ClientModInitializer {
         }
 
         PlayerEntity target = selectAutoAttackTarget(client, camera, tickDelta, fov, width, height);
-        if (target == null) return;
+        if (target == null) {
+            autoAttackDebugPoints.clear();
+            return;
+        }
 
         double reach = getAttackReach(client.player);
         Vec3d aimPoint = resolveAutoAttackAimPoint(client.player, target, reach, tickDelta);
@@ -2902,8 +2910,11 @@ public class PaprikaClient implements ClientModInitializer {
 
     private static Vec3d resolveAutoAttackAimPoint(PlayerEntity attacker, PlayerEntity target, double reach, float tickDelta) {
         if (attacker == null || target == null) return null;
+        autoAttackDebugPoints.clear();
         if (!autoAttackRequireLineOfSight) {
-            return target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+            Vec3d point = target.getLerpedPos(tickDelta).add(0.0, target.getHeight() * 0.5, 0.0);
+            autoAttackDebugPoints.add(new AutoAttackDebugPoint(point, true));
+            return point;
         }
         return findVisibleAimPoint(attacker, target, reach);
     }
@@ -2966,7 +2977,9 @@ public class PaprikaClient implements ClientModInitializer {
                 double z = MathHelper.lerp(fz, minZ, maxZ);
                 Vec3d point = new Vec3d(x, y, z);
                 if (eye.squaredDistanceTo(point) > maxDistSq) continue;
-                if (hasLineOfSight(attacker, eye, point)) {
+                boolean visible = hasLineOfSight(attacker, eye, point);
+                autoAttackDebugPoints.add(new AutoAttackDebugPoint(point, visible));
+                if (visible) {
                     return point;
                 }
             }
@@ -4026,6 +4039,40 @@ public class PaprikaClient implements ClientModInitializer {
         return MathHelper.hsvToRgb(hue, saturation, value);
     }
 
+    private static void renderAutoAttackDebugPoints(WorldRenderContext context) {
+        if (autoAttackDebugPoints.isEmpty()) return;
+        Vec3d cameraPos = context.camera().getPos();
+        VertexConsumer consumer = context.consumers().getBuffer(RenderLayer.getDebugQuads());
+        float size = 0.04F;
+
+        for (AutoAttackDebugPoint point : autoAttackDebugPoints) {
+            int color = point.visible ? 0xFF33FF66 : 0xFFFF4444;
+            context.matrixStack().push();
+            context.matrixStack().translate(point.pos.x - cameraPos.x, point.pos.y - cameraPos.y, point.pos.z - cameraPos.z);
+            context.matrixStack().multiply(context.camera().getRotation());
+            Matrix4f matrix = context.matrixStack().peek().getPositionMatrix();
+            addQuad(
+                    consumer,
+                    matrix,
+                    new Vec3d(-size, -size, 0.0),
+                    new Vec3d(size, -size, 0.0),
+                    new Vec3d(size, size, 0.0),
+                    new Vec3d(-size, size, 0.0),
+                    color
+            );
+            addQuad(
+                    consumer,
+                    matrix,
+                    new Vec3d(-size, size, 0.0),
+                    new Vec3d(size, size, 0.0),
+                    new Vec3d(size, -size, 0.0),
+                    new Vec3d(-size, -size, 0.0),
+                    color
+            );
+            context.matrixStack().pop();
+        }
+    }
+
     private static int toRainbowColor(int seed, float offset, float saturationBoost, float animationSpeed) {
         float time = visualTime(animationSpeed);
         float seedUnit = seedToUnit(seed);
@@ -4552,6 +4599,9 @@ public class PaprikaClient implements ClientModInitializer {
     }
 
     private record PlayerListLine(String text, int color) {
+    }
+
+    private record AutoAttackDebugPoint(Vec3d pos, boolean visible) {
     }
 
     private static void loadFriends(List<String> names) {
