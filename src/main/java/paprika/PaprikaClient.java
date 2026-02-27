@@ -202,6 +202,8 @@ public class PaprikaClient implements ClientModInitializer {
     private static float playerListTextScale = DEFAULT_PLAYER_LIST_TEXT_SCALE;
     private static int playerListMaxHeight = DEFAULT_PLAYER_LIST_MAX_HEIGHT;
     private static float playerListAlphaMultiplier = DEFAULT_PLAYER_LIST_ALPHA_MULTIPLIER;
+    private static float hitCounterScale = 1.0F;
+    private static float hitCounterAlpha = 1.0F;
     private static float rayVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
     private static float rayVisualAnimationSpeed = DEFAULT_STYLE_ANIMATION_SPEED;
     private static float armorVisualSaturationBoost = DEFAULT_STYLE_SATURATION;
@@ -1713,6 +1715,28 @@ public class PaprikaClient implements ClientModInitializer {
         saveConfigNow();
     }
 
+    public static float getHitCounterScale() {
+        return hitCounterScale;
+    }
+
+    public static void setHitCounterScale(float scale) {
+        float clamped = MathHelper.clamp(scale, 0.3F, 2.5F);
+        if (Math.abs(hitCounterScale - clamped) < 0.0001F) return;
+        hitCounterScale = clamped;
+        saveConfigNow();
+    }
+
+    public static float getHitCounterAlpha() {
+        return hitCounterAlpha;
+    }
+
+    public static void setHitCounterAlpha(float alpha) {
+        float clamped = MathHelper.clamp(alpha, 0.1F, 1.0F);
+        if (Math.abs(hitCounterAlpha - clamped) < 0.0001F) return;
+        hitCounterAlpha = clamped;
+        saveConfigNow();
+    }
+
     public static RayOrigin getRayOrigin() {
         return rayOrigin;
     }
@@ -2278,19 +2302,27 @@ public class PaprikaClient implements ClientModInitializer {
         if (client == null || client.textRenderer == null) return;
         int hitsPerSecond = getHitCounterPerSecond();
         String text = "Hits/s: " + hitsPerSecond;
+        float scale = MathHelper.clamp(hitCounterScale, 0.3F, 2.5F);
+        float alpha = MathHelper.clamp(hitCounterAlpha, 0.1F, 1.0F);
+        int baseColor = withAlpha(resolveHitCounterColor(0.35F), alpha);
+        int glowColor = withAlpha(baseColor, 0.35F * alpha);
         int x = hitCounterOffsetX;
         int y = hitCounterOffsetY;
-        int baseColor = resolveHitCounterColor(0.35F);
-        int glowColor = withAlpha(baseColor, 0.35F);
-        drawContext.drawText(client.textRenderer, text, x - 1, y, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x + 1, y, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x, y - 1, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x, y + 1, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x - 1, y - 1, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x + 1, y - 1, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x - 1, y + 1, glowColor, false);
-        drawContext.drawText(client.textRenderer, text, x + 1, y + 1, glowColor, false);
-        drawContext.drawTextWithShadow(client.textRenderer, text, x, y, baseColor);
+        int drawX = Math.round(x / scale);
+        int drawY = Math.round(y / scale);
+
+        drawContext.getMatrices().push();
+        drawContext.getMatrices().scale(scale, scale, 1.0F);
+        drawContext.drawText(client.textRenderer, text, drawX - 1, drawY, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX + 1, drawY, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX, drawY - 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX, drawY + 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX - 1, drawY - 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX + 1, drawY - 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX - 1, drawY + 1, glowColor, false);
+        drawContext.drawText(client.textRenderer, text, drawX + 1, drawY + 1, glowColor, false);
+        drawContext.drawTextWithShadow(client.textRenderer, text, drawX, drawY, baseColor);
+        drawContext.getMatrices().pop();
     }
 
     private static void drawThickRay(
@@ -4515,6 +4547,8 @@ public class PaprikaClient implements ClientModInitializer {
         playerListTextScale = MathHelper.clamp(config.playerListTextScale, 0.1F, 2.0F);
         playerListMaxHeight = MathHelper.clamp(config.playerListMaxHeight, 40, MAX_PLAYER_LIST_OFFSET);
         playerListAlphaMultiplier = MathHelper.clamp(config.playerListAlpha, 0.1F, 1.0F);
+        hitCounterScale = MathHelper.clamp(config.hitCounterScale, 0.3F, 2.5F);
+        hitCounterAlpha = MathHelper.clamp(config.hitCounterAlpha, 0.1F, 1.0F);
         playerDollSize = MathHelper.clamp(config.playerDollSize, 30.0F, 240.0F);
         playerDollOffsetX = MathHelper.clamp(config.playerDollOffsetX, -4096, 4096);
         playerDollOffsetY = MathHelper.clamp(config.playerDollOffsetY, -4096, 4096);
@@ -4795,6 +4829,8 @@ public class PaprikaClient implements ClientModInitializer {
         data.playerListTextScale = playerListTextScale;
         data.playerListMaxHeight = playerListMaxHeight;
         data.playerListAlpha = playerListAlphaMultiplier;
+        data.hitCounterScale = hitCounterScale;
+        data.hitCounterAlpha = hitCounterAlpha;
         data.playerDollSize = playerDollSize;
         data.playerDollOffsetX = playerDollOffsetX;
         data.playerDollOffsetY = playerDollOffsetY;

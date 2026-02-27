@@ -117,6 +117,8 @@ public final class PaprikaConfig {
         sanitized.playerListTextScale = MathHelper.clamp(data.playerListTextScale, 0.1F, 2.0F);
         sanitized.playerListMaxHeight = MathHelper.clamp(data.playerListMaxHeight, 40, 4096);
         sanitized.playerListAlpha = MathHelper.clamp(data.playerListAlpha, 0.1F, 1.0F);
+        sanitized.hitCounterScale = MathHelper.clamp(data.hitCounterScale, 0.3F, 2.5F);
+        sanitized.hitCounterAlpha = MathHelper.clamp(data.hitCounterAlpha, 0.1F, 1.0F);
         sanitized.playerListOffsetX = MathHelper.clamp(data.playerListOffsetX, 0, 4096);
         sanitized.playerListOffsetY = MathHelper.clamp(data.playerListOffsetY, 0, 4096);
         sanitized.hitCounterOffsetX = MathHelper.clamp(data.hitCounterOffsetX, -4096, 4096);
@@ -445,6 +447,8 @@ public final class PaprikaConfig {
         public float playerListTextScale = 0.8F;
         public int playerListMaxHeight = 280;
         public float playerListAlpha = 0.7F;
+        public float hitCounterScale = 1.0F;
+        public float hitCounterAlpha = 1.0F;
         public int playerListOffsetX = 6;
         public int playerListOffsetY = 6;
         public int hitCounterOffsetX = 6;

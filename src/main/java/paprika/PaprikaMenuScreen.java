@@ -830,6 +830,14 @@ public class PaprikaMenuScreen extends Screen {
                                 () -> PaprikaClient.getHitCounterOffsetY(),
                                 value -> PaprikaClient.setHitCounterOffsetY((int) Math.round(value))
                         ),
+                        Control.slider("auto_attack.hit_counter_scale", "Scale", 0.3, 2.5, 0.05,
+                                () -> PaprikaClient.getHitCounterScale(),
+                                value -> PaprikaClient.setHitCounterScale((float) value)
+                        ),
+                        Control.slider("auto_attack.hit_counter_alpha", "Alpha", 0.1, 1.0, 0.05,
+                                () -> PaprikaClient.getHitCounterAlpha(),
+                                value -> PaprikaClient.setHitCounterAlpha((float) value)
+                        ),
                         Control.cycle("auto_attack.hit_counter_color", "Color Mode", Control.CIRCLE_COLOR_MODES,
                                 () -> PaprikaClient.getHitCounterColorMode().ordinal(),
                                 idx -> PaprikaClient.setHitCounterColorMode(PaprikaClient.CircleColorMode.values()[idx])
