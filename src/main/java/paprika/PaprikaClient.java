@@ -37,6 +37,9 @@ import net.minecraft.item.ModelTransformationMode;
 import net.minecraft.resource.Resource;
 import net.minecraft.resource.ResourceManager;
 import net.minecraft.registry.Registries;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 import net.minecraft.text.TextColor;
 import net.minecraft.util.Hand;
@@ -238,7 +241,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static int hitCounterOffsetX = DEFAULT_PLAYER_LIST_X;
     private static int hitCounterOffsetY = DEFAULT_PLAYER_LIST_Y;
     private static final Deque<Double> hitCounterTimes = new ArrayDeque<>();
-    private static final Map<Integer, Deque<Double>> pendingHitTimes = new HashMap<>();
+    private static final Deque<Double> pendingHitTimes = new ArrayDeque<>();
     private static String menuLastTabId = "RAYS";
     private static double menuScrollOffset = 0.0;
     private static RayOrigin rayOrigin = RayOrigin.BOTTOM;
@@ -3019,26 +3022,35 @@ public class PaprikaClient implements ClientModInitializer {
         if (client == null || client.player == null || client.world == null) return;
         if (entityId <= 0) return;
         double now = currentTimeSeconds();
-        Deque<Double> queue = pendingHitTimes.computeIfAbsent(entityId, ignored -> new ArrayDeque<>());
-        queue.addLast(now);
-        prunePendingHits(queue, now);
+        pendingHitTimes.addLast(now);
+        prunePendingHits(now);
     }
 
     public static void handleEntityDamage(int entityId) {
         if (!hitCounterEnabled || panicActive) return;
         if (entityId <= 0) return;
-        double now = currentTimeSeconds();
-        Deque<Double> queue = pendingHitTimes.get(entityId);
-        if (queue == null || queue.isEmpty()) return;
-        prunePendingHits(queue, now);
-        if (queue.isEmpty()) {
-            pendingHitTimes.remove(entityId);
-            return;
-        }
-        queue.removeFirst();
-        if (queue.isEmpty()) {
-            pendingHitTimes.remove(entityId);
-        }
+        if (!consumePendingHit()) return;
+        recordHitForCounter();
+    }
+
+    public static void handleAttackSoundFromEntity(RegistryEntry<SoundEvent> sound, int entityId) {
+        if (!hitCounterEnabled || panicActive) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) return;
+        if (!isAttackSound(sound)) return;
+        if (entityId != client.player.getId()) return;
+        if (!consumePendingHit()) return;
+        recordHitForCounter();
+    }
+
+    public static void handleAttackSound(RegistryEntry<SoundEvent> sound, double x, double y, double z) {
+        if (!hitCounterEnabled || panicActive) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.player == null || client.world == null) return;
+        if (!isAttackSound(sound)) return;
+        double distanceSq = client.player.squaredDistanceTo(x, y, z);
+        if (distanceSq > 2.25) return;
+        if (!consumePendingHit()) return;
         recordHitForCounter();
     }
 
@@ -3048,13 +3060,31 @@ public class PaprikaClient implements ClientModInitializer {
         pruneHitCounter(now);
     }
 
-    private static void prunePendingHits(Deque<Double> queue, double now) {
+    private static void prunePendingHits(double now) {
         double cutoff = now - HIT_COUNTER_CONFIRM_WINDOW_SECONDS;
-        while (!queue.isEmpty() && queue.peekFirst() < cutoff) {
-            queue.removeFirst();
+        while (!pendingHitTimes.isEmpty() && pendingHitTimes.peekFirst() < cutoff) {
+            pendingHitTimes.removeFirst();
         }
     }
 
+    private static boolean consumePendingHit() {
+        double now = currentTimeSeconds();
+        prunePendingHits(now);
+        if (pendingHitTimes.isEmpty()) return false;
+        pendingHitTimes.removeFirst();
+        return true;
+    }
+
+    private static boolean isAttackSound(RegistryEntry<SoundEvent> soundEntry) {
+        if (soundEntry == null) return false;
+        SoundEvent sound = soundEntry.value();
+        return sound == SoundEvents.ENTITY_PLAYER_ATTACK_STRONG
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_WEAK
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_CRIT
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_KNOCKBACK
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_SWEEP
+                || sound == SoundEvents.ENTITY_PLAYER_ATTACK_NODAMAGE;
+    }
     private static void pruneHitCounter(double now) {
         double cutoff = now - HIT_COUNTER_WINDOW_SECONDS;
         while (!hitCounterTimes.isEmpty() && hitCounterTimes.peekFirst() < cutoff) {
