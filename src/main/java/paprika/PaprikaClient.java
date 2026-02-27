@@ -118,7 +118,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static final int TARGET_HEALTH_COLOR_RED = 0xFFFF4F4F;
     private static final int TARGET_HEALTH_COLOR_DARK_RED = 0xFF7A0019;
     private static final float TWO_PI = (float) (Math.PI * 2.0);
-    private static final float AUTO_ATTACK_AIM_SMOOTHING = 0.12F;
+    private static final float DEFAULT_AUTO_ATTACK_AIM_SMOOTHING = 0.12F;
     private static final Identifier HUD_OVERLAY_LAYER_ID = Identifier.of("paprika", "hud_overlay");
     private static final RenderLayer ITEM_OUTLINE_QUADS = RenderLayer.of(
             "paprika_item_outline_quads",
@@ -215,6 +215,7 @@ public class PaprikaClient implements ClientModInitializer {
     private static float autoAttackCircleRadius = DEFAULT_AUTO_ATTACK_CIRCLE_RADIUS;
     private static float autoAttackMaxDistance = 3.0F;
     private static double autoAttackNextInterval = 0.0;
+    private static float autoAttackAimSmoothing = DEFAULT_AUTO_ATTACK_AIM_SMOOTHING;
     private static boolean jumpBoostEnabled = false;
     private static float jumpBoostHeight = 0.5F;
     private static float handFovScale = DEFAULT_HAND_FOV_SCALE;
@@ -461,6 +462,17 @@ public class PaprikaClient implements ClientModInitializer {
     public static void setAutoAttackAimEnabled(boolean enabled) {
         if (autoAttackAimEnabled == enabled) return;
         autoAttackAimEnabled = enabled;
+        saveConfigNow();
+    }
+
+    public static float getAutoAttackAimSmoothing() {
+        return autoAttackAimSmoothing;
+    }
+
+    public static void setAutoAttackAimSmoothing(float value) {
+        float clamped = MathHelper.clamp(value, 0.02F, 0.6F);
+        if (Math.abs(autoAttackAimSmoothing - clamped) < 0.0001F) return;
+        autoAttackAimSmoothing = clamped;
         saveConfigNow();
     }
 
@@ -2777,6 +2789,7 @@ public class PaprikaClient implements ClientModInitializer {
         autoAttackEnabled = false;
         autoAttackAimEnabled = false;
         autoAttackExtendReachEnabled = false;
+        autoAttackAimSmoothing = DEFAULT_AUTO_ATTACK_AIM_SMOOTHING;
         itemOutlineEnabled = false;
         targetHealthOverlayEnabled = false;
         distanceDisplayEnabled = false;
@@ -2894,8 +2907,8 @@ public class PaprikaClient implements ClientModInitializer {
         float yawDelta = MathHelper.wrapDegrees(targetYaw - yaw);
         float pitchDelta = targetPitch - pitch;
 
-        float nextYaw = yaw + yawDelta * AUTO_ATTACK_AIM_SMOOTHING;
-        float nextPitch = pitch + pitchDelta * AUTO_ATTACK_AIM_SMOOTHING;
+        float nextYaw = yaw + yawDelta * autoAttackAimSmoothing;
+        float nextPitch = pitch + pitchDelta * autoAttackAimSmoothing;
         player.setYaw(nextYaw);
         player.setPitch(MathHelper.clamp(nextPitch, -90.0F, 90.0F));
     }
@@ -4191,6 +4204,7 @@ public class PaprikaClient implements ClientModInitializer {
         autoAttackEnabled = config.autoAttackEnabled;
         autoAttackAimEnabled = config.autoAttackAimEnabled;
         autoAttackExtendReachEnabled = config.autoAttackExtendReachEnabled;
+        autoAttackAimSmoothing = MathHelper.clamp(config.autoAttackAimSmoothing, 0.02F, 0.6F);
         itemOutlineEnabled = config.itemOutlineEnabled;
         loadFriends(config.friendNames);
         loadItemFilters(config.itemFilterIds);
@@ -4462,6 +4476,7 @@ public class PaprikaClient implements ClientModInitializer {
         data.autoAttackEnabled = autoAttackEnabled;
         data.autoAttackAimEnabled = autoAttackAimEnabled;
         data.autoAttackExtendReachEnabled = autoAttackExtendReachEnabled;
+        data.autoAttackAimSmoothing = autoAttackAimSmoothing;
         data.itemOutlineEnabled = itemOutlineEnabled;
         data.jumpBoostEnabled = jumpBoostEnabled;
         data.targetHealthOverlayEnabled = targetHealthOverlayEnabled;
