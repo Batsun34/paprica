@@ -1,121 +1,205 @@
-Creative Commons Legal Code
+Paprika Non-Commercial Attribution License 1.0
 
-CC0 1.0 Universal
+Copyright (c) 2026 Batsun
+Project: Paprika
 
-    CREATIVE COMMONS CORPORATION IS NOT A LAW FIRM AND DOES NOT PROVIDE
-    LEGAL SERVICES. DISTRIBUTION OF THIS DOCUMENT DOES NOT CREATE AN
-    ATTORNEY-CLIENT RELATIONSHIP. CREATIVE COMMONS PROVIDES THIS
-    INFORMATION ON AN "AS-IS" BASIS. CREATIVE COMMONS MAKES NO WARRANTIES
-    REGARDING THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS
-    PROVIDED HEREUNDER, AND DISCLAIMS LIABILITY FOR DAMAGES RESULTING FROM
-    THE USE OF THIS DOCUMENT OR THE INFORMATION OR WORKS PROVIDED
-    HEREUNDER.
+This license applies to Paprika and to all source code, binaries, assets,
+documentation, and other materials distributed with Paprika unless a file
+or component states that different terms apply.
 
-Statement of Purpose
+By using, copying, modifying, distributing, or creating a work based on
+Paprika, you agree to the terms below.
 
-The laws of most jurisdictions throughout the world automatically confer
-exclusive Copyright and Related Rights (defined below) upon the creator
-and subsequent owner(s) (each and all, an "owner") of an original work of
-authorship and/or a database (each, a "Work").
+1. Permission
 
-Certain owners wish to permanently relinquish those rights to a Work for
-the purpose of contributing to a commons of creative, cultural and
-scientific works ("Commons") that the public can reliably and without fear
-of later claims of infringement build upon, modify, incorporate in other
-works, reuse and redistribute as freely as possible in any form whatsoever
-and for any purposes, including without limitation commercial purposes.
-These owners may contribute to the Commons to promote the ideal of a free
-culture and the further production of creative, cultural and scientific
-works, or to gain reputation or greater distribution for their Work in
-part through the use and efforts of others.
+Subject to the conditions of this license, you are granted a non-exclusive,
+worldwide, royalty-free license to:
 
-For these and/or other purposes and motivations, and without any
-expectation of additional consideration or compensation, the person
-associating CC0 with a Work (the "Affirmer"), to the extent that he or she
-is an owner of Copyright and Related Rights in the Work, voluntarily
-elects to apply CC0 to the Work and publicly distribute the Work under its
-terms, with knowledge of his or her Copyright and Related Rights in the
-Work and the meaning and intended legal effect of CC0 on those rights.
+a. use Paprika for personal, educational, research, hobby, and other
+   non-commercial purposes;
 
-1. Copyright and Related Rights. A Work made available under CC0 may be
-protected by copyright and related or neighboring rights ("Copyright and
-Related Rights"). Copyright and Related Rights include, but are not
-limited to, the following:
+b. inspect, study, copy, and modify Paprika;
 
-  i. the right to reproduce, adapt, distribute, perform, display,
-     communicate, and translate a Work;
- ii. moral rights retained by the original author(s) and/or performer(s);
-iii. publicity and privacy rights pertaining to a person's image or
-     likeness depicted in a Work;
- iv. rights protecting against unfair competition in regards to a Work,
-     subject to the limitations in paragraph 4(a), below;
-  v. rights protecting the extraction, dissemination, use and reuse of data
-     in a Work;
- vi. database rights (such as those arising under Directive 96/9/EC of the
-     European Parliament and of the Council of 11 March 1996 on the legal
-     protection of databases, and under any national implementation
-     thereof, including any amended or successor version of such
-     directive); and
-vii. other similar, equivalent or corresponding rights throughout the
-     world based on applicable law or treaty, and any national
-     implementations thereof.
+c. create derivative works based on Paprika;
 
-2. Waiver. To the greatest extent permitted by, but not in contravention
-of, applicable law, Affirmer hereby overtly, fully, permanently,
-irrevocably and unconditionally waives, abandons, and surrenders all of
-Affirmer's Copyright and Related Rights and associated claims and causes
-of action, whether now known or unknown (including existing as well as
-future claims and causes of action), in the Work (i) in all territories
-worldwide, (ii) for the maximum duration provided by applicable law or
-treaty (including future time extensions), (iii) in any current or future
-medium and for any number of copies, and (iv) for any purpose whatsoever,
-including without limitation commercial, advertising or promotional
-purposes (the "Waiver"). Affirmer makes the Waiver for the benefit of each
-member of the public at large and to the detriment of Affirmer's heirs and
-successors, fully intending that such Waiver shall not be subject to
-revocation, rescission, cancellation, termination, or any other legal or
-equitable action to disrupt the quiet enjoyment of the Work by the public
-as contemplated by Affirmer's express Statement of Purpose.
+d. reuse parts, fragments, classes, methods, algorithms, or other portions
+   of Paprika source code in your own non-commercial projects; and
 
-3. Public License Fallback. Should any part of the Waiver for any reason
-be judged legally invalid or ineffective under applicable law, then the
-Waiver shall be preserved to the maximum extent permitted taking into
-account Affirmer's express Statement of Purpose. In addition, to the
-extent the Waiver is so judged Affirmer hereby grants to each affected
-person a royalty-free, non transferable, non sublicensable, non exclusive,
-irrevocable and unconditional license to exercise Affirmer's Copyright and
-Related Rights in the Work (i) in all territories worldwide, (ii) for the
-maximum duration provided by applicable law or treaty (including future
-time extensions), (iii) in any current or future medium and for any number
-of copies, and (iv) for any purpose whatsoever, including without
-limitation commercial, advertising or promotional purposes (the
-"License"). The License shall be deemed effective as of the date CC0 was
-applied by Affirmer to the Work. Should any part of the License for any
-reason be judged legally invalid or ineffective under applicable law, such
-partial invalidity or ineffectiveness shall not invalidate the remainder
-of the License, and in such case Affirmer hereby affirms that he or she
-will not (i) exercise any of his or her remaining Copyright and Related
-Rights in the Work or (ii) assert any associated claims and causes of
-action with respect to the Work, in either case contrary to Affirmer's
-express Statement of Purpose.
+e. redistribute Paprika, modified versions of Paprika, and non-commercial
+   works containing Paprika code.
 
-4. Limitations and Disclaimers.
+2. Non-Commercial Use Only
 
- a. No trademark or patent rights held by Affirmer are waived, abandoned,
-    surrendered, licensed or otherwise affected by this document.
- b. Affirmer offers the Work as-is and makes no representations or
-    warranties of any kind concerning the Work, express, implied,
-    statutory or otherwise, including without limitation warranties of
-    title, merchantability, fitness for a particular purpose, non
-    infringement, or the absence of latent or other defects, accuracy, or
-    the present or absence of errors, whether or not discoverable, all to
-    the greatest extent permissible under applicable law.
- c. Affirmer disclaims responsibility for clearing rights of other persons
-    that may apply to the Work or any use thereof, including without
-    limitation any person's Copyright and Related Rights in the Work.
-    Further, Affirmer disclaims responsibility for obtaining any necessary
-    consents, permissions or other rights required for any use of the
-    Work.
- d. Affirmer understands and acknowledges that Creative Commons is not a
-    party to this document and has no duty or obligation with respect to
-    this CC0 or use of the Work.
+You may exercise the permissions above only for Non-Commercial Use.
+
+You may not use Paprika, modified versions of Paprika, or code derived from
+Paprika in connection with a commercial product, commercial service,
+paid access, paid feature, subscription, sale, license fee, advertising
+revenue, sponsorship arrangement, work performed for compensation, or any
+other activity primarily intended for commercial advantage or monetary
+compensation.
+
+You may not sell, rent, sublicense for a fee, or otherwise commercially
+exploit Paprika or code derived from Paprika without separate written
+permission from Batsun.
+
+Commercial use may be permitted under a separate license granted by Batsun.
+
+3. Attribution
+
+Attribution to the original project and author is a condition of this license.
+
+If you distribute a user-facing application, game, mod, client, plugin,
+website, tool, or other interactive product that contains or is derived from
+any portion of Paprika source code, you must provide visible attribution in
+the product's user interface.
+
+The attribution must:
+
+a. include the project name "Paprika";
+
+b. include the text "By Batsun";
+
+c. be reasonably visible and readable to an ordinary user;
+
+d. appear in a user-accessible location such as the main menu, settings
+   screen, credits screen, about screen, information screen, or another
+   comparable interface; and
+
+e. not be hidden, removed, obscured, made intentionally difficult to find,
+   or presented in a misleading way.
+
+Examples of acceptable attribution include:
+
+    Paprika — By Batsun
+
+or:
+
+    Contains code from Paprika — By Batsun
+
+If the work has no user interface, the attribution requirement must instead
+be satisfied by prominently including both "Paprika" and "By Batsun" in the
+project's README, documentation, package metadata, or another place normally
+seen by recipients of the work.
+
+4. Preservation of Notices
+
+Any redistribution of Paprika source code, modified Paprika source code, or
+source code containing portions of Paprika must include:
+
+a. this license;
+
+b. the copyright notice "Copyright (c) 2026 Batsun"; and
+
+c. the attribution identifying the original project as "Paprika".
+
+You may add your own copyright notices for your own contributions, but you
+may not remove or replace the notices required above.
+
+5. Modified and Derivative Works
+
+You may modify Paprika and distribute modified or derivative works for
+Non-Commercial Use, provided that:
+
+a. the Paprika-derived portions remain subject to this license;
+
+b. you clearly indicate that the work has been modified if you distribute
+   it as a modified version of Paprika;
+
+c. you do not imply that Batsun created, approved, endorsed, or supports your
+   modifications unless Batsun has explicitly stated so in writing; and
+
+d. you comply with the attribution requirements in Section 3.
+
+This license does not require unrelated, independently written code in a
+larger combined work to be licensed under these terms, provided that the
+Paprika-derived portions remain subject to this license.
+
+6. No Trademark or Endorsement Rights
+
+This license does not grant you ownership of the names "Paprika" or
+"Batsun", nor does it grant permission to falsely imply endorsement,
+sponsorship, authorship, or official status.
+
+You may use those names only as necessary to provide the attribution required
+by this license or to make truthful statements about compatibility,
+derivation, or origin.
+
+7. Third-Party Components
+
+Paprika may include or depend on third-party software, libraries, assets, or
+other materials governed by their own licenses.
+
+This license applies only to material for which Batsun has the right to grant
+these permissions. You are responsible for complying with applicable
+third-party licenses as well.
+
+8. Fair Use and Other Legal Rights
+
+Nothing in this license restricts rights that you may have under applicable
+law without permission from the copyright holder, including fair use, fair
+dealing, or equivalent legal exceptions.
+
+9. Termination
+
+Your rights under this license terminate automatically if you materially
+violate its terms.
+
+For a first violation, your rights may be restored if, within 30 days after
+receiving written notice of the violation, you:
+
+a. stop the violation;
+
+b. correct the violation where reasonably possible; and
+
+c. take reasonable steps to prevent the same violation from recurring.
+
+A repeated or intentional violation does not have to be offered this cure
+period.
+
+10. No Warranty
+
+PAPRIKA IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, BATSUN SHALL NOT BE LIABLE
+FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT OF, OR IN
+CONNECTION WITH PAPRIKA OR THE USE OF PAPRIKA.
+
+11. Separate Commercial Licensing
+
+Nothing in this license prevents Batsun from offering Paprika, any part of
+Paprika, or future versions of Paprika under different terms, including
+commercial licenses.
+
+Permission for commercial use must be obtained separately in writing from
+Batsun.
+
+12. Definitions
+
+"Paprika" means the software project named Paprika and the materials released
+by Batsun under this license.
+
+"Paprika code" means any source code originating from Paprika, including
+modified, translated, adapted, copied, or incorporated portions of that code.
+
+"Derivative Work" means a work based on, adapted from, modified from, or
+containing copyrightable portions of Paprika.
+
+"Non-Commercial Use" means use that is not primarily intended for or directed
+toward commercial advantage or monetary compensation.
+
+"User Interface" or "UI" means any visual or interactive interface made
+available to an end user of a product.
+
+13. Entire License
+
+This document states the permissions granted by Batsun for Paprika under the
+Paprika Non-Commercial Attribution License 1.0.
+
+No additional permission is granted by implication.
+
+---
+
+SPDX-License-Identifier: LicenseRef-Paprika-NC-Attribution-1.0
